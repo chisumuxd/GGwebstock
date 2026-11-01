@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My OA</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  [hidden] { display: none !important; }
+  body { font-family: system-ui, sans-serif; height: 100dvh; display: flex; background: #f5f6f7; }
+  input, button, textarea { font: inherit; padding: 10px 12px; border: 1px solid #ccc; border-radius: 20px; }
+  button { background: #06c755; color: #fff; border: 0; cursor: pointer; }
+  #login { margin: auto; display: flex; flex-direction: column; gap: 8px; width: 280px; }
+  #login h1 { color: #06c755; text-align: center; }
+  #app { display: flex; flex: 1; min-width: 0; }
+  #side { width: 320px; background: #fff; border-right: 1px solid #e5e5e5; display: flex; flex-direction: column; }
+  #side header { padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e5e5; }
+  #side header button { background: none; color: #888; padding: 4px; }
+  #search { width: 100%; padding: 8px 12px; }
+  #list { overflow-y: auto; flex: 1; }
+  .contact { display: flex; gap: 10px; padding: 12px 16px; align-items: center; cursor: pointer; }
+  .contact:hover, .contact.active { background: #f0f0f0; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: #06c755; color: #fff; display: grid; place-items: center; font-weight: bold; flex: none; }
+  .meta { flex: 1; min-width: 0; }
+  .meta b, .meta small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta small { color: #888; }
+  .badge { background: #06c755; color: #fff; border-radius: 10px; padding: 0 7px; font-size: 12px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .tag { background: #e6f9ee; color: #05a847; border-radius: 10px; padding: 1px 8px; font-size: 12px; }
+  .tag button { background: none; color: inherit; padding: 0 0 0 4px; }
+  #chat { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #head { padding: 12px 16px; background: #fff; border-bottom: 1px solid #e5e5e5; font-weight: bold; display: flex; gap: 8px; align-items: center; }
+  #back { display: none; background: none; color: #333; padding: 0 8px 0 0; font-size: 20px; }
+  #info { background: #fff; border-bottom: 1px solid #e5e5e5; padding: 8px 16px; }
+  #info summary { cursor: pointer; color: #555; font-size: 14px; }
+  #info .box { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+  #tagInput { padding: 6px 12px; width: 200px; }
+  #note { border-radius: 8px; min-height: 70px; resize: vertical; }
+  #msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 6px; background: #8cabd9; }
+  .msg { max-width: 70%; padding: 8px 12px; border-radius: 16px; background: #fff; align-self: flex-start; white-space: pre-wrap; word-break: break-word; }
+  .msg.out { background: #85e249; align-self: flex-end; }
+  .msg time { display: block; font-size: 11px; color: #666; margin-top: 2px; }
+  #send { display: flex; gap: 8px; padding: 10px; background: #fff; }
+  #send input { flex: 1; min-width: 0; }
+  #empty { margin: auto; color: #888; }
+  @media (max-width: 700px) {
+    #side { width: 100%; }
+    #app.open #side, #app:not(.open) #chat { display: none; }
+    #back { display: inline; }
+  }
+</style>
+</head>
+<body>
+<form id="login" hidden>
+  <h1>My OA</h1>
+  <input id="email" type="email" placeholder="อีเมล" autocomplete="username" required>
+  <input id="password" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" required>
+  <button>เข้าสู่ระบบ</button>
+</form>
+
+<div id="app" hidden>
+  <aside id="side">
+    <header>
+      <b>แชท</b><button id="logout">ออกจากระบบ</button>
+      <input id="search" type="search" placeholder="ค้นหาชื่อ / แท็ก">
+    </header>
+    <div id="list"></div>
+  </aside>
+  <main id="chat">
+    <p id="empty">เลือกแชททางซ้าย</p>
+    <div id="head" hidden><button id="back" aria-label="กลับ">‹</button><span id="name"></span></div>
+    <details id="info" hidden>
+      <summary>แท็ก & โน้ต</summary>
+      <div class="box">
+        <div id="tags" class="tags"></div>
+        <form id="addTag"><input id="tagInput" placeholder="+ เพิ่มแท็ก (Enter)" list="allTags" autocomplete="off"></form>
+        <datalist id="allTags"></datalist>
+        <textarea id="note" placeholder="โน้ต (ลูกค้าไม่เห็น) — บันทึกเมื่อคลิกออก"></textarea>
+      </div>
+    </details>
+    <div id="msgs" hidden></div>
+    <form id="send" hidden>
+      <input id="text" placeholder="พิมพ์ข้อความ" autocomplete="off">
+      <button>ส่ง</button>
+    </form>
+  </main>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://yuhpiwakmfczpovffgtx.supabase.co'; // ← แก้
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1aHBpd2FrbWZjenBvdmZmZ3R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MDkzMzAsImV4cCI6MjEwOTA4NTMzMH0.VH4JN-QqGVXPyWPnKRCr7aADihGvFNtqrZYs4XkCqJw';     // ← แก้
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = (id) => document.getElementById(id);
+let contacts = [];
+let current = null;
+
+// textContent เท่านั้น — ข้อความลูกค้าห้ามเข้า innerHTML
+function h(tag, cls = '', text = '') {
+  const el = document.createElement(tag);
+  el.className = cls;
+  el.textContent = text;
+  return el;
+}
+
+function chips(tags, onRemove) {
+  return tags.map((t) => {
+    const chip = h('span', 'tag', t);
+    if (onRemove) {
+      const x = h('button', '', '×');
+      x.type = 'button';
+      x.onclick = () => onRemove(t);
+      chip.append(x);
+    }
+    return chip;
+  });
+}
+
+async function start() {
+  const { data: { session } } = await db.auth.getSession();
+  $('login').hidden = !!session;
+  $('app').hidden = !session;
+  if (!session) return;
+  loadContacts();
+  db.channel('oa')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, loadContacts)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: m }) => {
+      if (m.contact_id !== current?.id) return;
+      addMsg(m);
+      if (m.direction === 'in') markRead();
+    })
+    .subscribe();
+}
+
+async function loadContacts() {
+  const { data, error } = await db.from('contacts').select().order('last_at', { ascending: false, nullsFirst: false });
+  if (error) return alert(error.message);
+  contacts = data;
+  const unread = data.reduce((n, c) => n + c.unread, 0);
+  document.title = (unread ? `(${unread}) ` : '') + 'My OA';
+  $('allTags').replaceChildren(...[...new Set(data.flatMap((c) => c.tags))].map((t) => {
+    const o = h('option');
+    o.value = t;
+    return o;
+  }));
+  renderList();
+}
+
+function renderList() {
+  const q = $('search').value.trim().toLowerCase();
+  $('list').replaceChildren(...contacts
+    .filter((c) => !q || c.name.toLowerCase().includes(q) || c.tags.some((t) => t.toLowerCase().includes(q)))
+    .map((c) => {
+      const el = h('div', 'contact' + (c.id === current?.id ? ' active' : ''));
+      const meta = h('div', 'meta');
+      const tags = h('div', 'tags');
+      tags.append(...chips(c.tags));
+      meta.append(h('b', '', c.name), h('small', '', c.last_message ?? ''), tags);
+      el.append(h('div', 'avatar', c.name[0]), meta);
+      if (c.unread) el.append(h('span', 'badge', c.unread));
+      el.onclick = () => openChat(c);
+      return el;
+    }));
+}
+
+async function openChat(c) {
+  current = c;
+  $('app').classList.add('open');
+  $('empty').hidden = true;
+  $('head').hidden = $('info').hidden = $('msgs').hidden = $('send').hidden = false;
+  $('name').textContent = c.name;
+  $('note').value = c.note;
+  renderTags();
+  // ponytail: โหลด 200 ข้อความล่าสุด — เพิ่ม "โหลดเก่ากว่า" ถ้าต้องย้อนไกล
+  const { data } = await db.from('messages').select().eq('contact_id', c.id)
+    .order('created_at', { ascending: false }).limit(200);
+  $('msgs').replaceChildren();
+  data.reverse().forEach(addMsg);
+  await markRead();
+  loadContacts();
+  $('text').focus();
+}
+
+function addMsg(m) {
+  const el = h('div', 'msg ' + m.direction, m.text);
+  el.append(h('time', '', new Date(m.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })));
+  $('msgs').append(el);
+  $('msgs').scrollTop = $('msgs').scrollHeight;
+}
+
+async function markRead() {
+  await db.from('contacts').update({ unread: 0 }).eq('id', current.id);
+}
+
+function renderTags() {
+  $('tags').replaceChildren(...chips(current.tags, (t) => saveTags(current.tags.filter((v) => v !== t))));
+}
+
+async function saveTags(tags) {
+  current.tags = tags;
+  renderTags();
+  const { error } = await db.from('contacts').update({ tags }).eq('id', current.id);
+  if (error) alert('บันทึกแท็กไม่สำเร็จ: ' + error.message);
+}
+
+$('addTag').onsubmit = (e) => {
+  e.preventDefault();
+  const t = $('tagInput').value.trim();
+  $('tagInput').value = '';
+  if (t && !current.tags.includes(t)) saveTags([...current.tags, t]);
+};
+
+// change = ตอนคลิกออกจากช่อง (เกิดก่อนคลิกแชทอื่น current จึงยังเป็นคนเดิม)
+$('note').onchange = async () => {
+  current.note = $('note').value;
+  const { error } = await db.from('contacts').update({ note: current.note }).eq('id', current.id);
+  if (error) alert('บันทึกโน้ตไม่สำเร็จ: ' + error.message);
+};
+
+$('search').oninput = renderList;
+
+$('login').onsubmit = async (e) => {
+  e.preventDefault();
+  const { error } = await db.auth.signInWithPassword({ email: $('email').value, password: $('password').value });
+  if (error) return alert(error.message);
+  start();
+};
+
+$('send').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('text').value.trim();
+  if (!text) return;
+  $('text').value = '';
+  // ข้อความจะโผล่เองผ่าน realtime
+  const { error } = await db.from('messages').insert({ contact_id: current.id, direction: 'out', text });
+  if (error) { alert('ส่งไม่สำเร็จ: ' + error.message); $('text').value = text; }
+};
+
+$('back').onclick = () => { current = null; $('app').classList.remove('open'); renderList(); };
+$('logout').onclick = () => db.auth.signOut().then(() => location.reload());
+
+start();
+</script>
+</body>
+</html>
