@@ -1,0 +1,1500 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ร้านค้า</title>
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="slipbot.js?v=2"></script>
+<style>
+  /* โทนสี: พื้นกรมท่าเข้ม · ปุ่ม/เงิน = ไล่เขียวมรกต→ฟ้า · ไฮไลต์ = ไล่ม่วง→ชมพู */
+  :root { color-scheme: dark; --bg: #0a0f1f; --card: #121a2e; --card2: #1a2440; --line: #26325a; --txt: #eef2ff; --muted: #95a3c4;
+    --ac: #10b981; --ac-rgb: 16, 185, 129; --ink: #04121a; --vio: #a78bfa; --warn: #f59e0b; --bad: #f43f5e;
+    --grad: linear-gradient(135deg, #10b981, #06b6d4); --grad2: linear-gradient(135deg, #8b5cf6, #ec4899); }
+  * { box-sizing: border-box; margin: 0; }
+  [hidden] { display: none !important; }
+  body { font-family: Prompt, system-ui, sans-serif; color: var(--txt); min-height: 100dvh; background: var(--bg) fixed;
+    background-image: radial-gradient(900px 500px at 0% 0%, rgba(139, 92, 246, .18), transparent 60%), radial-gradient(800px 500px at 100% 100%, rgba(6, 182, 212, .14), transparent 60%); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .field { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; outline: none; }
+  .field:focus { border-color: var(--ac); }
+  .btn { background: var(--grad); color: var(--ink); border: 0; border-radius: 10px; padding: 10px 16px; font-weight: 600; box-shadow: 0 4px 14px rgba(var(--ac-rgb), .3); }
+  .btn:not(:disabled):hover { filter: brightness(1.08); }
+  .btn:disabled { background: var(--line); color: var(--muted); cursor: default; box-shadow: none; }
+  .ghost { background: none; border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; font-size: 13px; }
+  .ghost:hover { border-color: var(--ac); }
+  .muted { color: var(--muted); font-size: 13px; }
+  .plus { color: var(--ac); }
+  .minus { color: var(--bad); }
+
+  .center { min-height: 100dvh; display: grid; place-items: center; padding: 16px; }
+  .auth { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 28px; width: min(360px, 100%); display: flex; flex-direction: column; gap: 12px; text-align: center; }
+  .auth h1 { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .link { background: none; border: 0; color: var(--ac); }
+
+  header { position: sticky; top: 0; z-index: 5; background: rgba(10, 15, 31, .82); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1200px; margin: auto; padding: 10px 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  #brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+  #brand img, .auth-logo { height: 34px; width: auto; }
+  .auth-logo { height: 64px; align-self: center; }
+  #logo { font-weight: 700; font-size: 20px; white-space: nowrap; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #shopSel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; max-width: 200px; }
+  #credit { background: rgba(var(--ac-rgb), .12); border: 1px solid rgba(var(--ac-rgb), .45); color: #34d399; border-radius: 999px; padding: 6px 14px; font-weight: 600; white-space: nowrap; }
+  .bar a { color: var(--txt); text-decoration: none; white-space: nowrap; }
+  #logout { background: none; border: 0; color: var(--muted); font-size: 13px; }
+  .tabs { max-width: 1200px; margin: auto; padding: 0 16px; display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; color: var(--muted); white-space: nowrap; }
+  .tabs button[aria-pressed="true"] { color: var(--txt); border-image: var(--grad2) 1; font-weight: 600; }
+  .count { background: var(--warn); color: #241400; border-radius: 999px; font-size: 11px; padding: 0 6px; margin-left: 4px; }
+  .count:empty { display: none; }
+
+  main { max-width: 1200px; margin: auto; padding: 16px; }
+  section { display: flex; flex-direction: column; gap: 14px; }
+  .filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .filters .field { width: auto; flex: 1; min-width: 160px; }
+  #cats { display: flex; gap: 8px; overflow-x: auto; flex-basis: 100%; scrollbar-width: none; }
+  #cats button { flex: none; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; white-space: nowrap; }
+  #cats button[aria-pressed="true"] { background: var(--grad2); border-color: transparent; color: #fff; font-weight: 600; }
+  #cats small { opacity: .7; margin-left: 4px; }
+  select.field { width: auto; }
+
+  /* สินค้า = การ์ดเล็กแบบไอคอนแอป (แอปเยอะ 50+ ก็ดูง่าย) · เลือกแพ็กเกจในหน้าต่างเบิก */
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 10px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; transition: transform .15s, border-color .15s, box-shadow .15s; }
+  .card:hover { transform: translateY(-2px); border-color: rgba(167, 139, 250, .55); box-shadow: 0 10px 28px rgba(139, 92, 246, .18); }
+  .card.out { opacity: .55; }
+  .pic { width: 72px; height: 72px; flex: none; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg, #2a1f5c, #0f1a3a); display: grid; place-items: center; font-size: 32px; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); }
+  .pic img { width: 100%; height: 100%; object-fit: cover; }
+  .badge { position: absolute; top: 6px; left: 6px; background: var(--bad); color: #fff; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 6px; }
+  .card .name { font-weight: 600; font-size: 14px; line-height: 1.3; min-height: 2.6em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card .from { color: var(--muted); font-size: 11px; }
+  .card .price { font-size: 17px; }
+  .card .pill { font-size: 10px; padding: 1px 8px; }
+  .card .btn { width: 100%; margin-top: auto; padding: 7px 10px; font-size: 13px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .opts button { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 13px; }
+  .opts button[aria-pressed="true"] { border-color: var(--ac); color: #34d399; background: rgba(var(--ac-rgb), .12); }
+  .foot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .price { font-size: 20px; font-weight: 700; color: #34d399; }
+  .price small { font-size: 12px; font-weight: 400; margin-left: 3px; }
+
+  .pill { font-size: 12px; padding: 2px 10px; border-radius: 999px; white-space: nowrap; background: rgba(var(--ac-rgb), .15); color: #34d399; }
+  .pill.low, .pill.pending { background: rgba(245, 158, 11, .15); color: var(--warn); }
+  .pill.out, .pill.bad { background: rgba(244, 63, 94, .15); color: #fb7185; }
+
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .item { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .row { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .box { background: var(--card2); border-radius: 8px; padding: 10px; white-space: pre-wrap; word-break: break-word; font-size: 14px; }
+  .acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  /* ประวัติการซื้อ: แถวเดียวกะทัดรัด กดเพื่อดู/ซ่อนรายละเอียด (<details>) */
+  #orders { gap: 6px; }
+  .order { display: block; padding: 0; }
+  .order summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+  .order summary::-webkit-details-marker { display: none; }
+  .order summary::after { content: '▾'; color: var(--muted); transition: transform .15s; }
+  .order[open] summary::after { transform: rotate(180deg); }
+  .order summary:hover { background: var(--card2); border-radius: 12px; }
+  .o-pic { width: 40px; height: 40px; flex: none; border-radius: 10px; object-fit: cover; background: var(--grad2); display: grid; place-items: center; font-size: 20px; }
+  .o-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .o-main > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .o-main .muted { font-size: 12px; }
+  .o-body { border-top: 1px solid var(--line); padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .empty { color: var(--muted); text-align: center; padding: 40px 0; }
+
+  .balance { background: linear-gradient(135deg, rgba(139, 92, 246, .35), rgba(6, 182, 212, .18)), var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+  #bal { font-size: 40px; font-weight: 700; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #topupForm { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+  #topupForm label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  .bot { flex-basis: 100%; font-size: 13px; color: var(--muted); }
+  .bot.ok { color: #34d399; }
+  .bot.warn { color: var(--warn); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .cols h3 { font-size: 15px; margin-bottom: 8px; }
+  .log { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 10px 14px; border-top: 1px solid var(--line); }
+  .log:first-child { border-top: 0; }
+  .log .amt { text-align: right; font-weight: 600; }
+  .log .muted { font-size: 12px; }
+
+  dialog { margin: auto; background: var(--card); color: var(--txt); border: 1px solid var(--line); border-radius: 14px; padding: 0; width: min(440px, calc(100% - 24px)); max-height: calc(100dvh - 24px); }
+  /* หน้าต่างเบิก: หัวสินค้า + การ์ดแพ็กเกจ (ราคาขาย / ทุน) + สรุปยอด-ทุน-กำไร */
+  #buyDlg { width: min(560px, calc(100% - 24px)); }
+  .b-head { display: flex; gap: 12px; align-items: center; }
+  .b-head .bpic { width: 56px; height: 56px; border-radius: 14px; object-fit: cover; flex: none; display: grid; place-items: center; font-size: 28px; background: var(--grad2); }
+  .b-head b { display: block; font-size: 18px; }
+  .b-cap { display: block; color: var(--muted); font-size: 12px; white-space: pre-line; }
+  #bOpts { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; }
+  #bOpts button { background: var(--card2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 1px; color: var(--txt); }
+  #bOpts button:hover { border-color: rgba(167, 139, 250, .6); }
+  #bOpts button[aria-pressed="true"] { border-color: var(--ac); background: rgba(var(--ac-rgb), .12); box-shadow: 0 0 0 1px var(--ac), 0 6px 18px rgba(var(--ac-rgb), .2); }
+  #bOpts b { font-size: 14px; margin-bottom: 4px; }
+  #bOpts small { color: var(--muted); font-size: 11px; }
+  #bOpts .sale { color: #34d399; font-size: 18px; font-weight: 700; line-height: 1.2; }
+  #bOpts .cost { color: #fb923c; font-size: 13px; font-weight: 600; }
+  #bKinds { display: grid; grid-template-columns: 1fr 1fr; }
+  #bKinds button { padding: 8px 10px; font-size: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
+  #bKinds button small { color: var(--muted); font-size: 11px; font-weight: 400; }
+  .b-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .b-tiles div { border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+  .b-tiles small { font-size: 12px; }
+  .b-tiles b { font-size: 22px; }
+  .b-tiles .sale { background: rgba(var(--ac-rgb), .1); border: 1px solid rgba(var(--ac-rgb), .4); color: #34d399; }
+  .b-tiles .cost { background: rgba(251, 146, 60, .1); border: 1px solid rgba(251, 146, 60, .4); color: #fb923c; }
+  .b-profit { background: var(--card2); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .b-profit > div { display: flex; justify-content: space-between; align-items: center; }
+  .b-profit #bProfit { font-size: 18px; }
+  dialog::backdrop { background: rgba(5, 8, 20, .7); backdrop-filter: blur(3px); }
+  dialog form { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  dialog label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  .sum { background: var(--card2); border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; }
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .warn { color: var(--warn); font-size: 13px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--grad); color: var(--ink); padding: 10px 18px; border-radius: 10px; font-weight: 600; z-index: 50; max-width: calc(100% - 32px); }
+
+  /* แชทกับแอดมิน */
+  /* แชทลอย: ปุ่มกลมมุมขวาล่าง → หน้าต่างแชทใหญ่ (มือถือ = เต็มจอ) */
+  #chatFab { position: fixed; right: 20px; bottom: 20px; z-index: 40; width: 60px; height: 60px; border-radius: 50%; border: 0; background: var(--grad); color: var(--ink); font-size: 28px; display: grid; place-items: center; box-shadow: 0 8px 24px rgba(6, 182, 212, .4); }
+  #chatFab .count { position: absolute; top: -2px; right: -2px; margin: 0; font-size: 12px; padding: 1px 7px; }
+  #chatPop { position: fixed; inset: 20px; z-index: 45; display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 12px 40px rgba(0, 0, 0, .55); }
+  #chatPop[hidden] { display: none; }
+  body.chat-on #chatFab { display: none; } /* เปิดแชทแล้วปิดด้วย × หรือ Esc */
+  #popHead { flex: none; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--card2); border-bottom: 1px solid var(--line); }
+  #popClose { background: none; border: 0; color: var(--muted); font-size: 26px; line-height: 1; padding: 0 4px; }
+  #chatBox { flex: 1; min-height: 0; display: flex; }
+  #threads { width: 270px; flex: none; border-right: 1px solid var(--line); overflow-y: auto; }
+  .thread { display: flex; gap: 10px; align-items: center; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--line); }
+  .thread:hover { background: var(--card2); }
+  .thread.active { background: rgba(139, 92, 246, .16); box-shadow: inset 3px 0 var(--vio); }
+  .thread .t-body { flex: 1; min-width: 0; }
+  .thread b, .thread small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .thread small { color: var(--muted); font-size: 12px; }
+  .thread .new { width: 9px; height: 9px; border-radius: 50%; background: var(--warn); flex: none; }
+  #conv { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  #convHead { padding: 10px 14px; border-bottom: 1px solid var(--line); font-weight: 600; display: flex; gap: 8px; align-items: center; }
+  /* ค้นหาในแชท (ข้อความ + เลขออเดอร์ในการ์ด) */
+  #convSearchBtn { margin-left: auto; background: none; border: 0; color: var(--muted); display: grid; place-items: center; padding: 4px; border-radius: 6px; }
+  #convSearchBtn:hover { color: var(--txt); }
+  #chatSearch { flex: none; display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--card2); }
+  #chatSearch[hidden] { display: none; }
+  #chatCount { color: var(--muted); font-size: 12px; min-width: 40px; text-align: center; }
+  #chatSearch button { background: none; border: 0; color: var(--muted); font-size: 16px; padding: 4px 8px; }
+  ::highlight(hit) { background-color: #fde68a; color: #111; }
+  ::highlight(hit-now) { background-color: #f59e0b; color: #111; }
+  #convBack { display: none; background: none; border: 0; color: var(--muted); font-size: 22px; line-height: 1; }
+  #msgs { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 4px; }
+  .av { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--grad2); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none; }
+  #me { display: flex; align-items: center; gap: 6px; }
+  #mePic { cursor: pointer; }
+  #meName { background: none; border: 0; color: var(--txt); font-size: 13px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 700px) {
+    #chatPop { inset: 0; border: 0; border-radius: 0; }
+    #threads { width: 100%; border: 0; }
+    #chatBox.open #threads, #chatBox:not(.open) #conv { display: none; }
+    #convBack { display: inline; }
+  }
+  /* กำลังพิมพ์… */
+  .t-body small.typing-now { color: var(--ac); font-weight: 600; }
+  .typing { flex: none; display: flex; align-items: center; gap: 8px; padding: 4px 14px; color: var(--muted); font-size: 12px; }
+  .dots { display: inline-flex; gap: 3px; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: blink 1.2s infinite; }
+  .dots i:nth-child(2) { animation-delay: .2s; }
+  .dots i:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+  #chatSend { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; border-top: 1px solid var(--line); background: var(--bg); }
+  #chatText { flex: 1; width: auto; min-width: 0; }
+  #chatAttach { font-size: 18px; padding: 6px 10px; }
+  /* รูปที่แนบ/วางไว้ รอส่ง */
+  .draft { flex-basis: 100%; display: flex; align-items: center; gap: 10px; background: var(--card2); border-left: 3px solid var(--ac); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--muted); }
+  .draft img { height: 64px; max-width: 120px; border-radius: 6px; object-fit: cover; }
+  .draft span { flex: 1; }
+  .draft button { background: none; border: 0; color: var(--muted); font-size: 14px; padding: 2px 6px; }
+  .day { align-self: center; background: var(--card2); color: var(--muted); font-size: 11px; padding: 3px 12px; border-radius: 12px; margin: 10px 0 6px; }
+  .msg { display: flex; align-items: flex-end; gap: 6px; max-width: 80%; }
+  .msg.out { align-self: flex-start; }
+  .msg.in { align-self: flex-end; flex-direction: row-reverse; }
+  .msg .bubble { min-width: 0; padding: 8px 12px; border-radius: 18px; background: var(--card2); white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
+  .msg.in .bubble { background: var(--grad); color: var(--ink); }
+  .msg.in .body { align-items: flex-end; }
+  /* รูป / ข้อความที่ตอบกลับ (แอดมินส่งจากหน้าแอดมิน) */
+  .chat-img { display: block; max-width: min(260px, 100%); max-height: 320px; border-radius: 14px; border: 1px solid var(--line); cursor: zoom-in; background: var(--card2); min-width: 60px; min-height: 60px; }
+  .quote { max-width: 100%; background: var(--card2); border-left: 3px solid var(--ac); border-radius: 8px; padding: 4px 10px; font-size: 12px; color: var(--muted); cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .quote b { color: var(--txt); }
+  .msg.flash .bubble, .msg.flash .chat-img { outline: 2px solid var(--warn); outline-offset: 2px; }
+  .msg time { flex: none; font-size: 10px; color: var(--muted); }
+  .msg .stamp { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-size: 10px; color: var(--muted); }
+  .msg .read { display: none; }
+  .msg.seen .read { display: block; } /* แอดมินเปิดอ่านแล้ว */
+  .msg .av, .msg .spacer { width: 32px; flex: none; align-self: flex-start; }
+  .msg .body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .msg .body small { color: var(--muted); font-size: 11px; }
+
+  /* การ์ดออเดอร์ในแชท */
+  .slot { align-self: flex-end; width: min(480px, 100%); margin: 6px 0; }
+  .ocard { background: #0f1730; border: 1px solid #2b3a66; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+  .oc-head { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; }
+  .oc-head b { color: var(--txt); }
+  .oc-prod { display: flex; gap: 12px; align-items: center; font-weight: 700; }
+  .oc-pic { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: #fff; flex: none; display: grid; place-items: center; font-size: 24px; }
+  .oc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .oc-grid div { background: var(--card2); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; word-break: break-word; }
+  .oc-grid small, .oc-box small { color: var(--muted); font-size: 11px; }
+  /* ใครแจ้ง / ใครตัดสินเคลม: รูปโปรไฟล์ + ชื่อตัวหนา */
+  .claim-meta { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .cm-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cm-row .lbl { min-width: 92px; }
+  .cm-row > b { color: var(--txt); }
+  .who { display: inline-flex; align-items: center; gap: 6px; }
+  .who b { color: var(--txt); font-weight: 700; }
+  .av.xs { width: 22px; height: 22px; font-size: 10px; }
+  .oc-green { color: #34d399; font-weight: 700; }
+  .claim-box { font-size: 14px; }
+  .claim-box > .row b { font-size: 15px; }
+  .oc-box { border: 1px solid rgba(var(--ac-rgb), .45); background: rgba(var(--ac-rgb), .08); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+  .oc-line { display: flex; gap: 8px; align-items: center; justify-content: space-between; font-family: ui-monospace, monospace; font-weight: 700; word-break: break-all; }
+  .oc-copy { border: 1px solid rgba(var(--ac-rgb), .5); background: rgba(var(--ac-rgb), .12); color: #a7f3d0; border-radius: 6px; padding: 1px 8px; font-size: 12px; flex: none; }
+  .oc-credit { color: #fb923c; font-size: 13px; }
+  .oc-box pre { white-space: pre-wrap; word-break: break-word; font: 13px/1.6 ui-monospace, monospace; }
+  .oc-wait { border-color: rgba(245, 158, 11, .5); background: rgba(245, 158, 11, .08); color: #fbbf24; }
+  .oc-cancel { border-color: rgba(244, 63, 94, .5); background: rgba(244, 63, 94, .08); color: #fb7185; }
+
+  @media (max-width: 700px) {
+    #grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .card { padding: 10px 6px 8px; }
+    .pic { width: 56px; height: 56px; border-radius: 14px; }
+    .card .name { font-size: 12px; }
+    .card .price { font-size: 15px; }
+    .cols { grid-template-columns: 1fr; }
+    #brand { flex-basis: 100%; }
+  }
+</style>
+</head>
+<body>
+<div id="auth" class="center" hidden>
+  <form id="authForm" class="auth">
+    <img class="auth-logo" src="logo.png" alt="" onerror="this.remove()">
+    <h1 id="authTitle">เข้าสู่ระบบ</h1>
+    <span class="muted">สำหรับร้านค้าที่เป็นสมาชิก</span>
+    <input id="email" class="field" type="email" placeholder="อีเมล" autocomplete="username" required>
+    <input id="password" class="field" type="password" placeholder="รหัสผ่าน (6 ตัวขึ้นไป)" autocomplete="current-password" minlength="6" required>
+    <button id="authBtn" class="btn">เข้าสู่ระบบ</button>
+    <button type="button" id="authSwitch" class="link">ยังไม่มีบัญชี? สมัครสมาชิก</button>
+  </form>
+</div>
+
+<div id="noshop" class="center" hidden>
+  <div class="auth">
+    <h1>รอเพิ่มเข้าร้าน</h1>
+    <p>บัญชี <b id="noShopEmail"></b> ยังไม่ได้ผูกกับร้านค้า<br>ส่งอีเมลนี้ให้แอดมินเพื่อเพิ่มเข้าร้าน</p>
+    <button type="button" class="link logout">ออกจากระบบ</button>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header>
+    <div class="bar">
+      <span id="brand"><img src="logo.png" alt="" onerror="this.remove()"><span id="logo"></span></span>
+      <select id="shopSel" aria-label="เลือกร้าน"></select>
+      <span id="credit"></span>
+      <span id="me"><label id="mePic" title="กดเพื่อเปลี่ยนรูปโปรไฟล์"><span id="meAv"></span><input id="meFile" type="file" accept="image/*" hidden></label><button id="meName" type="button" title="กดเพื่อตั้งชื่อ"></button></span>
+      <button id="logout" class="logout">ออกจากระบบ</button>
+    </div>
+    <nav class="tabs">
+      <button data-tab="products" aria-pressed="true">🛒 สินค้า</button>
+      <button data-tab="orders" aria-pressed="false">📜 ประวัติการซื้อ<span class="count" id="nOrders"></span></button>
+      <button data-tab="credit" aria-pressed="false">💰 เครดิต<span class="count" id="nTopups"></span></button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-products">
+      <div class="filters">
+        <div id="cats"></div>
+        <input id="search" class="field" type="search" placeholder="ค้นหาสินค้า">
+        <select id="stockFilter" class="field" aria-label="กรองสถานะสินค้า">
+          <option value="">ทุกสถานะ</option>
+          <option value="in">มีสินค้า</option>
+          <option value="low">ใกล้หมด</option>
+          <option value="out">หมด</option>
+        </select>
+      </div>
+      <div id="grid"></div>
+    </section>
+
+    <section id="tab-orders" hidden>
+      <div class="filters">
+        <input id="orderSearch" class="field" type="search" placeholder="ค้นหา เลขออเดอร์ / สินค้า / ลูกค้า">
+        <select id="orderFilter" class="field" aria-label="กรองสถานะออเดอร์">
+          <option value="">ทุกสถานะ</option>
+          <option value="pending">รอดำเนินการ</option>
+          <option value="waiting">รอส่งมอบ</option>
+          <option value="done">ส่งมอบแล้ว</option>
+          <option value="cancelled">ยกเลิก</option>
+        </select>
+      </div>
+      <div id="orders" class="list"></div>
+    </section>
+
+
+    <section id="tab-credit" hidden>
+      <div class="balance">
+        <div><span class="muted">เครดิตคงเหลือ</span><div id="bal"></div></div>
+        <form id="topupForm">
+          <label>จำนวนที่โอน<input id="tAmount" class="field" type="number" min="1" step="any" required style="width: 140px"></label>
+          <label>สลิปโอนเงิน<input id="tSlip" type="file" accept="image/*" required></label>
+          <button class="btn" id="tBtn">แจ้งเติมเครดิต</button>
+          <div id="tBot" class="bot" hidden></div>
+        </form>
+      </div>
+      <div class="cols">
+        <div><h3>รายการแจ้งเติม</h3><div id="topups" class="list"></div></div>
+        <div><h3>ประวัติเครดิต</h3><div id="logs" class="item" style="padding: 0; gap: 0"></div></div>
+      </div>
+    </section>
+
+  </main>
+
+  <button id="chatFab" type="button" aria-label="เปิดแชทกับแอดมิน" aria-expanded="false">💬<span class="count" id="nChat"></span></button>
+  <section id="chatPop" hidden aria-label="แชทกับแอดมิน">
+    <div id="popHead"><b>💬 แชทกับแอดมิน</b><button id="popClose" type="button" aria-label="ปิดแชท">×</button></div>
+      <div id="chatBox">
+        <aside id="threads"></aside>
+        <div id="conv">
+          <div id="convHead"><button id="convBack" type="button" aria-label="กลับไปรายการแชท">‹</button><span id="convName"></span>
+            <button id="convSearchBtn" type="button" aria-label="ค้นหาในแชท" title="ค้นหาข้อความ / เลขออเดอร์"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button></div>
+          <form id="chatSearch" hidden>
+            <input id="chatQ" class="field" type="search" placeholder="ค้นหาข้อความ / เลขออเดอร์ เช่น OD2611020008" autocomplete="off">
+            <span id="chatCount"></span>
+            <button type="button" id="hitUp" aria-label="ผลก่อนหน้า">↑</button>
+            <button type="button" id="hitDown" aria-label="ผลถัดไป">↓</button>
+            <button type="button" id="chatSearchClose" aria-label="ปิดการค้นหา">✕</button>
+          </form>
+          <div id="msgs"></div>
+          <div id="typing" class="typing" hidden><span class="dots"><i></i><i></i><i></i></span><span id="typingWho"></span></div>
+          <form id="chatSend">
+            <div id="imgBar" class="draft" hidden><img id="imgPrev" alt="รูปที่จะส่ง"><span>พิมพ์ข้อความประกอบได้ หรือกดส่งเลย</span><button type="button" id="imgX" aria-label="เอารูปออก">✕</button></div>
+            <button type="button" id="chatAttach" class="ghost" title="แนบรูป (หรือก๊อปรูปแล้วกด Ctrl+V)" aria-label="แนบรูป">🖼</button>
+            <input id="chatFile" type="file" accept="image/*" hidden>
+            <input id="chatText" class="field" placeholder="พิมพ์ข้อความถึงแอดมิน" autocomplete="off">
+            <button class="btn">ส่ง</button>
+          </form>
+        </div>
+      </div>
+  </section>
+</div>
+
+<dialog id="buyDlg">
+  <form id="buyForm">
+    <div class="b-head"><span id="bPic"></span><div><b id="bName"></b><span id="bCap" class="b-cap"></span></div></div>
+    <div id="bOpts" role="group" aria-label="เลือกแพ็กเกจ"></div>
+    <div id="bKinds" class="opts" role="group" aria-label="ประเภทการเบิก">
+      <button type="button" data-kind="new" aria-pressed="true">🆕 เบิกสินค้าใหม่<small>สร้างบัญชีใหม่ / สินค้าใหม่</small></button>
+      <button type="button" data-kind="renew" aria-pressed="false">🔁 ต่ออายุอีเมลเดิม<small>ต่ออายุบัญชีที่มีอยู่</small></button>
+    </div>
+    <label>ร้าน<select id="bShop" class="field"></select></label>
+    <div id="bRenew" class="cols2" hidden>
+      <label>อีเมล<input id="bEmail" class="field" type="email" maxlength="200" placeholder="อีเมลเดิมที่จะต่ออายุ"></label>
+      <label>วันที่<input id="bDate" class="field" maxlength="50" placeholder="เช่น 31/12/2569" autocomplete="off"></label>
+    </div>
+    <label>หมายเหตุถึงแอดมิน<textarea id="bNote" class="field" maxlength="500" rows="2" placeholder="เช่น รหัสผ่าน / ห้อง / ข้อมูลที่ต้องใช้"></textarea></label>
+    <div class="b-tiles">
+      <div class="sale"><small>💰 ยอดสินค้า (ราคาขาย)</small><b id="bSale"></b></div>
+      <div class="cost"><small>🏭 ทุนสินค้า (หักเครดิต)</small><b id="bTotal"></b></div>
+    </div>
+    <div class="b-profit">
+      <div><b>📈 กำไรต่อบิล</b><b id="bProfit"></b></div>
+      <div class="muted"><span>เครดิตคงเหลือหลังซื้อ</span><span id="bAfter"></span></div>
+    </div>
+    <span id="bWarn" class="warn"></span>
+    <div class="acts" style="justify-content: flex-end">
+      <button type="button" class="ghost" id="bCancel">ยกเลิก</button>
+      <button class="btn" id="bOk">ยืนยันซื้อ</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="claimDlg">
+  <form id="claimForm">
+    <b id="cTitle"></b>
+    <label>ปัญหาที่พบ *<textarea id="cReason" class="field" maxlength="1000" rows="4" required placeholder="เช่น เข้าสู่ระบบไม่ได้ / บัญชีหมดอายุก่อนกำหนด"></textarea></label>
+    <label>รูปประกอบ (ถ้ามี)<input id="cImage" type="file" accept="image/*"></label>
+    <div class="acts" style="justify-content: flex-end">
+      <button type="button" class="ghost" id="cCancel">ยกเลิก</button>
+      <button class="btn" id="cOk">ส่งเคลม</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = (id) => document.getElementById(id);
+const byName = (a, b) => a.localeCompare(b, 'th', { numeric: true });
+const num = (n) => Number(n).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+const when = (iso) => new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+const title = (o) => `${o.product_name}${o.option_name ? ` (${o.option_name})` : ''} x${o.qty}`;
+const ORDER = { pending: ['รอดำเนินการ', 'pending'], waiting: ['⏳ รอส่งมอบ', 'pending'], done: ['✅ ส่งมอบแล้ว', ''], cancelled: ['ยกเลิก', 'bad'] };
+const CLAIM = { pending: ['รอตรวจสอบ', 'pending'], refunded: ['คืนเครดิตแล้ว', ''], replaced: ['เปลี่ยนสินค้าแล้ว', ''], rejected: ['ไม่อนุมัติ', 'bad'] };
+const TOPUP = { pending: ['รอตรวจสอบ', 'pending'], approved: ['อนุมัติแล้ว', ''], rejected: ['ไม่อนุมัติ', 'bad'] };
+const KIND = { topup: 'เติมเครดิต', order: 'ซื้อสินค้า', refund: 'คืนเครดิต', adjust: 'ปรับโดยแอดมิน' };
+const ORDER_KIND = { new: '🆕 เบิกใหม่', renew: '🔁 ต่ออายุ' };
+
+let shops = [];
+let shop = null;           // ร้านที่เลือกอยู่
+let products = [];
+let data = { orders: [], claims: [], topups: [], logs: [] };
+let cat = '';
+let buying = null;         // { p, i } ในหน้าต่างซื้อ
+let claimOrder = null;
+let signup = false;
+let channel = null;
+
+$('logo').textContent = document.title = SHOP_NAME;
+
+// textContent เท่านั้น — ข้อความจากผู้ใช้ห้ามเข้า innerHTML
+function h(tag, cls = '', text = '') {
+  const el = document.createElement(tag);
+  el.className = cls;
+  el.textContent = text;
+  return el;
+}
+const ono = (o) => o.order_no ?? '#' + o.id; // เลขออเดอร์ (ก่อนรัน update-14 = #id)
+function row(...kids) {
+  const r = h('div', 'row');
+  r.append(...kids);
+  return r;
+}
+function pill([label, cls]) {
+  return h('span', 'pill ' + cls, label);
+}
+function toast(msg) {
+  const t = h('div', 'toast', msg);
+  document.body.append(t);
+  setTimeout(() => t.remove(), 2500);
+}
+async function q(builder) {
+  const { data: rows, error } = await builder;
+  if (error) { alert(error.message); return null; }
+  return rows;
+}
+function show(view) {
+  for (const v of ['auth', 'noshop', 'app']) $(v).hidden = v !== view;
+}
+
+// ---------- เข้าระบบ ----------
+async function start() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) return show('auth');
+  shops = ((await q(db.from('shops').select('id, name, credit'))) ?? []).sort((a, b) => byName(a.name, b.name));
+  if (!shops.length) {
+    $('noShopEmail').textContent = session.user.email;
+    return show('noshop');
+  }
+  let saved = null;
+  try { saved = Number(localStorage.getItem('shop')); } catch {}
+  shop = shops.find((s) => s.id === saved) ?? shops[0];
+  $('shopSel').replaceChildren(...shops.map((s) => {
+    const o = h('option', '', s.name);
+    o.value = s.id;
+    return o;
+  }));
+  $('shopSel').value = shop.id;
+  $('shopSel').disabled = shops.length < 2;
+  show('app');
+  loadProducts();
+  refresh();
+  startChat(session);
+  // ออเดอร์/เคลม/เติมเครดิต/แชท เปลี่ยน → อัปเดตเอง (RLS ส่งเฉพาะของเรา)
+  channel ??= db.channel('shop')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, ({ new: o }) => {
+      refresh();
+      if (slots[o?.id]) fillCards([o.id]);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, ({ new: c }) => {
+      refresh();
+      if (slots[c?.order_id]) fillCards([c.order_id]); // สถานะเคลมขึ้นที่การ์ดในแชท
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'topups' }, refresh)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shops' }, refresh)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: m }) => onMessage(m))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'threads' }, ({ new: t }) => { // แอดมินเปิดอ่าน → "อ่านแล้ว"
+      if (t?.contact_id === thread && t.shop_id === shop.id) { adminUnread = t.unread; renderRead(); }
+    })
+    .subscribe();
+}
+
+$('authForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const creds = { email: $('email').value.trim(), password: $('password').value };
+  const { data: res, error } = signup ? await db.auth.signUp(creds) : await db.auth.signInWithPassword(creds);
+  if (error) return alert(error.message);
+  if (signup && !res.session) return alert('สมัครแล้ว — กดยืนยันในอีเมลก่อน แล้วแจ้งอีเมลนี้ให้แอดมินเพิ่มเข้าร้าน');
+  start();
+};
+$('authSwitch').onclick = () => {
+  signup = !signup;
+  $('authTitle').textContent = $('authBtn').textContent = signup ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ';
+  $('authSwitch').textContent = signup ? 'มีบัญชีแล้ว? เข้าสู่ระบบ' : 'ยังไม่มีบัญชี? สมัครสมาชิก';
+  $('password').autocomplete = signup ? 'new-password' : 'current-password';
+};
+for (const b of document.querySelectorAll('.logout')) b.onclick = () => db.auth.signOut({ scope: 'local' }).then(() => location.reload());
+
+$('shopSel').onchange = () => {
+  shop = shops.find((s) => s.id === Number($('shopSel').value));
+  try { localStorage.setItem('shop', shop.id); } catch {}
+  refresh();
+  if (chatReady) { // แชทเปลี่ยนเป็นห้องของร้านใหม่
+    unread.clear();
+    loadThreads().then(() => openThread(me));
+  }
+};
+
+for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => setTab(b.dataset.tab);
+$('credit').onclick = () => setTab('credit');
+function setTab(t) {
+  for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-pressed', b.dataset.tab === t);
+  for (const s of document.querySelectorAll('main > section')) s.hidden = s.id !== 'tab-' + t;
+}
+
+// แชทลอย: กดปุ่มมุมขวาล่างเปิด/ปิด · ปุ่ม × หรือ Esc ปิด
+function setChat(open) {
+  $('chatPop').hidden = !open;
+  $('chatFab').setAttribute('aria-expanded', open);
+  document.body.classList.toggle('chat-on', open);
+  if (!open) return;
+  unseen = 0;
+  $('nChat').textContent = '';
+  $('msgs').scrollTop = $('msgs').scrollHeight;
+  $('chatText').focus();
+  markSeen();
+}
+$('chatFab').onclick = () => setChat($('chatPop').hidden);
+$('popClose').onclick = () => setChat(false);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('chatPop').hidden) setChat(false); });
+
+// ---------- ข้อมูลของร้านที่เลือก ----------
+async function refresh() {
+  const id = shop.id;
+  // ponytail: ดึงล่าสุด 200 รายการ — เพิ่มแบ่งหน้าเมื่อประวัติยาวมาก
+  const [s, orders, claims, topups, logs] = await Promise.all([
+    q(db.from('shops').select('id, credit')), // ทุกร้านที่ดูแล (ใช้ตอนเลือกร้านในหน้าต่างซื้อ)
+    q(db.from('orders').select('*, products(image_url)').eq('shop_id', id).order('created_at', { ascending: false }).limit(200)),
+    q(db.from('claims').select('id, order_id, reason, status, reply, refund, created_at, created_by, decided_by, decided_at').eq('shop_id', id).order('created_at', { ascending: false }).limit(200)),
+    q(db.from('topups').select().eq('shop_id', id).order('created_at', { ascending: false }).limit(50)),
+    q(db.from('credit_logs').select().eq('shop_id', id).order('created_at', { ascending: false }).limit(200)),
+  ]);
+  if (shop.id !== id) return; // เปลี่ยนร้านระหว่างโหลด
+  for (const x of s ?? []) {
+    const t = shops.find((y) => y.id === x.id);
+    if (t) t.credit = Number(x.credit);
+  }
+  data = { orders: orders ?? [], claims: claims ?? [], topups: topups ?? [], logs: logs ?? [] };
+  $('credit').textContent = `💰 ${num(shop.credit)} เครดิต`;
+  $('bal').textContent = num(shop.credit);
+  $('nOrders').textContent = data.orders.filter((o) => o.status === 'pending' || o.status === 'waiting').length || '';
+  $('nTopups').textContent = data.topups.filter((t) => t.status === 'pending').length || '';
+  renderOrders();
+  renderCredit();
+  if ($('buyDlg').open) renderBuy();
+}
+
+// ---------- สินค้า ----------
+function stockStatus(p) {
+  if (p.stock <= 0) return { key: 'out', label: 'สินค้าหมด' };
+  if (p.stock <= LOW_STOCK) return { key: 'low', label: `เหลือ ${p.stock}` };
+  return { key: 'ok', label: 'พร้อมจำหน่าย' };
+}
+
+async function loadProducts() {
+  products = ((await q(db.from('products').select())) ?? [])
+    .sort((a, b) => byName(a.category, b.category) || byName(a.name, b.name));
+  renderCats();
+  renderProducts();
+}
+
+function renderCats() {
+  const counts = {};
+  for (const p of products) counts[p.category] = (counts[p.category] ?? 0) + 1;
+  const tab = (value, label, n) => {
+    const b = h('button', '', label);
+    b.append(h('small', '', n));
+    b.setAttribute('aria-pressed', cat === value);
+    b.onclick = () => { cat = value; renderCats(); renderProducts(); };
+    return b;
+  };
+  $('cats').replaceChildren(tab('', 'ทั้งหมด', products.length), ...Object.keys(counts).sort(byName).map((c) => tab(c, c, counts[c])));
+}
+
+function renderProducts() {
+  const s = $('search').value.trim().toLowerCase();
+  const st = $('stockFilter').value;
+  const shown = products.filter((p) => (!cat || p.category === cat)
+    && (!st || (st === 'in' ? p.stock > 0 : stockStatus(p).key === st))
+    && (!s || `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(s)));
+  $('grid').replaceChildren(...shown.map(card));
+  if (!shown.length) $('grid').append(h('p', 'empty', products.length ? 'ไม่พบสินค้า' : 'ยังไม่มีสินค้า'));
+}
+
+function card(p) {
+  const s = stockStatus(p);
+  const el = h('article', 'card' + (s.key === 'out' ? ' out' : ''));
+  const pic = h('div', 'pic', p.image_url ? '' : '🛍️');
+  if (p.image_url) {
+    const img = h('img');
+    img.src = p.image_url;
+    img.alt = p.name;
+    img.loading = 'lazy';
+    pic.append(img);
+  }
+  if (p.badge) el.append(h('span', 'badge', p.badge));
+  // ราคาเริ่มต้น = แพ็กเกจที่ถูกที่สุด (เลือกแพ็กเกจจริงในหน้าต่างเบิก)
+  const cheapest = Math.min(...p.options.map((o) => o.price));
+  const price = h('span', 'price', num(cheapest));
+  price.append(h('small', '', 'เครดิต'));
+  const buy = h('button', 'btn', s.key === 'out' ? 'สินค้าหมด' : '🛒 เบิก');
+  buy.disabled = s.key === 'out';
+  buy.onclick = () => openBuy(p, p.options.findIndex((o) => o.price === cheapest));
+  el.append(pic, h('div', 'name', p.name),
+    h('span', 'from', p.options.length > 1 ? `${p.options.length} แพ็กเกจ · เริ่ม` : p.options[0]?.name || 'ราคา'), price, pill([s.label, s.key]), buy);
+  return el;
+}
+
+$('search').oninput = renderProducts;
+$('stockFilter').onchange = renderProducts;
+
+// ---------- ซื้อ ----------
+function openBuy(p, i) {
+  buying = { p, i };
+  $('bName').textContent = p.name;
+  $('bCap').textContent = p.description || 'เลือกแพ็กเกจด้านล่าง';
+  let pic = h('span', 'bpic', '🛍️');
+  if (p.image_url) {
+    pic = h('img', 'bpic');
+    pic.src = p.image_url;
+    pic.alt = '';
+  }
+  $('bPic').replaceChildren(pic);
+  $('bEmail').value = $('bDate').value = $('bNote').value = '';
+  setKind('new');
+  $('bShop').replaceChildren(...shops.map((s) => {
+    const o = h('option', '', s.name);
+    o.value = s.id;
+    return o;
+  }));
+  $('bShop').value = shop.id;
+  $('bShop').disabled = shops.length < 2;
+  renderBuy();
+  $('buyDlg').showModal();
+}
+
+function renderBuy() {
+  const { p } = buying;
+  // การ์ดแพ็กเกจ: ราคาขาย (ราคาขายแนะนำ) + ทุน (เครดิตที่หัก)
+  $('bOpts').replaceChildren(...p.options.map((o, j) => {
+    const b = h('button');
+    b.append(h('b', '', o.name || 'ราคาเดียว'), h('small', '', '💰 ราคาขาย'), h('span', 'sale', o.sale != null ? `฿${num(o.sale)}` : '-'),
+      h('small', '', '🏭 ทุน'), h('span', 'cost', `฿${num(o.price)}`));
+    b.type = 'button';
+    b.setAttribute('aria-pressed', j === buying.i);
+    b.onclick = () => { buying.i = j; renderBuy(); };
+    return b;
+  }));
+  const qty = 1; // เบิกครั้งละ 1
+  const opt = p.options[buying.i];
+  const total = opt.price * qty;
+  const after = buyShop().credit - total; // เครดิตของร้านที่เลือกในหน้าต่างนี้
+  // กำไรต่อบิล = ยอดสินค้า − ทุนสินค้า (ไม่ได้ตั้งราคาขาย = ไม่รู้กำไร)
+  const hasSale = opt.sale != null;
+  const profit = (opt.sale ?? 0) * qty - total;
+  $('bSale').textContent = hasSale ? `฿${num(opt.sale * qty)}` : '-';
+  $('bTotal').textContent = `฿${num(total)}`;
+  $('bProfit').textContent = hasSale ? `${profit >= 0 ? '+' : '−'}฿${num(Math.abs(profit))}` : '-';
+  $('bProfit').className = !hasSale ? 'muted' : profit < 0 ? 'minus' : 'plus';
+  $('bAfter').textContent = `${num(after)} เครดิต`;
+  $('bAfter').className = after < 0 ? 'minus' : '';
+  $('bWarn').textContent = after < 0 ? 'เครดิตไม่พอ — แจ้งเติมเครดิตในแท็บ 💰 เครดิต'
+    : p.stock < 1 ? 'สินค้าหมด' : '';
+  $('bOk').disabled = !!$('bWarn').textContent;
+}
+const buyShop = () => shops.find((s) => s.id === Number($('bShop').value));
+// ประเภท: เบิกใหม่ = หมายเหตุอย่างเดียว · ต่ออายุ = อีเมล + วันที่ (บังคับกรอก) + หมายเหตุ
+let kind = 'new';
+function setKind(k) {
+  kind = k;
+  for (const b of $('bKinds').children) b.setAttribute('aria-pressed', b.dataset.kind === k);
+  $('bRenew').hidden = k !== 'renew';
+  $('bEmail').required = $('bDate').required = k === 'renew';
+}
+for (const b of $('bKinds').children) b.onclick = () => setKind(b.dataset.kind);
+$('bShop').onchange = renderBuy;
+$('bCancel').onclick = () => $('buyDlg').close();
+
+$('buyForm').onsubmit = async (e) => {
+  e.preventDefault();
+  if ($('bOk').disabled) return; // กด Enter ตอนเครดิต/สต็อคไม่พอ
+  $('bOk').disabled = true;
+  const target = buyShop();
+  // ชื่อผู้สั่ง = user ที่ล็อกอิน · ยอดขาย = ราคาขายแนะนำ × จำนวน (ฐานข้อมูลคิดให้)
+  const { data: orderId, error } = await db.rpc('buy', {
+    p_shop: target.id,
+    p_product: buying.p.id,
+    p_option: buying.i,
+    p_kind: kind,
+    p_email: kind === 'renew' ? $('bEmail').value.trim() : '',
+    p_date: (kind === 'renew' && $('bDate').value.trim()) || null, // ว่าง = null (ไม่ใช่ "")
+    p_note: $('bNote').value.trim(),
+  });
+  if (error) {
+    alert('ซื้อไม่สำเร็จ: ' + error.message);
+    return renderBuy();
+  }
+  $('buyDlg').close();
+  toast(`ซื้อสำเร็จ (${target.name}) — รอดำเนินการ ดูเลขออเดอร์ได้ในแชท/ประวัติ`);
+  if (target !== shop) { // ซื้อให้อีกร้าน → สลับไปร้านนั้นเพื่อดูประวัติ/เครดิต
+    $('shopSel').value = target.id;
+    $('shopSel').dispatchEvent(new Event('change'));
+  } else refresh();
+  loadProducts();
+};
+
+// ---------- ประวัติการซื้อ ----------
+const openOrders = new Set(); // ออเดอร์ที่กางรายละเอียดไว้ (รีเฟรชแล้วยังกางอยู่)
+async function renderOrders() {
+  const st = $('orderFilter').value;
+  const s = $('orderSearch').value.trim().toLowerCase();
+  const claimsOf = {}; // order_id → เคลมของออเดอร์นั้น (ใหม่สุดก่อน) — ประวัติเคลมทั้งหมดอยู่ฝั่งแอดมิน
+  for (const c of data.claims) (claimsOf[c.order_id] ??= []).push(c);
+  let shown = data.orders.filter((o) => (!st || o.status === st)
+    && (!s || `${ono(o)} ${o.product_name} ${o.option_name} ${o.customer} ${o.email} ${o.note}`.toLowerCase().includes(s)));
+  // เลขออเดอร์เก่าที่ไม่ได้โหลดมา (เกิน 200 รายการ) → ค้นจากฐานข้อมูลตรง ๆ
+  if (!shown.length && /^od\d{10,}$/.test(s)) {
+    shown = (await q(db.from('orders').select('*, products(image_url), claims(id, order_id, reason, status, reply, refund, created_at, created_by, decided_by, decided_at)')
+      .eq('shop_id', shop.id).eq('order_no', s.toUpperCase()))) ?? [];
+    if (s !== $('orderSearch').value.trim().toLowerCase()) return; // พิมพ์ต่อระหว่างรอ
+    for (const o of shown) claimsOf[o.id] ??= o.claims;
+  }
+  $('orders').replaceChildren(...shown.map((o) => {
+    // หัว (แสดงตลอด): สินค้า · เลขออเดอร์ · เวลา | −ยอด | สถานะ (เคลมแล้ว = สถานะเคลม) · กดเพื่อดูรายละเอียด
+    const claims = claimsOf[o.id] ?? [];
+    const card = h('details', 'item order');
+    card.open = openOrders.has(o.id);
+    card.ontoggle = () => (card.open ? openOrders.add(o.id) : openOrders.delete(o.id));
+    const top = h('div', 'o-main');
+    top.append(h('b', '', title(o)), h('span', 'muted', `${ono(o)} · ${when(o.created_at)}`));
+    let pic = h('span', 'o-pic', '🛍️');
+    if (o.products?.image_url) {
+      pic = h('img', 'o-pic');
+      pic.src = o.products.image_url;
+      pic.alt = '';
+      pic.loading = 'lazy';
+    }
+    const head = h('summary');
+    head.append(pic, top, h('b', 'minus', `−${num(o.total)}`), pill(claims.length ? ['🛠 ' + CLAIM[claims[0].status][0], CLAIM[claims[0].status][1]] : ORDER[o.status]));
+    const el = h('div', 'o-body');
+    card.append(head, el);
+    const meta = [o.kind === 'renew' && '🔁 ต่ออายุ' + (o.renew_date ? ' วันที่ ' + o.renew_date : ''), o.customer && 'ลูกค้า: ' + o.customer, o.email && 'เมล: ' + o.email, o.note && 'หมายเหตุ: ' + o.note].filter(Boolean).join(' · ');
+    if (meta) el.append(h('div', 'muted', meta));
+    if (Number(o.sale_total) > 0) {
+      const profit = o.sale_total - o.total;
+      el.append(h('div', 'muted', `ยอดขาย ฿${num(o.sale_total)} · กำไร ${profit >= 0 ? '+' : ''}${num(profit)}`));
+    }
+    if (o.status === 'done') {
+      el.append(...claims.map(claimBox)); // ผลเคลม (ใหม่สุดก่อน) — ชัดกว่าข้อมูลเดิม
+      el.append(h('div', 'muted', claims.length ? 'ข้อมูลสินค้าเดิม (ก่อนเคลม)' : 'ข้อมูลสินค้า'), h('div', 'box', o.delivery || '-'));
+      const acts = h('div', 'acts');
+      const copy = h('button', 'ghost', '📋 คัดลอก');
+      copy.onclick = () => navigator.clipboard.writeText(o.delivery).then(() => toast('คัดลอกแล้ว'));
+      acts.append(copy);
+      // 1 ออเดอร์เคลมได้ครั้งเดียว (update-22)
+      if (claims.length) acts.append(h('span', 'muted', claims.some((c) => c.status === 'pending') ? 'มีเคลมรอตรวจสอบ' : 'เคลมแล้ว · เคลมซ้ำไม่ได้'));
+      else {
+        const c = h('button', 'ghost', '🛠 เคลม');
+        c.onclick = () => openClaim(o);
+        acts.append(c);
+      }
+      el.append(acts);
+    }
+    if (o.status === 'cancelled') el.append(cancelBox(o));
+    if (!el.children.length) el.append(h('div', 'muted', 'รอแอดมินดำเนินการ'));
+    return card;
+  }));
+  if (!shown.length) $('orders').append(h('p', 'empty', 'ยังไม่มีออเดอร์'));
+}
+$('orderFilter').onchange = renderOrders;
+$('orderSearch').oninput = renderOrders;
+
+// ---------- เคลม ----------
+function openClaim(o) {
+  claimOrder = o;
+  $('cTitle').textContent = `เคลมออเดอร์ ${ono(o)} — ${title(o)}`;
+  $('cReason').value = '';
+  $('cImage').value = '';
+  $('claimDlg').showModal();
+}
+$('cCancel').onclick = () => $('claimDlg').close();
+
+$('claimForm').onsubmit = async (e) => {
+  e.preventDefault();
+  $('cOk').disabled = true;
+  try {
+    const rowData = { order_id: claimOrder.id, shop_id: shop.id, reason: $('cReason').value.trim() };
+    if ($('cImage').files[0]) rowData.image_path = await upload($('cImage').files[0]);
+    const { error } = await db.from('claims').insert(rowData);
+    if (error) throw error;
+    $('claimDlg').close();
+    toast('ส่งเคลมแล้ว — ดูผลได้ที่ออเดอร์นี้');
+    refresh();
+  } catch (err) {
+    alert('ส่งเคลมไม่สำเร็จ: ' + (err.message.includes('one_open_claim') ? 'ออเดอร์นี้มีเคลมรอตรวจสอบอยู่แล้ว' : err.message));
+  } finally {
+    $('cOk').disabled = false;
+  }
+};
+
+// ---------- เครดิต ----------
+// 🤖 อ่านสลิปทันทีที่เลือกรูป → ใส่ยอดให้ + เตือนถ้ายอดไม่ตรงกับที่กรอก
+let slipRead = null; // Promise ผลอ่านสลิปรูปที่เลือกอยู่ (null = อ่านไม่ได้)
+function showSlip(r) {
+  const typed = Number($('tAmount').value);
+  const bad = r?.amount != null && typed > 0 && typed !== r.amount;
+  $('tBot').className = 'bot ' + (!r || bad ? 'warn' : 'ok');
+  $('tBot').textContent = !r ? '🤖 อ่านสลิปไม่ได้ — แอดมินจะตรวจเอง'
+    : `🤖 ${r.amount != null ? `ยอดในสลิป ฿${num(r.amount)}` : 'อ่านยอดไม่ได้'} · ${r.ref ? `เลขอ้างอิง ${r.ref}` : 'ไม่พบเลขอ้างอิง'}`
+      + (bad ? ` — ไม่ตรงกับที่กรอก (฿${num(typed)})` : '');
+}
+$('tSlip').onchange = () => {
+  const f = $('tSlip').files[0];
+  $('tBot').hidden = !f;
+  if (!f) return void (slipRead = null);
+  $('tBot').className = 'bot';
+  $('tBot').textContent = '🤖 กำลังอ่านสลิป… (ครั้งแรกโหลดบอทนานหน่อย)';
+  const p = (slipRead = SlipBot.read(f).catch(() => null));
+  p.then((r) => {
+    if (p !== slipRead) return; // เปลี่ยนรูประหว่างอ่าน
+    if (r?.amount != null && !$('tAmount').value) $('tAmount').value = r.amount;
+    showSlip(r);
+  });
+};
+$('tAmount').oninput = () => slipRead?.then(showSlip);
+
+$('topupForm').onsubmit = async (e) => {
+  e.preventDefault();
+  $('tBtn').disabled = true;
+  try {
+    const r = slipRead ? await slipRead : null; // รอบอทอ่านให้เสร็จก่อนส่ง
+    const amount = Number($('tAmount').value);
+    if (r?.amount != null && r.amount !== amount
+      && !confirm(`ยอดในสลิป ฿${num(r.amount)} ไม่ตรงกับที่กรอก ฿${num(amount)}\nส่งแจ้งเติมต่อไหม?`)) return;
+    const slip = await upload($('tSlip').files[0]);
+    const { error } = await db.from('topups').insert({ shop_id: shop.id, amount, slip_path: slip, slip_ref: r?.ref ?? null, slip_amount: r?.amount ?? null });
+    if (error) throw error.message.includes('topups_slip_once') ? new Error('สลิปนี้เคยใช้แจ้งเติมไปแล้ว') : error;
+    $('topupForm').reset();
+    slipRead = null;
+    $('tBot').hidden = true;
+    toast('แจ้งเติมแล้ว รอแอดมินตรวจสอบ');
+    refresh();
+  } catch (err) {
+    alert('แจ้งเติมไม่สำเร็จ: ' + err.message);
+  } finally {
+    $('tBtn').disabled = false;
+  }
+};
+
+function renderCredit() {
+  $('topups').replaceChildren(...data.topups.map((t) => {
+    const el = h('div', 'item');
+    el.append(row(h('b', 'plus', `+${num(t.amount)} เครดิต`), pill(TOPUP[t.status])));
+    el.append(row(h('span', 'muted', when(t.created_at)), t.slip_path ? fileButton(t.slip_path, '🧾 สลิป') : ''));
+    if (t.note) el.append(h('div', 'muted', 'หมายเหตุ: ' + t.note));
+    return el;
+  }));
+  if (!data.topups.length) $('topups').append(h('p', 'empty', 'ยังไม่เคยแจ้งเติม'));
+
+  $('logs').replaceChildren(...data.logs.map((l) => {
+    const el = h('div', 'log');
+    const amt = Number(l.amount);
+    el.append(h('span', '', KIND[l.kind] + (l.note && l.kind !== 'topup' ? ' · ' + l.note : '')),
+      h('span', 'amt ' + (amt > 0 ? 'plus' : 'minus'), (amt > 0 ? '+' : '') + num(amt)),
+      h('span', 'muted', when(l.created_at)),
+      h('span', 'muted amt', 'คงเหลือ ' + num(l.balance)));
+    return el;
+  }));
+  if (!data.logs.length) $('logs').append(h('p', 'empty', 'ยังไม่มีรายการ'));
+}
+
+// ---------- แชท: ห้องของฉัน + ห้องของคนในร้านเดียวกัน (ซื้อแล้วการ์ดออเดอร์ขึ้นเอง) ----------
+let me = null;
+let thread = null;        // ห้องที่เปิดอยู่ (= user id เจ้าของห้อง)
+let threads = [];
+let lastDay = '';
+let lastWho = '';
+let unseen = 0;           // ข้อความใหม่จากคนอื่นตอนไม่ได้เปิดหน้าต่างแชท
+let adminUnread = null;   // ข้อความฝั่งร้านในห้องนี้ที่แอดมินยังไม่อ่าน (null = ไม่รู้ → ไม่โชว์ "อ่านแล้ว")
+let chatReady = false;
+let slots = {};           // order_id → ที่วางการ์ดในแชท (อัปเดตเมื่อสถานะออเดอร์เปลี่ยน)
+const shownIds = new Set(); // ข้อความที่แสดงแล้ว — realtime มาชนกับตอนโหลดห้องใหม่จะไม่ขึ้นซ้ำ
+const msgById = new Map();  // ข้อความในห้องที่เปิดอยู่ → แสดงข้อความที่ถูกตอบกลับ
+let imgUrls = {};           // รูปในแชท: path → ลิงก์ชั่วคราว
+const IMG_TEXT = '🖼 รูปภาพ'; // ข้อความของรูปที่ไม่มีคำบรรยาย
+let pendingImg = null;      // รูปที่แนบ/วางไว้ รอส่ง
+const names = {};         // user id → อีเมล (คนในร้านเดียวกัน) ใช้สำรองเมื่อยังไม่ตั้งชื่อ
+const dnames = {};        // user id → ชื่อผู้ใช้ (แชทแสดงชื่อ ไม่แสดงอีเมล)
+const pics = {};          // user id → รูปโปรไฟล์
+const unread = new Set(); // ห้องที่มีข้อความใหม่
+
+const chatOpen = () => !$('chatPop').hidden && document.visibilityState === 'visible';
+async function markSeen() {
+  if (chatReady && chatOpen() && thread) await db.rpc('mark_seen', { p_contact: thread, p_shop: shop.id }); // ฝั่งแอดมินขึ้น "อ่านแล้ว"
+}
+document.addEventListener('visibilitychange', markSeen);
+
+const shortName = (uid, email) => dnames[uid] || (names[uid] ?? email ?? '').split('@')[0] || 'สมาชิกร้าน';
+function av(uid, label) {
+  if (pics[uid]) {
+    const img = h('img', 'av');
+    img.src = pics[uid];
+    img.alt = '';
+    return img;
+  }
+  return h('div', 'av', ([...(label ?? '').replace(/^[เแโใไ]/, '')][0] ?? '?').toUpperCase()); // ข้ามสระหน้า เ แ โ ใ ไ
+}
+
+async function startChat(session) {
+  me = session.user.id;
+  // ช่องสดแบบ private ("กำลังพิมพ์…") ต้องเข้าด้วย token ผู้ใช้ — supabase-js ใส่ให้ช้า (หลังช่องแรกเชื่อมต่อแล้ว)
+  await db.realtime.setAuth(session.access_token).catch(() => {});
+  names[me] = session.user.email;
+  // ชื่อ/รูปของคนในร้านเดียวกัน (RLS ให้เห็นเฉพาะร้านที่รับผิดชอบ)
+  const [members, profs] = await Promise.all([
+    db.from('shop_members').select('user_id, email'),
+    db.from('profiles').select('user_id, avatar_url, display_name'),
+  ]);
+  for (const m of members.data ?? []) names[m.user_id] = m.email;
+  for (const p of profs.data ?? []) {
+    if (p.avatar_url) pics[p.user_id] = p.avatar_url;
+    if (p.display_name) dnames[p.user_id] = p.display_name;
+  }
+  renderMe();
+  const { data: ok, error } = await db.rpc('ensure_contact'); // สร้างห้องแชทของฉัน
+  if (error || !ok) {
+    // บัญชีแอดมิน (ไม่ได้อยู่ในร้าน) → คุยกับร้านที่หน้าแอดมิน (มีปุ่ม ✏️ แชทใหม่ ทักร้านก่อนได้)
+    const note = h('p', 'empty', error ? error.message : 'บัญชีนี้เป็นแอดมิน — คุยกับร้านได้ที่หน้าแอดมิน (กด ✏️ แชทใหม่ เพื่อทักร้านก่อนได้เลย) ');
+    if (!error) {
+      const go = h('a', 'link', 'เปิดหน้าแอดมิน →');
+      go.href = 'admin.html';
+      note.append(h('br'), go);
+    }
+    $('msgs').replaceChildren(note);
+    $('chatSend').hidden = true;
+    return;
+  }
+  await loadThreads();
+  chatReady = true;
+  openThread(me);
+}
+
+function renderMe() {
+  $('meAv').replaceChildren(av(me, shortName(me)));
+  $('meName').textContent = dnames[me] || 'ตั้งชื่อ';
+}
+
+// ชื่อของฉัน: กดชื่อที่หัวเว็บ
+$('meName').onclick = async () => {
+  const name = prompt('ชื่อผู้ใช้ (แสดงในแชท)', dnames[me] ?? '');
+  if (name === null) return;
+  const v = name.trim().slice(0, 50);
+  const { error } = await db.from('profiles').upsert({ user_id: me, display_name: v || null, updated_at: new Date().toISOString() });
+  if (error) return alert('บันทึกชื่อไม่สำเร็จ: ' + error.message);
+  if (v) dnames[me] = v;
+  else delete dnames[me];
+  renderMe();
+  toast('บันทึกชื่อแล้ว');
+};
+
+async function loadThreads() {
+  const { data: rows } = await db.rpc('chat_threads', { p_shop: shop.id }); // ห้องของร้านที่เลือกบนหัวเว็บ
+  threads = rows ?? [];
+  if (!threads.some((t) => t.id === me)) threads.push({ id: me, name: shortName(me), last_message: '', last_at: null });
+  renderThreads();
+}
+
+function renderThreads() {
+  // ห้องของฉันอยู่บนสุด ที่เหลือเรียงตามข้อความล่าสุด
+  const sorted = [...threads].sort((a, b) => (b.id === me) - (a.id === me) || (b.last_at ?? '').localeCompare(a.last_at ?? ''));
+  $('threads').replaceChildren(...sorted.map((t) => {
+    const el = h('div', 'thread' + (t.id === thread ? ' active' : ''));
+    const body = h('div', 't-body');
+    const typing = typingText(t.id);
+    body.append(h('b', '', t.id === me ? 'แชทของฉันกับแอดมิน' : t.name), h('small', typing ? 'typing-now' : '', typing || t.last_message || ''));
+    el.append(av(t.id, t.name), body);
+    if (unread.has(t.id)) el.append(h('span', 'new'));
+    el.onclick = () => openThread(t.id);
+    return el;
+  }));
+}
+
+async function openThread(id) {
+  thread = id;
+  unread.delete(id);
+  $('chatBox').classList.add('open');
+  $('convName').textContent = `${id === me ? 'แชทของฉันกับแอดมิน' : threads.find((t) => t.id === id)?.name ?? ''} · 🏪 ${shop.name}`;
+  $('chatText').placeholder = id === me ? 'พิมพ์ข้อความถึงแอดมิน' : `ตอบในห้องของ ${shortName(id)}`;
+  renderThreads();
+  joinTyping(shop.id);
+  typingSentAt = 0;
+  renderTyping();
+  // ponytail: 200 ข้อความล่าสุด
+  const forShop = shop.id;
+  const [{ data: rows }, { data: room }] = await Promise.all([
+    db.from('messages').select().eq('contact_id', id).eq('shop_id', forShop).order('created_at', { ascending: false }).limit(200),
+    db.from('threads').select('unread').eq('contact_id', id).eq('shop_id', forShop).maybeSingle(),
+  ]);
+  const urls = await signedUrls((rows ?? []).map((m) => m.image_path)); // ขอลิงก์รูปทั้งห้องทีเดียว
+  if (thread !== id || shop.id !== forShop) return; // กดเปลี่ยนห้อง/ร้านระหว่างโหลด
+  imgUrls = urls;
+  lastDay = lastWho = '';
+  slots = {};
+  shownIds.clear();
+  msgById.clear();
+  $('msgs').replaceChildren();
+  (rows ?? []).reverse().forEach(addMsg);
+  adminUnread = room?.unread ?? null;
+  renderRead();
+  await fillCards();
+  if (searching()) searchChat(); // เปลี่ยนห้องระหว่างค้นหา → ค้นในห้องใหม่
+  markSeen();
+}
+$('convBack').onclick = () => $('chatBox').classList.remove('open');
+
+// ---------- ค้นหาในแชท: ข้อความ + ข้อมูลในการ์ดออเดอร์ (เลขออเดอร์ / สินค้า / เมล) ----------
+// ponytail: ค้นใน 200 ข้อความล่าสุดที่โหลดอยู่ — ออเดอร์เก่ากว่านั้นค้นที่ 📜 ประวัติการซื้อ
+let hits = [];   // ผลค้นหา (Range) ไฮไลต์ด้วย CSS Custom Highlight API ไม่แตะ DOM ข้อความ
+let hitIdx = -1;
+const searching = () => !$('chatSearch').hidden && $('chatQ').value.trim() !== '';
+function searchChat() {
+  const q = $('chatQ').value.trim().toLowerCase();
+  hits = [];
+  if (q) {
+    const walker = document.createTreeWalker($('msgs'), NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.parentElement.closest('button, time, .stamp, .day, .quote') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+    });
+    for (let node; (node = walker.nextNode());) {
+      const t = node.textContent.toLowerCase();
+      for (let i = t.indexOf(q); i !== -1; i = t.indexOf(q, i + q.length)) {
+        const r = new Range();
+        r.setStart(node, i);
+        r.setEnd(node, i + q.length);
+        hits.push(r);
+      }
+    }
+  }
+  hitIdx = hits.length - 1; // เริ่มจากล่าสุด แล้วกด ↑ ย้อนขึ้นไป
+  showHit();
+}
+function showHit() {
+  CSS.highlights?.set('hit', new Highlight(...hits));
+  CSS.highlights?.set('hit-now', new Highlight(...hits.slice(hitIdx, hitIdx + 1)));
+  $('chatCount').textContent = $('chatQ').value.trim() ? `${hits.length ? hitIdx + 1 : 0}/${hits.length}` : '';
+  hits[hitIdx]?.startContainer.parentElement.scrollIntoView({ block: 'center' });
+}
+function closeChatSearch() {
+  $('chatSearch').hidden = true;
+  $('chatQ').value = '';
+  searchChat();
+}
+$('convSearchBtn').onclick = () => {
+  if (!$('chatSearch').hidden) return closeChatSearch();
+  $('chatSearch').hidden = false;
+  $('chatQ').focus();
+};
+$('chatSearchClose').onclick = closeChatSearch;
+$('chatQ').oninput = searchChat;
+$('chatQ').onkeydown = (e) => { if (e.key === 'Escape') { e.stopPropagation(); closeChatSearch(); } }; // Esc ปิดแค่ช่องค้นหา ไม่ปิดหน้าต่างแชท
+$('hitUp').onclick = () => { if (hitIdx > 0) { hitIdx--; showHit(); } };
+$('hitDown').onclick = () => { if (hitIdx < hits.length - 1) { hitIdx++; showHit(); } };
+$('chatSearch').onsubmit = (e) => { e.preventDefault(); $('hitUp').click(); }; // Enter = ผลก่อนหน้า
+
+function onMessage(m) {
+  if (!chatReady) return;
+  const fromOther = m.direction === 'out' || (m.sender && m.sender !== me);
+  if (m.shop_id !== shop.id) { // ห้องของอีกร้าน → แค่เตือน
+    if (fromOther) $('nChat').textContent = ++unseen;
+    return;
+  }
+  const t = threads.find((x) => x.id === m.contact_id);
+  if (t) Object.assign(t, { last_message: m.text, last_at: m.created_at });
+  else loadThreads(); // ห้องใหม่ของเพื่อนร่วมร้าน
+  dropTyper(m.contact_id, m.sender ?? m.contact_id); // ส่งข้อความแล้ว = เลิกพิมพ์
+  if (m.contact_id === thread) {
+    addMsg(m);
+    renderRead();
+    if (m.order_id) fillCards([m.order_id]);
+    if (fromOther && chatOpen()) markSeen();
+  } else if (fromOther) unread.add(m.contact_id);
+  if (fromOther && !chatOpen()) $('nChat').textContent = ++unseen;
+  renderThreads();
+}
+
+function dayLabel(d) {
+  if (d.toDateString() === new Date().toDateString()) return 'วันนี้';
+  if (d.toDateString() === new Date(Date.now() - 864e5).toDateString()) return 'เมื่อวาน';
+  return d.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// ของฉัน = ขวา · แอดมิน / เพื่อนร่วมร้าน = ซ้าย มีรูป+ชื่อ · มี order_id = การ์ดออเดอร์
+function addMsg(m) {
+  if (shownIds.has(m.id)) return;
+  shownIds.add(m.id);
+  const d = new Date(m.created_at);
+  if (d.toDateString() !== lastDay) {
+    lastDay = d.toDateString();
+    lastWho = '';
+    $('msgs').append(h('div', 'day', dayLabel(d)));
+  }
+  if (m.order_id) {
+    const slot = h('div', 'slot');
+    slot.append(h('div', 'ocard muted', `📦 ออเดอร์ #${m.order_id} …`));
+    if (m.direction === 'in') slot.dataset.shop = ''; // นับรวมตอนเช็กว่าแอดมินอ่านถึงไหน
+    (slots[m.order_id] ??= []).push(slot);
+    $('msgs').append(slot);
+    lastWho = '';
+  } else {
+    // แอดมินแต่ละคน = ชื่อ + รูปของคนนั้น (ข้อความเก่าที่ไม่รู้ว่าใครตอบ = "แอดมิน" + ตัวอักษรร้าน)
+    const out = m.direction === 'out';
+    const who = (out ? m.sender : m.sender ?? m.contact_id) ?? 'admin';
+    const mine = !out && who === me;
+    const label = out ? dnames[who] || 'แอดมิน' : shortName(who);
+    const r = h('div', 'msg ' + (mine ? 'in' : 'out'));
+    const body = h('div', 'body');
+    if (!mine) {
+      const first = lastWho !== m.direction + who;
+      r.append(!first ? h('div', 'spacer') : out && !pics[who] && !dnames[who] ? h('div', 'av', [...SHOP_NAME][0]) : av(who, label));
+      if (first) body.append(h('small', '', label));
+    }
+    const text = m.image_path && m.text === IMG_TEXT ? '' : m.text; // รูปอย่างเดียว = ไม่มีกรอบข้อความ
+    msgById.set(m.id, { name: label, text: text || IMG_TEXT });
+    if (m.reply_to) body.append(quoteEl(m.reply_to));
+    if (m.image_path) body.append(chatImg(m.image_path));
+    if (text) body.append(h('div', 'bubble', text));
+    r.dataset.id = m.id;
+    const time = h('time', '', d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }));
+    if (m.direction === 'in') r.dataset.shop = '';
+    if (mine) {
+      const stamp = h('div', 'stamp');
+      stamp.append(h('span', 'read', 'อ่านแล้ว'), time);
+      r.append(body, stamp);
+    } else r.append(body, time);
+    lastWho = m.direction + who;
+    $('msgs').append(r);
+  }
+  $('msgs').scrollTop = $('msgs').scrollHeight;
+}
+
+// ข้อความที่ถูกตอบกลับ (กดแล้วเลื่อนไปหาข้อความเดิม)
+function quoteEl(id) {
+  const q = msgById.get(id);
+  const el = h('div', 'quote');
+  el.append('↩ ', h('b', '', q ? q.name : 'ข้อความก่อนหน้า'), q ? ': ' + q.text : '');
+  el.onclick = () => {
+    const r = $('msgs').querySelector(`.msg[data-id="${id}"]`);
+    if (!r) return;
+    r.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    r.classList.add('flash');
+    setTimeout(() => r.classList.remove('flash'), 1500);
+  };
+  return el;
+}
+
+// รูปในแชท (bucket ส่วนตัว → ลิงก์ชั่วคราว 1 ชม.) · กดดูรูปเต็ม
+async function signedUrls(paths) {
+  paths = [...new Set(paths.filter(Boolean))];
+  if (!paths.length) return {};
+  const { data } = await db.storage.from('shop-files').createSignedUrls(paths, 3600);
+  return Object.fromEntries((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
+}
+function chatImg(path) {
+  const img = h('img', 'chat-img');
+  img.alt = 'รูปภาพ';
+  img.onclick = () => img.src && window.open(img.src, '_blank');
+  img.onload = () => { // รูปโหลดเสร็จทีหลัง → ถ้าดูข้อความล่าสุดอยู่ เลื่อนลงให้เห็นรูปเต็ม
+    const box = $('msgs');
+    if (box.scrollHeight - box.scrollTop - box.clientHeight < img.offsetHeight + 120) box.scrollTop = box.scrollHeight;
+  };
+  (imgUrls[path] ? Promise.resolve(imgUrls) : signedUrls([path])).then((u) => {
+    imgUrls[path] = u[path];
+    if (u[path]) img.src = u[path];
+  });
+  return img;
+}
+
+// แอดมินอ่านถึงไหน: ข้อความฝั่งร้าน N อันล่าสุด (N = ที่แอดมินยังไม่อ่าน) ยังไม่อ่าน ที่เหลืออ่านแล้ว
+function renderRead() {
+  const sent = [...$('msgs').querySelectorAll('[data-shop]')];
+  sent.forEach((r, i) => r.classList.toggle('seen', adminUnread !== null && i < sent.length - adminUnread));
+}
+
+async function fillCards(ids = Object.keys(slots)) {
+  if (!ids.length) return;
+  const { data: rows } = await db.from('orders').select('*, products(image_url), shops(name), claims(id, status, reason, reply, refund, created_at, created_by, decided_by, decided_at)').in('id', ids);
+  const got = new Set((rows ?? []).map((o) => String(o.id)));
+  for (const o of rows ?? []) for (const slot of slots[o.id] ?? []) slot.replaceChildren(chatCard(o));
+  for (const id of ids) {
+    if (!got.has(String(id))) for (const slot of slots[id] ?? []) slot.firstChild.textContent = `📦 ออเดอร์ #${id} · ร้านที่คุณไม่ได้ดูแล`;
+  }
+  $('msgs').scrollTop = $('msgs').scrollHeight;
+  if (searching()) searchChat(); // การ์ดโหลดเสร็จ → เลขออเดอร์ในการ์ดค้นเจอ
+}
+
+// คน = รูปโปรไฟล์เล็ก + ชื่อตัวหนา · metaRows = บรรทัด "หัวข้อ   ค่า" (ข้ามบรรทัดที่ไม่มีข้อมูล)
+function person(uid, name) {
+  const el = h('span', 'who');
+  const pic = av(uid, name);
+  pic.classList.add('xs');
+  el.append(pic, h('b', '', name));
+  return el;
+}
+function metaRows(rows) {
+  const meta = h('div', 'claim-meta');
+  for (const [label, ...kids] of rows.filter(Boolean)) {
+    const r = h('div', 'cm-row');
+    r.append(h('span', 'lbl', label), ...kids.filter(Boolean));
+    meta.append(r);
+  }
+  return meta;
+}
+// ออเดอร์ที่ยกเลิก: คืนเครดิตไหม · เหตุผล · ผู้ยกเลิก (แอดมิน) + เวลา
+function cancelBox(o) {
+  const box = h('div', 'oc-box oc-cancel claim-box');
+  box.append(row(h('b', '', '❌ ยกเลิกออเดอร์' + (o.cancel_refund == null ? '' : o.cancel_refund ? ' · คืนเครดิตแล้ว' : ' · ไม่คืนเครดิต'))),
+    metaRows([
+      o.delivery && ['เหตุผล', h('b', '', o.delivery)],
+      ['ผู้ยกเลิก', o.cancelled_by ? person(o.cancelled_by, dnames[o.cancelled_by] || 'แอดมิน') : h('b', '', 'แอดมิน'), o.done_at && h('span', '', when(o.done_at))],
+    ]));
+  return box;
+}
+
+// กล่องผลเคลม (การ์ดในแชท + ประวัติการซื้อ) · สี: รอตรวจ = เหลือง · ไม่อนุมัติ = แดง · คืนเครดิต / เปลี่ยนสินค้า = เขียว
+const CLAIM_ICON = { pending: '⏳', refunded: '↩', replaced: '🔁', rejected: '❌' };
+function claimBox(c) {
+  const box = h('div', 'oc-box claim-box' + ({ pending: ' oc-wait', rejected: ' oc-cancel' }[c.status] ?? ''));
+  const top = row(h('b', c.status === 'refunded' || c.status === 'replaced' ? 'oc-green' : '', `${CLAIM_ICON[c.status]} เคลม #${c.id} · ${CLAIM[c.status][0]}`));
+  if (c.reply) top.append(chatCopy(c.reply, '📋 คัดลอก'));
+  // ทีละบรรทัด: ปัญหา → ผู้แจ้งเคลม (คนในร้าน) → ผู้อนุมัติเคลม (แอดมิน)
+  box.append(top, metaRows([
+    ['ปัญหา', h('b', '', c.reason)],
+    c.created_by && ['ผู้แจ้งเคลม', person(c.created_by, shortName(c.created_by)), c.created_at && h('span', '', when(c.created_at))],
+    c.decided_by && [c.status === 'rejected' ? 'ผู้ปฏิเสธเคลม' : 'ผู้อนุมัติเคลม', person(c.decided_by, dnames[c.decided_by] || 'แอดมิน'), c.decided_at && h('span', '', when(c.decided_at))],
+  ]));
+  if (c.reply) box.append(h('small', '', c.status === 'replaced' ? 'ข้อมูลสินค้าใหม่' : 'คำตอบจากแอดมิน'), h('pre', '', c.reply));
+  if (Number(c.refund) > 0) box.append(h('b', 'oc-green', `+${num(c.refund)} เครดิต คืนเข้าร้านแล้ว`));
+  return box;
+}
+
+function chatCopy(text, label = '📋') {
+  const b = h('button', 'oc-copy', label);
+  b.type = 'button';
+  b.onclick = () => navigator.clipboard.writeText(text).then(() => toast('คัดลอกแล้ว'));
+  return b;
+}
+
+function chatCard(o) {
+  const el = h('div', 'ocard');
+  const head = h('div', 'oc-head');
+  const t = new Date(o.created_at).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  head.append(h('b', '', `📦 ${ono(o)} · ${t}`), h('span', '', o.shops?.name ?? ''));
+
+  const prod = h('div', 'oc-prod');
+  let pic = h('div', 'oc-pic', '🛍️');
+  if (o.products?.image_url) {
+    pic = h('img', 'oc-pic');
+    pic.src = o.products.image_url;
+    pic.alt = '';
+  }
+  const name = `${o.product_name}${o.option_name ? ` (${o.option_name})` : ''}`;
+  prod.append(pic, h('span', '', name));
+
+  const grid = h('div', 'oc-grid');
+  for (const [label, value, cls] of [
+    ['สินค้า', name, ''],
+    ['ยอดรวม', Number(o.sale_total) > 0 ? `฿${num(o.sale_total)}` : '-', 'oc-green'],
+    ['ชื่อ', o.customer || shortName(o.ordered_by, o.orderer), ''], // ชื่อผู้สั่ง = ชื่อผู้ใช้ที่เบิก
+    ['ประเภท', (ORDER_KIND[o.kind] ?? ORDER_KIND.new) + (o.qty > 1 ? ` × ${o.qty}` : ''), 'oc-green'],
+  ]) {
+    const cell = h('div');
+    cell.append(h('small', '', label), h('span', cls, value));
+    grid.append(cell);
+  }
+  el.append(head, prod, grid);
+
+  if (o.email) {
+    const mail = h('div', 'oc-box');
+    const l = h('div', 'oc-line', o.email);
+    l.append(chatCopy(o.email));
+    mail.append(h('small', '', o.kind === 'renew' ? `🔁 อีเมลที่ต่ออายุ${o.renew_date ? ' · วันที่ ' + o.renew_date : ''}` : '📧 เมลที่ใช้'), l);
+    el.append(mail);
+  }
+  el.append(h('div', 'oc-credit', `💳 หักเครดิต ฿${num(o.total)}`));
+
+  if (o.status === 'done') {
+    const done = h('div', 'oc-box');
+    const top = h('div', 'oc-line');
+    top.append(h('span', 'oc-green', '✅ ส่งมอบแล้ว'), chatCopy(o.delivery, '📋 คัดลอก'));
+    done.append(top, h('pre', '', o.delivery));
+    if (!o.claims?.length) el.append(done); // เคลมแล้ว → สถานะเคลมขึ้นแทน "ส่งมอบแล้ว"
+    // เคลมของออเดอร์นี้ → สถานะขึ้นที่การ์ดเลย
+    el.append(...(o.claims ?? []).sort((a, b) => a.id - b.id).map(claimBox));
+  } else if (o.status === 'cancelled') {
+    el.append(cancelBox(o));
+  } else {
+    el.append(h('div', 'oc-box oc-wait', o.status === 'waiting' ? '⏳ แอดมินรับออเดอร์แล้ว กำลังเตรียมส่ง' : '🕐 รอแอดมินดำเนินการ'));
+  }
+  return el;
+}
+
+// ---------- กำลังพิมพ์… (Realtime broadcast แบบ private ต่อร้าน · ไม่เก็บลงฐานข้อมูล · สิทธิ์ตั้งใน update-27) ----------
+let typingCh = null;      // ช่อง "typing:<id ร้าน>" ของร้านที่เลือกอยู่
+let typingShop = null;
+const typers = new Map(); // ห้อง (id คน) → Map(คนที่กำลังพิมพ์ → { name, timer })
+let typingSentAt = 0;
+
+function joinTyping(shopId) {
+  if (typingShop === shopId) return;
+  if (typingCh) db.removeChannel(typingCh);
+  for (const room of typers.values()) for (const t of room.values()) clearTimeout(t.timer);
+  typers.clear();
+  typingShop = shopId;
+  typingCh = db.channel(`typing:${shopId}`, { config: { private: true } })
+    .on('broadcast', { event: 'typing' }, ({ payload: p }) => gotTyping(p.room, p))
+    .subscribe();
+}
+function gotTyping(key, p) {
+  if (p.id === me) return; // ตัวเองจากอีกแท็บ
+  if (p.stop) return dropTyper(key, p.id);
+  const room = typers.get(key) ?? new Map();
+  typers.set(key, room);
+  clearTimeout(room.get(p.id)?.timer);
+  room.set(p.id, { name: p.admin ? dnames[p.id] || 'แอดมิน' : shortName(p.id), timer: setTimeout(() => dropTyper(key, p.id), 4000) }); // เงียบไป 4 วิ = เลิกพิมพ์
+  renderTyping();
+}
+function dropTyper(key, id) {
+  const room = typers.get(key);
+  if (!room?.has(id)) return;
+  clearTimeout(room.get(id).timer);
+  room.delete(id);
+  if (!room.size) typers.delete(key);
+  renderTyping();
+}
+// "A, B กำลังพิมพ์…" ของห้องนั้น (ไม่มีใครพิมพ์ = '')
+const typingText = (key) => (typers.has(key) ? [...typers.get(key).values()].map((t) => t.name).join(', ') + ' กำลังพิมพ์…' : '');
+function renderTyping() {
+  const t = typingText(thread);
+  $('typing').hidden = !t;
+  $('typingWho').textContent = t;
+  renderThreads();
+}
+// บอกห้องว่ากำลังพิมพ์ (ส่งทุก 2 วิ ระหว่างพิมพ์) · ลบข้อความหมด/ส่งแล้ว = เลิกพิมพ์
+function sendTyping(stop = false) {
+  if (!typingCh || !thread || (stop ? !typingSentAt : Date.now() - typingSentAt < 2000)) return;
+  typingSentAt = stop ? 0 : Date.now();
+  typingCh.send({ type: 'broadcast', event: 'typing', payload: { room: thread, id: me, admin: false, stop } });
+}
+$('chatText').addEventListener('input', () => sendTyping(!$('chatText').value.trim()));
+
+function setImgDraft(file) {
+  pendingImg = file;
+  $('imgBar').hidden = !file;
+  if ($('imgPrev').src) URL.revokeObjectURL($('imgPrev').src);
+  if (file) {
+    $('imgPrev').src = URL.createObjectURL(file);
+    $('chatText').focus();
+  } else $('imgPrev').removeAttribute('src');
+}
+
+$('chatSend').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('chatText').value.trim();
+  const file = pendingImg;
+  if ((!text && !file) || !thread) return;
+  $('chatText').value = '';
+  sendTyping(true);
+  setImgDraft(null);
+  const undo = (msg) => { alert(msg); $('chatText').value = text; setImgDraft(file); }; // คืนไว้ให้กดส่งใหม่
+  let image_path = null;
+  if (file) {
+    try { image_path = await upload(file); } catch (err) { return undo('อัปโหลดรูปไม่สำเร็จ: ' + err.message); }
+  }
+  // ข้อความจะโผล่เองผ่าน realtime · คนพิมพ์ (sender) ฐานข้อมูลใส่ให้เอง · ร้าน = ร้านที่เลือกอยู่บนหัวเว็บ
+  const { error } = await db.from('messages').insert({ contact_id: thread, direction: 'in', text: text || IMG_TEXT, shop_id: shop.id, ...(image_path && { image_path }) });
+  if (error) undo('ส่งไม่สำเร็จ: ' + error.message);
+};
+$('imgX').onclick = () => setImgDraft(null);
+$('chatAttach').onclick = () => $('chatFile').click();
+$('chatFile').onchange = () => { setImgDraft($('chatFile').files[0] ?? null); $('chatFile').value = ''; };
+// ก๊อปรูปแล้ววาง (Ctrl+V) ตอนเปิดแชทอยู่ — วางในช่องพิมพ์หรือที่ไหนในหน้าแชทก็ได้ (ยกเว้นช่องกรอกอื่น)
+document.addEventListener('paste', (e) => {
+  if ($('chatPop').hidden || $('chatSend').hidden || !thread) return;
+  if (e.target !== $('chatText') && e.target.closest?.('input, textarea, dialog')) return;
+  const file = [...e.clipboardData.files].find((f) => f.type.startsWith('image/'));
+  if (!file) return;
+  e.preventDefault();
+  setImgDraft(file);
+});
+
+// รูปโปรไฟล์ของฉัน: กดรูปที่หัวเว็บ
+$('meFile').onchange = async () => {
+  const file = $('meFile').files[0];
+  $('meFile').value = '';
+  if (!file) return;
+  try {
+    const path = `${me}/${crypto.randomUUID()}.webp`;
+    const { error } = await db.storage.from('avatars').upload(path, await shrink(file, 400), { contentType: 'image/webp' });
+    if (error) throw error;
+    const url = db.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+    const { error: e2 } = await db.from('profiles').upsert({ user_id: me, avatar_url: url, updated_at: new Date().toISOString() });
+    if (e2) throw e2;
+    pics[me] = url;
+    renderMe();
+    renderThreads();
+    toast('เปลี่ยนรูปโปรไฟล์แล้ว');
+  } catch (err) {
+    alert('เปลี่ยนรูปไม่สำเร็จ: ' + err.message);
+  }
+};
+
+// ---------- ไฟล์ (สลิป / รูปเคลม) ----------
+// ย่อรูปให้ด้านยาวไม่เกิน 1600px เป็น webp (รูปจากมือถือมักเกิน 5MB)
+async function shrink(file, max = 1600) {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const canvas = new OffscreenCanvas(Math.round(bmp.width * scale), Math.round(bmp.height * scale));
+  canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  return canvas.convertToBlob({ type: 'image/webp', quality: 0.85 });
+}
+
+async function upload(file) {
+  const path = `${shop.id}/${crypto.randomUUID()}.webp`; // โฟลเดอร์ = id ร้าน (สิทธิ์ใน storage ตรวจจากตรงนี้)
+  const { error } = await db.storage.from('shop-files').upload(path, await shrink(file), { contentType: 'image/webp' });
+  if (error) throw error;
+  return path;
+}
+
+// bucket ส่วนตัว → ขอลิงก์ชั่วคราวตอนกดดู
+function fileButton(path, label) {
+  const b = h('button', 'ghost', label);
+  b.onclick = async () => {
+    const w = window.open('', '_blank');
+    const { data: res, error } = await db.storage.from('shop-files').createSignedUrl(path, 300);
+    if (error) { w?.close(); return alert(error.message); }
+    if (w) w.location = res.signedUrl;
+  };
+  return b;
+}
+
+start();
+</script>
+</body>
+</html>

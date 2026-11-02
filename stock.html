@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>จัดการสินค้า</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script>
+  // โหมดมืด/สว่างเดียวกับ admin.html (ไม่เคยเลือก = ตามเครื่อง) — ตั้งก่อนวาดหน้า
+  try { document.documentElement.dataset.theme = localStorage.getItem('admin-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch {}
+</script>
+<style>
+  /* โหมดสว่าง / มืด — ใช้ค่าเดียวกับ admin.html (ปุ่มสลับอยู่บนหัวหน้า) */
+  :root { --green: #06c755; --line: #e9eaec; --muted: #8b8f96; --hover: #f5f6f7; --warn: #d97706; --bad: #dc2626;
+    --bg: #fff; --page: #f5f6f7; --txt: #111; --label: #444; --field: #d6d8db; --gtint: #e7f9ef; --gtext: #05a847; --warn-bg: #fef3c7; --bad-bg: #fee2e2; }
+  :root[data-theme="dark"] { color-scheme: dark; --line: #2a2f37; --muted: #8b93a1; --hover: #1b1f26; --warn: #fbbf24; --bad: #f87171;
+    --bg: #12151a; --page: #0d0f13; --txt: #e7e9ee; --label: #aab1bd; --field: #363c46; --gtint: rgba(6, 199, 85, .14); --gtext: #3ddc84;
+    --warn-bg: rgba(245, 158, 11, .16); --bad-bg: rgba(239, 68, 68, .16); }
+  * { box-sizing: border-box; margin: 0; }
+  [hidden] { display: none !important; }
+  body { font-family: system-ui, sans-serif; font-size: 14px; color: var(--txt); background: var(--page); min-height: 100dvh; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  input, textarea, select { font: inherit; color: inherit; }
+  .btn { background: var(--green); color: #fff; border-radius: 6px; padding: 8px 16px; font-weight: 600; }
+  .btn:disabled { opacity: .5; }
+  .field { width: 100%; border: 1px solid var(--field); border-radius: 6px; padding: 8px 10px; outline: none; background: var(--bg); }
+  .field:focus { border-color: var(--green); }
+
+  #login { margin: 15vh auto 0; display: flex; flex-direction: column; gap: 10px; width: 300px; }
+  #login h1 { color: var(--green); text-align: center; margin-bottom: 8px; }
+
+  .top { background: var(--bg); border-bottom: 1px solid var(--line); }
+  .top .in { max-width: 1000px; margin: auto; padding: 12px 16px; display: flex; align-items: center; gap: 16px; }
+  .top b { font-size: 16px; }
+  .top nav { margin-left: auto; display: flex; gap: 14px; align-items: center; }
+  .top a { color: var(--green); text-decoration: none; font-weight: 600; }
+  #logout { color: var(--muted); font-size: 12px; }
+  main { max-width: 1000px; margin: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stats div { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; }
+  .stats b { font-size: 24px; }
+  .stats span { color: var(--muted); font-size: 12px; }
+  #sLow { color: var(--warn); }
+  #sOut { color: var(--bad); }
+  .tools { display: flex; gap: 10px; }
+  #list { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .group { padding: 8px 16px; background: var(--hover); color: var(--muted); font-size: 12px; font-weight: 600; }
+  .prow { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--line); }
+  .prow.hidden-p { opacity: .5; }
+  .thumb { width: 52px; height: 52px; border-radius: 8px; background: var(--hover); object-fit: cover; display: grid; place-items: center; font-size: 22px; flex: none; }
+  .pmain { flex: 1; min-width: 0; }
+  .pmain b, .pmain small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .pmain small { color: var(--muted); }
+  .qty { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; flex: none; }
+  .qty button { width: 30px; height: 30px; font-size: 16px; color: var(--muted); }
+  .qty input { width: 52px; text-align: center; border: 0; outline: none; -moz-appearance: textfield; }
+  .qty input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--gtint); color: var(--gtext); white-space: nowrap; width: 72px; text-align: center; flex: none; }
+  .pill.low { background: var(--warn-bg); color: var(--warn); }
+  .pill.out { background: var(--bad-bg); color: var(--bad); }
+  .switch { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); flex: none; cursor: pointer; }
+  .edit { color: var(--green); font-weight: 600; flex: none; }
+  .none { color: var(--muted); text-align: center; padding: 40px; }
+
+  dialog { margin: auto; background: var(--bg); color: var(--txt); border: 0; border-radius: 12px; padding: 0; width: min(520px, calc(100% - 24px)); max-height: calc(100dvh - 24px); }
+  dialog::backdrop { background: rgba(0, 0, 0, .4); }
+  #form { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  #form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--label); }
+  #form label.check { flex-direction: row; align-items: center; gap: 8px; }
+  #form textarea { min-height: 70px; resize: vertical; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .imgrow { display: flex; gap: 12px; align-items: center; }
+  #fPreview { width: 96px; height: 60px; border-radius: 8px; object-fit: cover; background: var(--hover); flex: none; }
+  .actions { display: flex; gap: 8px; align-items: center; }
+  .actions .grow { flex: 1; }
+  #delBtn { color: var(--bad); }
+  .hint { color: var(--muted); font-size: 11px; }
+  /* ตารางแพ็กเกจ: ชื่อ · ทุน (เครดิตที่หัก) · ราคาขาย */
+  .pk { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--label); }
+  .pk-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr 32px; gap: 6px; align-items: center; }
+  .pk-head { color: var(--muted); font-size: 11px; }
+  .pk-del { border: 0; background: none; color: var(--muted); font-size: 18px; border-radius: 6px; }
+  .pk-del:hover { background: var(--hover); color: var(--bad); }
+  .pk-add { align-self: flex-start; border: 1px dashed var(--field); background: none; border-radius: 6px; padding: 5px 12px; color: var(--green); }
+
+  @media (max-width: 640px) {
+    .prow { flex-wrap: wrap; }
+    .pmain { flex-basis: calc(100% - 64px); }
+    .qty { margin-left: 64px; }
+    .stats b { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<form id="login" hidden>
+  <h1>จัดการสินค้า</h1>
+  <input id="email" class="field" type="email" placeholder="อีเมล" autocomplete="username" required>
+  <input id="password" class="field" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" required>
+  <button class="btn">เข้าสู่ระบบ</button>
+</form>
+
+<div id="app" hidden>
+  <header class="top"><div class="in">
+    <b>📦 สินค้า</b>
+    <nav><a href="admin.html">💬 แชท &amp; หลังร้าน</a><a href="shop.html" target="_blank">🛍 หน้าร้าน</a><button id="themeBtn" type="button" aria-label="สลับโหมดมืด / สว่าง"></button><button id="logout">ออกจากระบบ</button></nav>
+  </div></header>
+  <main>
+    <div class="stats">
+      <div><b id="sTotal">0</b><span>สินค้าทั้งหมด</span></div>
+      <div><b id="sLow">0</b><span>ใกล้หมด</span></div>
+      <div><b id="sOut">0</b><span>หมด</span></div>
+    </div>
+    <div class="tools">
+      <input id="search" class="field" type="search" placeholder="ค้นหาสินค้า / หมวด">
+      <button id="addBtn" class="btn" style="white-space: nowrap">+ เพิ่มสินค้า</button>
+    </div>
+    <div id="list"></div>
+  </main>
+</div>
+
+<dialog id="dlg">
+  <form id="form">
+    <b id="dlgTitle" style="font-size: 16px"></b>
+    <div class="imgrow">
+      <img id="fPreview" alt="">
+      <label style="flex: 1">รูปสินค้า<input id="fImage" type="file" accept="image/*"></label>
+    </div>
+    <label>ชื่อสินค้า *<input id="fName" class="field" required maxlength="100"></label>
+    <label>หมวดหมู่<input id="fCategory" class="field" list="catList" placeholder="เช่น 1. แอพสตรีมมิ่ง" autocomplete="off">
+      <span class="hint">ใส่เลขนำหน้าเพื่อเรียงลำดับหมวดบนหน้าร้าน</span></label>
+    <datalist id="catList"></datalist>
+    <label>รายละเอียด<textarea id="fDesc" class="field"></textarea></label>
+    <div class="pk">
+      <span>แพ็กเกจและราคา *</span>
+      <div class="pk-row pk-head"><span>ชื่อแพ็กเกจ</span><span>🏭 ทุน (เครดิตที่หัก)</span><span>💰 ราคาขาย</span><span></span></div>
+      <div id="fPkgs" class="pk"></div>
+      <button type="button" id="addPkg" class="pk-add">+ เพิ่มแพ็กเกจ</button>
+      <span class="hint">ทุน = เครดิตที่หักจากร้านตอนเบิก · ราคาขาย = ราคาที่ร้านขายลูกค้า (ใช้คิดกำไรต่อบิล ไม่ใส่ก็ได้) · มีราคาเดียวเว้นชื่อว่างได้</span>
+    </div>
+    <div class="row2">
+      <label>สต็อค<input id="fStock" class="field" type="number" min="0" step="1"></label>
+      <label>ป้ายบนรูป<input id="fBadge" class="field" maxlength="20" placeholder="เช่น ขายดี 🔥"></label>
+    </div>
+    <label class="check"><input id="fActive" type="checkbox"> แสดงบนหน้าร้าน</label>
+    <div class="actions">
+      <button type="button" id="delBtn">ลบสินค้า</button>
+      <span class="grow"></span>
+      <button type="button" id="cancelBtn">ยกเลิก</button>
+      <button class="btn" id="saveBtn">บันทึก</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: 'oa-admin' } }); // session เดียวกับ admin.html (แยกจาก shop.html)
+const $ = (id) => document.getElementById(id);
+const byName = (a, b) => a.localeCompare(b, 'th', { numeric: true });
+const baht = (n) => '฿' + Number(n).toLocaleString('th-TH');
+let products = [];
+let editing = null; // สินค้าที่กำลังแก้ (null = เพิ่มใหม่)
+
+function h(tag, cls = '', text = '') {
+  const el = document.createElement(tag);
+  el.className = cls;
+  el.textContent = text;
+  return el;
+}
+
+function status(p) {
+  if (p.stock <= 0) return { key: 'out', label: 'หมด' };
+  if (p.stock <= LOW_STOCK) return { key: 'low', label: 'ใกล้หมด' };
+  return { key: 'ok', label: 'มีสินค้า' };
+}
+
+async function start() {
+  const { data: { session } } = await db.auth.getSession();
+  $('login').hidden = !!session;
+  $('app').hidden = !session;
+  if (session) load();
+}
+
+async function load() {
+  const { data, error } = await db.from('products').select();
+  if (error) return alert(error.message);
+  products = data.sort((a, b) => byName(a.category, b.category) || byName(a.name, b.name));
+  $('sTotal').textContent = products.length;
+  $('sLow').textContent = products.filter((p) => status(p).key === 'low').length;
+  $('sOut').textContent = products.filter((p) => status(p).key === 'out').length;
+  $('catList').replaceChildren(...[...new Set(products.map((p) => p.category))].map((c) => h('option', '', c)));
+  render();
+}
+
+function render() {
+  const q = $('search').value.trim().toLowerCase();
+  const shown = products.filter((p) => !q || `${p.name} ${p.category}`.toLowerCase().includes(q));
+  const rows = [];
+  let group = null;
+  for (const p of shown) {
+    if (p.category !== group) rows.push(h('div', 'group', (group = p.category)));
+    rows.push(row(p));
+  }
+  $('list').replaceChildren(...rows);
+  if (!shown.length) $('list').append(h('p', 'none', products.length ? 'ไม่พบสินค้า' : 'ยังไม่มีสินค้า — กด "+ เพิ่มสินค้า"'));
+}
+
+function row(p) {
+  const el = h('div', 'prow' + (p.active ? '' : ' hidden-p'));
+  let thumb;
+  if (p.image_url) {
+    thumb = h('img', 'thumb');
+    thumb.src = p.image_url;
+    thumb.alt = '';
+  } else thumb = h('div', 'thumb', '🛍️');
+
+  const main = h('div', 'pmain');
+  main.append(h('b', '', p.name), h('small', '', p.options.map((o) => `${o.name} ทุน ${baht(o.price)}${o.sale != null ? ` / ขาย ${baht(o.sale)}` : ''}`.trim()).join(' · ')));
+
+  // ปรับสต็อคเร็วๆ: − / ตัวเลข / +
+  const qty = h('div', 'qty');
+  const minus = h('button', '', '−');
+  const num = h('input');
+  const plus = h('button', '', '+');
+  num.type = 'number';
+  num.min = 0;
+  num.value = p.stock;
+  num.setAttribute('aria-label', 'สต็อค ' + p.name);
+  minus.onclick = () => setStock(p, p.stock - 1);
+  plus.onclick = () => setStock(p, p.stock + 1);
+  num.onchange = () => setStock(p, parseInt(num.value, 10) || 0);
+  qty.append(minus, num, plus);
+
+  const s = status(p);
+  const sw = h('label', 'switch');
+  const cb = h('input');
+  cb.type = 'checkbox';
+  cb.checked = p.active;
+  cb.onchange = () => update(p, { active: cb.checked });
+  sw.append(cb, 'แสดง');
+
+  const edit = h('button', 'edit', 'แก้ไข');
+  edit.onclick = () => openForm(p);
+
+  el.append(thumb, main, qty, h('span', 'pill ' + s.key, s.label), sw, edit);
+  return el;
+}
+
+async function update(p, patch) {
+  const { error } = await db.from('products').update(patch).eq('id', p.id);
+  if (error) alert('บันทึกไม่สำเร็จ: ' + error.message);
+  load();
+}
+
+const setStock = (p, n) => update(p, { stock: Math.max(0, n) });
+
+// ---------- ฟอร์มเพิ่ม/แก้สินค้า ----------
+function openForm(p = null) {
+  editing = p;
+  $('dlgTitle').textContent = p ? 'แก้ไขสินค้า' : 'เพิ่มสินค้า';
+  $('fName').value = p?.name ?? '';
+  $('fCategory').value = p?.category ?? '';
+  $('fDesc').value = p?.description ?? '';
+  $('fPkgs').replaceChildren(...(p?.options?.length ? p.options : [{}]).map(pkgRow));
+  $('fStock').value = p?.stock ?? 0;
+  $('fBadge').value = p?.badge ?? '';
+  $('fActive').checked = p?.active ?? true;
+  $('fImage').value = '';
+  $('fPreview').src = p?.image_url ?? '';
+  $('delBtn').hidden = !p;
+  $('dlg').showModal();
+}
+
+// แถวแพ็กเกจ 1 แถว: ชื่อ · ทุน (= price เครดิตที่หัก, บังคับ) · ราคาขาย (= sale, ไม่ใส่ก็ได้)
+function pkgRow(o = {}) {
+  const r = h('div', 'pk-row');
+  const input = (label, value, num) => {
+    const el = h('input', 'field');
+    el.setAttribute('aria-label', label);
+    el.value = value ?? '';
+    if (num) Object.assign(el, { type: 'number', min: 0, step: 'any', inputMode: 'decimal' });
+    return el;
+  };
+  const name = input('ชื่อแพ็กเกจ', o.name);
+  name.maxLength = 50;
+  name.placeholder = 'เช่น 1 เดือน';
+  const cost = input('ทุน (เครดิตที่หัก)', o.price, true);
+  cost.required = true;
+  const sale = input('ราคาขาย', o.sale, true);
+  sale.placeholder = '-';
+  const del = h('button', 'pk-del', '×');
+  del.type = 'button';
+  del.setAttribute('aria-label', 'ลบแพ็กเกจนี้');
+  del.onclick = () => r.remove();
+  r.append(name, cost, sale, del);
+  return r;
+}
+$('addPkg').onclick = () => {
+  const r = pkgRow();
+  $('fPkgs').append(r);
+  r.querySelector('input').focus();
+};
+const readPkgs = () => [...$('fPkgs').children].map((r) => {
+  const [name, cost, sale] = r.querySelectorAll('input');
+  const o = { name: name.value.trim(), price: Number(cost.value) };
+  if (sale.value !== '') o.sale = Number(sale.value);
+  return o;
+});
+
+// ย่อรูปให้ด้านยาวไม่เกิน 1200px เป็น webp (รูปจากมือถือมักเกิน 5MB)
+async function shrink(file) {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, 1200 / Math.max(bmp.width, bmp.height));
+  const canvas = new OffscreenCanvas(Math.round(bmp.width * scale), Math.round(bmp.height * scale));
+  canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  return canvas.convertToBlob({ type: 'image/webp', quality: 0.85 });
+}
+
+async function uploadImage(file) {
+  // ponytail: รูปเก่าตอนเปลี่ยน/ลบสินค้ายังค้างใน storage — ลบเองใน Supabase ถ้าเริ่มเปลืองที่
+  const path = crypto.randomUUID() + '.webp';
+  const { error } = await db.storage.from('products').upload(path, await shrink(file), { contentType: 'image/webp' });
+  if (error) throw error;
+  return db.storage.from('products').getPublicUrl(path).data.publicUrl;
+}
+
+$('fImage').onchange = () => {
+  const f = $('fImage').files[0];
+  if (f) $('fPreview').src = URL.createObjectURL(f);
+};
+
+$('form').onsubmit = async (e) => {
+  e.preventDefault();
+  const options = readPkgs(); // ช่องตัวเลข / ทุนที่ว่าง ฟอร์มเช็กให้ก่อนแล้ว
+  if (!options.length) return alert('ใส่แพ็กเกจอย่างน้อย 1 แบบ');
+  const row = {
+    name: $('fName').value.trim(),
+    category: $('fCategory').value.trim() || 'อื่นๆ',
+    description: $('fDesc').value.trim(),
+    options,
+    stock: Math.max(0, parseInt($('fStock').value, 10) || 0),
+    badge: $('fBadge').value.trim(),
+    active: $('fActive').checked,
+  };
+  $('saveBtn').disabled = true;
+  try {
+    if ($('fImage').files[0]) row.image_url = await uploadImage($('fImage').files[0]);
+    const { error } = editing
+      ? await db.from('products').update(row).eq('id', editing.id)
+      : await db.from('products').insert(row);
+    if (error) throw error;
+    $('dlg').close();
+    load();
+  } catch (err) {
+    alert('บันทึกไม่สำเร็จ: ' + err.message);
+  } finally {
+    $('saveBtn').disabled = false;
+  }
+};
+
+$('delBtn').onclick = async () => {
+  if (!confirm(`ลบสินค้า "${editing.name}"?`)) return;
+  const { error } = await db.from('products').delete().eq('id', editing.id);
+  if (error) return alert('ลบไม่สำเร็จ: ' + error.message);
+  $('dlg').close();
+  load();
+};
+
+$('cancelBtn').onclick = () => $('dlg').close();
+$('addBtn').onclick = () => openForm();
+$('search').oninput = render;
+// สลับโหมดมืด/สว่าง (ค่าเดียวกับ admin.html)
+function renderThemeBtn() {
+  $('themeBtn').textContent = document.documentElement.dataset.theme === 'dark' ? '☀️ สว่าง' : '🌙 มืด';
+}
+$('themeBtn').onclick = () => {
+  const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('admin-theme', t); } catch {}
+  renderThemeBtn();
+};
+renderThemeBtn();
+$('logout').onclick = () => db.auth.signOut({ scope: 'local' }).then(() => location.reload());
+
+$('login').onsubmit = async (e) => {
+  e.preventDefault();
+  const { error } = await db.auth.signInWithPassword({ email: $('email').value, password: $('password').value });
+  if (error) return alert(error.message);
+  start();
+};
+
+start();
+</script>
+</body>
+</html>

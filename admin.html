@@ -5,96 +5,508 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>My OA</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="slipbot.js?v=2"></script>
+<script>
+  // โหมดมืด/สว่างที่เลือกไว้ (ไม่เคยเลือก = ตามเครื่อง) — ตั้งก่อนวาดหน้า จอจะได้ไม่กระพริบ
+  try { document.documentElement.dataset.theme = localStorage.getItem('admin-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch {}
+</script>
 <style>
+  /* สีทั้งหน้า (โหมดสว่าง) · โหมดมืดเปลี่ยนแค่ค่าในชุดนี้ */
+  :root { --green: #06c755; --line: #e9eaec; --muted: #8b8f96; --hover: #f5f6f7;
+    --bg: #fff; --txt: #111; --label: #444; --soft: #f1f2f4; --field: #d6d8db; --rail-hover: #eceef0; --sel: #e3f6ea;
+    --gtint: #e6f9ee; --gtext: #05a847; --orange: #ea580c; --note: #fffbe8;
+    --warn-bg: #fef3c7; --warn: #d97706; --bad-bg: #fee2e2; --bad: #dc2626;
+    --ok-border: #bfe9cf; --ok-bg: #f2fbf5; --wait-border: #f5d27a; --wait-bg: #fffaeb; --bad-border: #fecaca; --bad-soft: #fef2f2; }
+  :root[data-theme="dark"] { color-scheme: dark; --line: #2a2f37; --muted: #8b93a1; --hover: #1b1f26;
+    --bg: #12151a; --txt: #e7e9ee; --label: #aab1bd; --soft: #232831; --field: #363c46; --rail-hover: #242932; --sel: rgba(6, 199, 85, .16);
+    --gtint: rgba(6, 199, 85, .14); --gtext: #3ddc84; --orange: #fb923c; --note: #2a2616;
+    --warn-bg: rgba(245, 158, 11, .16); --warn: #fbbf24; --bad-bg: rgba(239, 68, 68, .16); --bad: #f87171;
+    --ok-border: rgba(6, 199, 85, .38); --ok-bg: rgba(6, 199, 85, .08); --wait-border: rgba(245, 200, 76, .45); --wait-bg: rgba(245, 200, 76, .08);
+    --bad-border: rgba(239, 68, 68, .4); --bad-soft: rgba(239, 68, 68, .08); }
   * { box-sizing: border-box; margin: 0; }
   [hidden] { display: none !important; }
-  body { font-family: system-ui, sans-serif; height: 100dvh; display: flex; background: #f5f6f7; }
-  input, button, textarea { font: inherit; padding: 10px 12px; border: 1px solid #ccc; border-radius: 20px; }
-  button { background: #06c755; color: #fff; border: 0; cursor: pointer; }
-  #login { margin: auto; display: flex; flex-direction: column; gap: 8px; width: 280px; }
-  #login h1 { color: #06c755; text-align: center; }
+  body { font-family: system-ui, sans-serif; font-size: 14px; color: var(--txt); background: var(--bg); height: 100dvh; display: flex; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  input, textarea, select { font: inherit; color: inherit; }
+  .btn { background: var(--green); color: #fff; border-radius: 6px; padding: 8px 18px; font-weight: 600; }
+  .field { width: 100%; background: var(--bg); border: 1px solid var(--field); border-radius: 6px; padding: 8px 10px; outline: none; }
+  .field:focus { border-color: var(--green); }
+
+  #login, #notAdmin { margin: auto; display: flex; flex-direction: column; gap: 10px; width: 300px; text-align: center; }
+  #notAdmin a { text-decoration: none; }
+  #login h1 { color: var(--green); text-align: center; margin-bottom: 8px; }
+
   #app { display: flex; flex: 1; min-width: 0; }
-  #side { width: 320px; background: #fff; border-right: 1px solid #e5e5e5; display: flex; flex-direction: column; }
-  #side header { padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e5e5; }
-  #side header button { background: none; color: #888; padding: 4px; }
-  #search { width: 100%; padding: 8px 12px; }
+  #app:not([data-view="chat"]) :is(#side, #chat, #profile), #app[data-view="chat"] #office { display: none; }
+
+  /* เมนูซ้าย */
+  #rail { width: 72px; flex: none; background: var(--hover); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; }
+  #rail > * { position: relative; width: 62px; padding: 8px 0; border-radius: 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 20px; color: var(--muted); text-decoration: none; }
+  #rail > *:hover { background: var(--rail-hover); }
+  #rail span { font-size: 10px; }
+  #rail [aria-pressed="true"] { background: var(--sel); color: var(--green); font-weight: 700; }
+  #rail .end { margin-top: auto; }
+  .count { position: absolute; top: 2px; right: 8px; background: #ef4444; color: #fff; border-radius: 999px; font-size: 10px; font-weight: 700; padding: 0 5px; }
+  .count:empty { display: none; }
+
+  /* รายการแชท */
+  #side { width: 340px; border-right: 1px solid var(--line); display: flex; flex-direction: column; flex: none; }
+  .side-top { padding: 14px 16px 0; display: flex; flex-direction: column; gap: 12px; }
+  .account { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+  #search { background: var(--hover); border-color: transparent; }
+  .filters { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+  .tabs { display: flex; gap: 20px; }
+  #tagFilter, #shopFilter { border: 0; background: none; color: var(--muted); font: inherit; max-width: 110px; cursor: pointer; }
+  .shop-chips { display: flex; gap: 4px; flex: none; }
+  .shop-chip { background: var(--gtint); color: var(--gtext); border-radius: 6px; padding: 0 6px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  #headShops .shop-chips { flex-wrap: wrap; }
+  .tabs button { padding: 8px 0; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs button[aria-pressed="true"] { color: var(--txt); font-weight: 700; border-color: var(--txt); }
   #list { overflow-y: auto; flex: 1; }
-  .contact { display: flex; gap: 10px; padding: 12px 16px; align-items: center; cursor: pointer; }
-  .contact:hover, .contact.active { background: #f0f0f0; }
-  .avatar { width: 44px; height: 44px; border-radius: 50%; background: #06c755; color: #fff; display: grid; place-items: center; font-weight: bold; flex: none; }
-  .meta { flex: 1; min-width: 0; }
-  .meta b, .meta small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .meta small { color: #888; }
-  .badge { background: #06c755; color: #fff; border-radius: 10px; padding: 0 7px; font-size: 12px; }
-  .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-  .tag { background: #e6f9ee; color: #05a847; border-radius: 10px; padding: 1px 8px; font-size: 12px; }
-  .tag button { background: none; color: inherit; padding: 0 0 0 4px; }
+  #list .none { color: var(--muted); text-align: center; padding: 40px 0; }
+  .item { display: flex; gap: 12px; padding: 12px 16px; align-items: center; cursor: pointer; }
+  .item:hover { background: var(--hover); }
+  .item.active { background: var(--sel); }
+  .item .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .item .top, .item .bottom { display: flex; gap: 8px; align-items: center; }
+  .item .name, .item .preview { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .item .name { font-weight: 600; }
+  .item .preview { color: var(--muted); font-size: 13px; }
+  .item.unread .preview { color: var(--txt); font-weight: 600; }
+  .item time { color: var(--muted); font-size: 11px; flex: none; }
+  .badge { background: var(--green); color: #fff; border-radius: 10px; min-width: 20px; padding: 1px 6px; font-size: 11px; text-align: center; }
+
+  .avatar { width: 44px; height: 44px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 700; flex: none; }
+  .avatar.sm { width: 32px; height: 32px; font-size: 13px; }
+  .avatar.xs { width: 22px; height: 22px; font-size: 10px; }
+  /* ใครแจ้ง / ใครตัดสินเคลม: รูปโปรไฟล์ + ชื่อตัวหนา */
+  .claim-meta { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .cm-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cm-row .lbl { min-width: 92px; }
+  .cm-row > b { color: var(--txt); }
+  .who { display: inline-flex; align-items: center; gap: 6px; }
+  .who b { color: var(--txt); font-weight: 700; }
+  .avatar.lg { width: 84px; height: 84px; font-size: 32px; }
+
+  /* ห้องแชท */
   #chat { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  #head { padding: 12px 16px; background: #fff; border-bottom: 1px solid #e5e5e5; font-weight: bold; display: flex; gap: 8px; align-items: center; }
-  #back { display: none; background: none; color: #333; padding: 0 8px 0 0; font-size: 20px; }
-  #info { background: #fff; border-bottom: 1px solid #e5e5e5; padding: 8px 16px; }
-  #info summary { cursor: pointer; color: #555; font-size: 14px; }
-  #info .box { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
-  #tagInput { padding: 6px 12px; width: 200px; }
-  #note { border-radius: 8px; min-height: 70px; resize: vertical; }
-  #msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 6px; background: #8cabd9; }
-  .msg { max-width: 70%; padding: 8px 12px; border-radius: 16px; background: #fff; align-self: flex-start; white-space: pre-wrap; word-break: break-word; }
-  .msg.out { background: #85e249; align-self: flex-end; }
-  .msg time { display: block; font-size: 11px; color: #666; margin-top: 2px; }
-  #send { display: flex; gap: 8px; padding: 10px; background: #fff; }
-  #send input { flex: 1; min-width: 0; }
-  #empty { margin: auto; color: #888; }
+  #empty { margin: auto; color: var(--muted); }
+  #room { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .chat-head { height: 60px; flex: none; padding: 0 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+  #name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #back { display: none; font-size: 24px; line-height: 1; color: var(--muted); }
+  #searchBtn { margin-left: auto; color: var(--muted); display: grid; place-items: center; padding: 6px; border-radius: 6px; }
+  #searchBtn:hover { background: var(--hover); }
+  #infoBtn { display: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 12px; font-size: 13px; font-weight: 400; }
+  #chatSearch { flex: none; display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--hover); }
+  #chatQ { flex: 1; background: var(--bg); }
+  #chatCount { color: var(--muted); font-size: 12px; min-width: 40px; text-align: center; }
+  #chatSearch button { color: var(--muted); font-size: 16px; padding: 4px 8px; }
+  ::highlight(hit) { background-color: #fff3a3; color: #111; }
+  ::highlight(hit-now) { background-color: #ffb300; color: #111; }
+  #msgs { flex: 1; overflow-y: auto; padding: 12px 20px; display: flex; flex-direction: column; gap: 4px; }
+  .day { align-self: center; background: var(--hover); color: var(--muted); font-size: 11px; padding: 3px 12px; border-radius: 12px; margin: 12px 0 6px; }
+  .row { display: flex; align-items: flex-end; gap: 6px; max-width: 75%; }
+  .row.in { align-self: flex-start; }
+  .row.out { align-self: flex-end; flex-direction: row-reverse; }
+  .row .avatar, .row .spacer { width: 32px; flex: none; align-self: flex-start; }
+  .bubble { min-width: 0; padding: 8px 12px; border-radius: 18px; background: var(--soft); white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
+  .row.out .bubble { background: var(--green); color: #fff; }
+  .stamp { flex: none; font-size: 10px; color: var(--muted); display: flex; flex-direction: column; align-items: flex-end; }
+  .row.in .stamp { align-items: flex-start; }
+  .row .read { display: none; }
+  .row.seen .read { display: block; }
+  #send { flex: none; border-top: 1px solid var(--line); padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; }
+  #text { border: 0; outline: none; resize: none; height: 64px; background: transparent; }
+  /* กำลังพิมพ์… */
+  .preview.typing-now { color: var(--gtext); font-weight: 600; }
+  .typing { flex: none; display: flex; align-items: center; gap: 8px; padding: 4px 20px; color: var(--muted); font-size: 12px; }
+  .dots { display: inline-flex; gap: 3px; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: blink 1.2s infinite; }
+  .dots i:nth-child(2) { animation-delay: .2s; }
+  .dots i:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+  .send-bar { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
+  .send-bar .hint { margin-left: auto; margin-right: 8px; }
+  .tool { color: var(--muted); padding: 5px 8px; border-radius: 6px; font-size: 13px; }
+  .tool:hover { background: var(--hover); color: var(--txt); }
+  /* แถบเหนือช่องพิมพ์: กำลังตอบกลับข้อความไหน / รูปที่จะส่ง */
+  .draft { display: flex; align-items: center; gap: 10px; background: var(--hover); border-left: 3px solid var(--green); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--muted); }
+  .draft .snip { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .draft .snip b { color: var(--txt); }
+  .draft img { height: 64px; max-width: 120px; border-radius: 6px; object-fit: cover; }
+  .draft button { color: var(--muted); font-size: 14px; padding: 2px 6px; }
+  #qrPanel { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; padding-bottom: 8px; border-bottom: 1px dashed var(--line); }
+  #qrPanel .muted { font-size: 12px; }
+  #qrPanel > .tool { align-self: flex-start; }
+  .qr-item { display: flex; gap: 4px; align-items: center; }
+  .qr-item .use { flex: 1; min-width: 0; text-align: left; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
+  .qr-item .use:hover { border-color: var(--green); }
+  .qr-item .tool { padding: 4px 6px; }
+  /* รูป / ข้อความที่ตอบกลับ ในแชท */
+  .chat-img { display: block; max-width: min(260px, 100%); max-height: 320px; border-radius: 14px; border: 1px solid var(--line); cursor: zoom-in; background: var(--hover); min-width: 60px; min-height: 60px; }
+  .quote { max-width: 100%; background: var(--hover); border-left: 3px solid var(--green); border-radius: 8px; padding: 4px 10px; font-size: 12px; color: var(--muted); cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .quote b { color: var(--txt); }
+  .row .reply { color: var(--muted); font-size: 13px; padding: 0 2px; visibility: hidden; }
+  .row:hover .reply { visibility: visible; }
+  @media (hover: none) { .row .reply { visibility: visible; } }
+  .row.flash .bubble, .row.flash .chat-img { outline: 2px solid #ffb300; outline-offset: 2px; }
+  @media (max-width: 700px) { .send-bar .hint { display: none; } .send-bar .btn { margin-left: auto; } }
+
+  /* ข้อมูลลูกค้า */
+  #profile { width: 300px; flex: none; border-left: 1px solid var(--line); overflow-y: auto; background: var(--bg); }
+  .p-head { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 28px 16px 20px; border-bottom: 1px solid var(--line); text-align: center; }
+  #pName { font-size: 18px; font-weight: 700; word-break: break-word; }
+  #pSince { color: var(--muted); font-size: 12px; }
+  #pClose { display: none; position: absolute; top: 10px; right: 12px; font-size: 18px; color: var(--muted); }
+  .p-sec { padding: 16px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+  .p-sec h3 { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { border: 1px solid var(--field); background: var(--bg); color: var(--label); border-radius: 14px; padding: 3px 10px; font-size: 12px; }
+  .tag.on { background: var(--green); border-color: var(--green); color: #fff; }
+  .tag.del { background: var(--bg); border-color: #ef4444; color: #ef4444; }
+  .sec-head { display: flex; justify-content: space-between; align-items: center; }
+  .sec-head button { color: var(--green); font-size: 12px; }
+  .hint { color: var(--muted); font-size: 11px; }
+  #addNote { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+  #noteInput { min-height: 64px; resize: vertical; }
+  .note { background: var(--note); border-radius: 6px; padding: 10px; white-space: pre-wrap; word-break: break-word; }
+  .note .meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 6px; white-space: normal; }
+  #notes { display: flex; flex-direction: column; gap: 8px; }
+
+  /* หลังร้าน: ออเดอร์ / เติมเครดิต / เคลม / ร้านค้า */
+  #office { flex: 1; min-width: 0; overflow-y: auto; background: var(--hover); }
+  .o-wrap { max-width: 1000px; margin: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .o-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .o-bar h2 { font-size: 18px; margin-right: auto; }
+  .o-bar .field { width: auto; min-width: 170px; background: var(--bg); }
+  .o-bar form { display: flex; gap: 8px; }
+  #oList { display: flex; flex-direction: column; gap: 10px; }
+  #oList.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  .o-card { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .line { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .btn.gray { background: var(--bg); color: var(--txt); border: 1px solid var(--field); font-weight: 400; }
+  .btn.red { background: #dc2626; }
+  .o-card .btn { padding: 6px 14px; }
+  .o-card textarea.field { resize: vertical; min-height: 60px; }
+  .pill { font-size: 11px; padding: 2px 10px; border-radius: 999px; background: var(--gtint); color: var(--gtext); white-space: nowrap; }
+  .pill.pending { background: var(--warn-bg); color: var(--warn); }
+  .pill.bad { background: var(--bad-bg); color: var(--bad); }
+  .pill.user { background: var(--hover); color: var(--muted); }
+  .box { background: var(--hover); border-radius: 6px; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; }
+  .thumb { width: 140px; max-height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); cursor: zoom-in; }
+  .amount { font-size: 22px; font-weight: 700; }
+  .muted { color: var(--muted); font-size: 12px; }
+  .plus { color: var(--gtext); }
+  /* 🤖 ผลตรวจสลิป */
+  .bot { display: flex; flex-direction: column; gap: 2px; font-size: 13px; background: var(--hover); border-radius: 8px; padding: 8px 10px; color: var(--muted); }
+  .bot .ok { color: var(--gtext); }
+  .bot .bad { color: var(--bad); font-weight: 600; }
+  .bot .warn { color: var(--warn); }
+  .minus { color: var(--bad); }
+  .o-empty { color: var(--muted); text-align: center; padding: 40px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { background: var(--hover); border-radius: 999px; padding: 3px 4px 3px 10px; font-size: 12px; }
+  .chip button { color: var(--muted); padding: 0 6px; }
+  .logs { border-top: 1px solid var(--line); padding-top: 8px; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
+  .logs div { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--txt); color: var(--bg); padding: 10px 18px; border-radius: 8px; z-index: 50; }
+  #oList.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: 14px; align-items: start; }
+
+  /* การ์ดออเดอร์กลางห้องแชท (ธีมสว่างแบบ LINE OA) */
+  .chat-order { align-self: center; width: min(460px, 100%); margin: 8px 0; }
+  .ccard { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 2px 12px rgba(0, 0, 0, .06); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .ccard.pending, .ccard.waiting { border-color: #f5c84c; }
+  .ccard.done { border-color: var(--ok-border); }
+  .ccard.cancelled { opacity: .75; }
+  .cc-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .cc-head b { font-size: 13px; }
+  .cc-prod { display: flex; gap: 12px; align-items: center; font-weight: 700; font-size: 15px; }
+  .cc-pic { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: var(--hover); border: 1px solid var(--line); display: grid; place-items: center; font-size: 24px; flex: none; }
+  .cc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cc-grid div { background: var(--hover); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; word-break: break-word; }
+  .cc-grid small, .cc-box small { color: var(--muted); font-size: 11px; }
+  .cc-green { color: var(--gtext); font-weight: 700; }
+  .cc-box { border: 1px solid var(--ok-border); background: var(--ok-bg); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .cc-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-family: ui-monospace, monospace; font-weight: 600; word-break: break-all; }
+  .cc-copy { border: 1px solid var(--ok-border); background: var(--bg); border-radius: 6px; padding: 1px 8px; font-size: 12px; flex: none; }
+  .cc-credit { color: var(--orange); font-size: 13px; }
+  .cc-box pre { white-space: pre-wrap; word-break: break-word; font: 13px/1.6 ui-monospace, monospace; }
+  .cc-wait { border-color: var(--wait-border); background: var(--wait-bg); }
+  .cc-wait textarea { min-height: 80px; resize: vertical; background: var(--bg); font: 13px/1.5 ui-monospace, monospace; }
+  .cc-cancel { border-color: var(--bad-border); background: var(--bad-soft); color: var(--bad); }
+  .ccard .acts .btn { padding: 7px 14px; }
+  .cc-more { color: var(--muted); font-size: 12px; text-decoration: underline; }
+
+  /* ผู้ใช้ */
+  img.avatar { object-fit: cover; background: var(--hover); }
+  .row .body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .row.out .body { align-items: flex-end; }
+  .sender { color: var(--muted); font-size: 11px; padding: 0 4px; }
+  .u-top { display: flex; gap: 12px; align-items: center; }
+  .u-top .u-info { flex: 1; min-width: 0; }
+  .pw code { background: var(--hover); border-radius: 6px; padding: 3px 8px; font-size: 13px; }
+  .u-top b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .o-card select.field { width: auto; }
+  dialog { margin: auto; background: var(--bg); color: var(--txt); border: 0; border-radius: 12px; padding: 0; width: min(440px, calc(100% - 24px)); }
+  dialog::backdrop { background: rgba(0, 0, 0, .4); }
+  #userForm, #ncForm { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  #newChat { margin-left: auto; padding: 4px 10px; font-size: 12px; font-weight: 600; }
+  #userForm label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--label); }
+  .checks { display: flex; flex-wrap: wrap; gap: 6px; }
+  .checks label { flex-direction: row !important; align-items: center; gap: 6px !important; background: var(--hover); border-radius: 999px; padding: 4px 10px; color: var(--txt) !important; cursor: pointer; }
+
+  /* การ์ดออเดอร์ (ธีมเดียวกับทั้งหน้า · แถบสีด้านซ้าย = สถานะ) */
+  .ocard { background: var(--bg); border: 1px solid var(--line); border-left: 4px solid #f5c84c; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .ocard.done { border-left-color: var(--green); }
+  .ocard.cancelled { border-left-color: #c4c7cc; opacity: .75; }
+  .ocard.claiming { border-left-color: #f5c84c; } /* มีเคลมรอตรวจสอบ */
+  .oc-head { display: flex; gap: 12px; align-items: center; }
+  .oc-head .pill { align-self: flex-start; }
+  .oc-pic { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; background: var(--hover); border: 1px solid var(--line); flex: none; display: grid; place-items: center; font-size: 22px; }
+  .oc-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .oc-info b { font-size: 15px; }
+  .oc-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; color: var(--muted); font-size: 12px; }
+  .oc-meta b { color: var(--txt); }
+  .oc-rows { display: flex; flex-direction: column; gap: 4px; border-top: 1px dashed var(--line); padding-top: 8px; }
+  .oc-row { display: flex; gap: 10px; align-items: center; font-size: 13px; }
+  .oc-row span:first-child { color: var(--muted); width: 60px; flex: none; }
+  .oc-row span + span { flex: 1; min-width: 0; word-break: break-all; }
+  .oc-money { display: flex; flex-wrap: wrap; gap: 4px 18px; background: var(--hover); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--muted); }
+  .oc-money b { font: 600 13px ui-monospace, monospace; color: var(--txt); }
+  .oc-money .cost { color: var(--orange); }
+  .oc-money .sale { color: var(--gtext); }
+  .oc-text { min-height: 72px; resize: vertical; font: 13px/1.5 ui-monospace, monospace; }
+  .oc-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .oc-foot .btn { padding: 7px 14px; }
+  .oc-foot .grow { flex: 1; }
+  .oc-link { color: var(--muted); font-size: 12px; padding: 4px 2px; }
+  .oc-link:hover { text-decoration: underline; }
+  .oc-link.red { color: var(--bad); }
+
+  @media (max-width: 1100px) {
+    #profile { position: fixed; top: 0; right: 0; bottom: 0; width: min(320px, 100%); z-index: 10; box-shadow: -4px 0 20px rgba(0, 0, 0, .12); transform: translateX(105%); transition: transform .2s; }
+    #app.show-profile #profile { transform: none; }
+    #infoBtn, #pClose { display: inline-block; }
+  }
   @media (max-width: 700px) {
-    #side { width: 100%; }
+    #side { width: 100%; border: 0; }
     #app.open #side, #app:not(.open) #chat { display: none; }
     #back { display: inline; }
+    /* เมนูย้ายไปล่างจอ ซ่อนตอนเปิดห้องแชท */
+    #app { padding-bottom: 58px; }
+    #app.open { padding-bottom: 0; }
+    #app.open #rail { display: none; }
+    #rail { position: fixed; left: 0; right: 0; bottom: 0; width: auto; height: 58px; flex-direction: row; padding: 0 4px; gap: 0; border: 0; border-top: 1px solid var(--line); background: var(--bg); z-index: 20; }
+    #rail > * { flex: 1; width: auto; padding: 6px 0; font-size: 18px; }
+    #rail .end { margin-top: 0; }
+    .count { right: 4px; }
   }
 </style>
 </head>
 <body>
-<form id="login" hidden>
-  <h1>My OA</h1>
-  <input id="email" type="email" placeholder="อีเมล" autocomplete="username" required>
-  <input id="password" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" required>
-  <button>เข้าสู่ระบบ</button>
-</form>
-
-<div id="app" hidden>
-  <aside id="side">
-    <header>
-      <b>แชท</b><button id="logout">ออกจากระบบ</button>
-      <input id="search" type="search" placeholder="ค้นหาชื่อ / แท็ก">
-    </header>
-    <div id="list"></div>
-  </aside>
-  <main id="chat">
-    <p id="empty">เลือกแชททางซ้าย</p>
-    <div id="head" hidden><button id="back" aria-label="กลับ">‹</button><span id="name"></span></div>
-    <details id="info" hidden>
-      <summary>แท็ก & โน้ต</summary>
-      <div class="box">
-        <div id="tags" class="tags"></div>
-        <form id="addTag"><input id="tagInput" placeholder="+ เพิ่มแท็ก (Enter)" list="allTags" autocomplete="off"></form>
-        <datalist id="allTags"></datalist>
-        <textarea id="note" placeholder="โน้ต (ลูกค้าไม่เห็น) — บันทึกเมื่อคลิกออก"></textarea>
-      </div>
-    </details>
-    <div id="msgs" hidden></div>
-    <form id="send" hidden>
-      <input id="text" placeholder="พิมพ์ข้อความ" autocomplete="off">
-      <button>ส่ง</button>
-    </form>
-  </main>
+<div id="notAdmin" hidden>
+  <h2>ไม่มีสิทธิ์เข้าหลังร้าน</h2>
+  <p class="muted">บัญชีนี้เป็นผู้ใช้ร้านค้า ใช้งานได้ที่หน้าร้าน</p>
+  <a class="btn" href="shop.html">🛍 ไปหน้าร้าน</a>
+  <button id="switchAcc" class="btn gray" type="button">เข้าสู่ระบบด้วยบัญชีอื่น</button>
 </div>
 
-<script>
-const SUPABASE_URL = 'https://yuhpiwakmfczpovffgtx.supabase.co'; // ← แก้
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1aHBpd2FrbWZjenBvdmZmZ3R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MDkzMzAsImV4cCI6MjEwOTA4NTMzMH0.VH4JN-QqGVXPyWPnKRCr7aADihGvFNtqrZYs4XkCqJw';     // ← แก้
+<form id="login" hidden>
+  <h1>My OA</h1>
+  <input id="email" class="field" type="email" placeholder="อีเมล" autocomplete="username" required>
+  <input id="password" class="field" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" required>
+  <button class="btn">เข้าสู่ระบบ</button>
+</form>
 
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+<div id="app" hidden data-view="chat">
+  <nav id="rail">
+    <button data-view="chat" aria-pressed="true">💬<span>แชท</span><i class="count" id="n-chat"></i></button>
+    <button data-view="orders" aria-pressed="false">🧾<span>ออเดอร์</span><i class="count" id="n-orders"></i></button>
+    <button data-view="topups" aria-pressed="false">💰<span>เติมเครดิต</span><i class="count" id="n-topups"></i></button>
+    <button data-view="claims" aria-pressed="false">🛠<span>เคลม</span><i class="count" id="n-claims"></i></button>
+    <button data-view="shops" aria-pressed="false">🏪<span>ร้านค้า</span></button>
+    <button data-view="users" aria-pressed="false">👤<span>ผู้ใช้</span></button>
+    <a href="stock.html">📦<span>สินค้า</span></a>
+    <button id="themeBtn" class="end" type="button" aria-label="สลับโหมดมืด / สว่าง"><b>🌙</b><span>มืด</span></button>
+    <button id="logout">⎋<span>ออก</span></button>
+  </nav>
+
+  <aside id="side">
+    <div class="side-top">
+      <div class="account"><div class="avatar sm" style="background: var(--green)">OA</div>My OA
+        <button id="newChat" class="btn gray" type="button" title="เริ่มคุยกับร้านได้เลย ไม่ต้องรอร้านทัก">✏️ แชทใหม่</button></div>
+      <input id="search" class="field" type="search" placeholder="ค้นหาชื่อ / แท็ก / ข้อความ">
+      <div class="filters">
+        <div class="tabs">
+          <button data-f="all" aria-pressed="true">ทั้งหมด</button>
+          <button data-f="unread" aria-pressed="false">ยังไม่อ่าน <span id="unreadCount"></span></button>
+        </div>
+        <span><select id="shopFilter" aria-label="กรองตามร้าน"><option value="">ทุกร้าน</option></select><select id="tagFilter" aria-label="กรองตามแท็ก"></select></span>
+      </div>
+    </div>
+    <div id="list"></div>
+  </aside>
+
+  <main id="chat">
+    <p id="empty">เลือกแชททางซ้าย เพื่อดูข้อความ แท็ก และโน้ต</p>
+    <div id="room" hidden>
+      <div class="chat-head">
+        <button id="back" aria-label="กลับ">‹</button><span id="headAvatar"></span><span id="name"></span><span id="headShops"></span>
+        <button id="searchBtn" aria-label="ค้นหาในแชท" title="ค้นหาในแชท"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+        <button id="infoBtn">ข้อมูล</button>
+      </div>
+      <form id="chatSearch" hidden>
+        <input id="chatQ" class="field" type="search" placeholder="ค้นหาในแชทนี้" autocomplete="off">
+        <span id="chatCount"></span>
+        <button type="button" id="hitUp" aria-label="ผลก่อนหน้า">↑</button>
+        <button type="button" id="hitDown" aria-label="ผลถัดไป">↓</button>
+        <button type="button" id="chatSearchClose" aria-label="ปิดการค้นหา">✕</button>
+      </form>
+      <div id="msgs"></div>
+      <div id="typing" class="typing" hidden><span class="dots"><i></i><i></i><i></i></span><span id="typingWho"></span></div>
+      <form id="send">
+        <div id="qrPanel" hidden></div>
+        <div id="replyBar" class="draft" hidden><span class="snip"></span><button type="button" id="replyX" aria-label="ยกเลิกการตอบกลับ">✕</button></div>
+        <div id="imgBar" class="draft" hidden><img id="imgPrev" alt="รูปที่จะส่ง"><span class="snip">พิมพ์ข้อความประกอบได้ หรือกดส่งเลย</span><button type="button" id="imgX" aria-label="เอารูปออก">✕</button></div>
+        <textarea id="text" placeholder="พิมพ์ข้อความ · วางรูปได้ (Ctrl+V)"></textarea>
+        <div class="send-bar">
+          <button type="button" class="tool" id="attach" title="แนบรูป">🖼 แนบรูป</button>
+          <button type="button" class="tool" id="qrBtn" title="ข้อความสำเร็จรูป">⚡ ข้อความสำเร็จรูป</button>
+          <input id="imgFile" type="file" accept="image/*" hidden>
+          <span class="hint">Enter ส่ง · Shift+Enter ขึ้นบรรทัดใหม่</span><button class="btn">ส่ง</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <aside id="profile" hidden>
+    <div class="p-head">
+      <button id="pClose" aria-label="ปิด">✕</button>
+      <span id="pAvatar"></span>
+      <div id="pName"></div>
+      <div id="pSince"></div>
+    </div>
+    <section class="p-sec">
+      <div class="sec-head"><h3>แท็ก</h3><button id="editTags" type="button">แก้ไข</button></div>
+      <div id="tags" class="tags"></div>
+      <small id="tagHint" class="hint"></small>
+      <form id="addTag"><input id="tagInput" class="field" placeholder="+ สร้างแท็กใหม่ แล้วกด Enter" maxlength="50" autocomplete="off"></form>
+    </section>
+    <section class="p-sec">
+      <h3>โน้ต</h3>
+      <form id="addNote">
+        <textarea id="noteInput" class="field" placeholder="เพิ่มโน้ต (ลูกค้าไม่เห็น)"></textarea>
+        <button class="btn">บันทึก</button>
+      </form>
+      <div id="notes"></div>
+    </section>
+  </aside>
+
+  <section id="office">
+    <div class="o-wrap">
+      <div class="o-bar">
+        <h2 id="oTitle"></h2>
+        <div class="o-tools acts" data-for="orders">
+          <input id="orderSearch" class="field" type="search" placeholder="ค้นหา ร้าน / สินค้า / ลูกค้า / #เลข">
+          <select id="orderFilter" class="field">
+            <option value="open">ยังไม่ส่ง</option><option value="pending">ออเดอร์ใหม่</option><option value="waiting">รอส่งลูกค้า</option>
+            <option value="done">ส่งมอบแล้ว</option><option value="cancelled">ยกเลิก</option><option value="">ทั้งหมด</option>
+          </select>
+        </div>
+        <div class="o-tools acts" data-for="topups">
+          <select id="topupFilter" class="field"><option value="pending">รอตรวจสอบ</option><option value="">ทั้งหมด</option></select>
+        </div>
+        <div class="o-tools acts" data-for="claims">
+          <input id="claimSearch" class="field" type="search" placeholder="ค้นหา ร้าน / สินค้า / #เลข">
+          <select id="claimFilter" class="field">
+            <option value="pending">รอตรวจสอบ</option><option value="">ประวัติทั้งหมด</option>
+            <option value="refunded">คืนเครดิตแล้ว</option><option value="replaced">เปลี่ยนสินค้าแล้ว</option><option value="rejected">ไม่อนุมัติ</option>
+          </select>
+        </div>
+        <div class="o-tools acts" data-for="shops">
+          <input id="shopSearch" class="field" type="search" placeholder="ค้นหาร้าน / อีเมลผู้ดูแล">
+          <form id="newShop"><input id="newShopName" class="field" placeholder="ชื่อร้านใหม่" maxlength="60" required><button class="btn">+ เพิ่มร้าน</button></form>
+        </div>
+        <div class="o-tools acts" data-for="users">
+          <input id="userSearch" class="field" type="search" placeholder="ค้นหาอีเมล / ร้าน">
+          <button id="addUser" class="btn" type="button">+ เพิ่มผู้ใช้</button>
+        </div>
+      </div>
+      <p class="muted" data-for="shops">เพิ่มอีเมลผู้ดูแลเข้าร้านได้ที่นี่ หรือสร้างผู้ใช้ใหม่พร้อมเลือกร้านในเมนู 👤 ผู้ใช้ · 1 คนดูแลได้หลายร้าน</p>
+      <p class="muted" data-for="users">สร้างผู้ใช้แล้วล็อกอินที่ shop.html ได้ทันที · เห็นและจัดการได้เฉพาะร้านที่รับผิดชอบ · คนในร้านเดียวกันเห็นแชทของกัน</p>
+      <div id="oList"></div>
+    </div>
+  </section>
+</div>
+
+<dialog id="newChatDlg">
+  <form id="ncForm">
+    <b style="font-size: 16px">✏️ เริ่มแชทใหม่</b>
+    <label class="muted">เลือกร้าน · ผู้ใช้ที่จะคุยด้วย<select id="ncPick" class="field" required></select></label>
+    <div class="acts" style="justify-content: flex-end">
+      <button type="button" class="btn gray" id="ncCancel">ยกเลิก</button>
+      <button class="btn">เปิดห้องแชท</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="userDlg">
+  <form id="userForm">
+    <b style="font-size: 16px">เพิ่มผู้ใช้</b>
+    <label>ชื่อผู้ใช้ * (แสดงในแชท)<input id="uName" class="field" maxlength="50" required autocomplete="off"></label>
+    <label>อีเมล * (ใช้ล็อกอิน ไม่แสดงในแชท)<input id="uEmail" class="field" type="email" required autocomplete="off"></label>
+    <label>รหัสผ่าน * (อย่างน้อย 6 ตัว — แจ้งให้ผู้ใช้)
+      <span class="acts"><input id="uPass" class="field" type="text" minlength="6" required autocomplete="new-password" style="flex: 1"><button type="button" class="btn gray" id="uGen">🎲 สุ่ม</button></span></label>
+    <label>ร้านที่รับผิดชอบ<span id="uShops" class="checks"></span></label>
+    <label>รูปโปรไฟล์<input id="uAvatar" type="file" accept="image/*"></label>
+    <span class="checks"><label><input id="uAdmin" type="checkbox"> 👑 เป็นแอดมิน (เข้า admin.html เห็นและจัดการทุกร้าน)</label></span>
+    <div class="acts" style="justify-content: flex-end">
+      <button type="button" class="btn gray" id="uCancel">ยกเลิก</button>
+      <button class="btn" id="uOk">สร้างผู้ใช้</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+
+// ล็อกอินหลังร้านเก็บแยกจาก shop.html → เปิดคนละบัญชีพร้อมกันได้ (stock.html ใช้ชุดเดียวกัน)
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: 'oa-admin' } });
 const $ = (id) => document.getElementById(id);
 let contacts = [];
 let current = null;
+let filter = 'all';
+let allTags = [];        // รายการแท็กกลาง ใช้ได้ทุกแชท
+let editingTags = false;
+let lastDay = '';
+let lastDir = '';
+let msgHits = new Map(); // ห้อง (คน:ร้าน) → ข้อความที่ตรงกับคำค้นในรายการแชท
+let hits = [];           // ผลค้นหาในห้องแชท (Range)
+let hitIdx = -1;
+let view = 'chat';       // หน้าที่เปิดจากเมนูซ้าย
+let unreadChats = 0;
+let pendingTotal = 0;    // ออเดอร์ + แจ้งเติม + เคลม ที่รออยู่
+let shops = [];
+let shopName = {};
+let orderRows = [];
+let claimRows = [];
+let claimUrls = {};
+let chatSlots = {};      // order_id → ที่วางการ์ดออเดอร์ในห้องแชทที่เปิดอยู่
+const shownIds = new Set(); // ข้อความที่แสดงแล้ว — realtime มาชนกับตอนโหลดห้องใหม่จะไม่ขึ้นซ้ำ
+const msgById = new Map();  // ข้อความในห้องที่เปิดอยู่ → ใช้แสดงข้อความที่ถูกตอบกลับ
+let imgUrls = {};           // รูปในแชท: path → ลิงก์ชั่วคราว
+let replyMsg = null;        // กำลังตอบกลับข้อความไหน { id, name, text }
+let pendingImg = null;      // รูปที่แนบ/วางไว้ รอส่ง
+const IMG_TEXT = '🖼 รูปภาพ'; // ข้อความของรูปที่ไม่มีคำบรรยาย (โชว์ในรายการแชท / แจ้งเตือน)
+let avatars = {};        // user id → รูปโปรไฟล์
+let emails = {};         // user id → อีเมล (สมาชิกร้าน)
+let names = {};          // user id → ชื่อผู้ใช้ (แชทแสดงชื่อ ไม่แสดงอีเมล)
+const nameOf = (uid, email) => names[uid] || (emails[uid] ?? email ?? '').split('@')[0] || 'สมาชิกร้าน';
+let users = [];
+let myId = null;
+let amSuper = false;     // Superadmin: เปลี่ยนบทบาท / จัดการบัญชีแอดมินคนอื่นได้
 
 // textContent เท่านั้น — ข้อความลูกค้าห้ามเข้า innerHTML
 function h(tag, cls = '', text = '') {
@@ -104,17 +516,31 @@ function h(tag, cls = '', text = '') {
   return el;
 }
 
-function chips(tags, onRemove) {
-  return tags.map((t) => {
-    const chip = h('span', 'tag', t);
-    if (onRemove) {
-      const x = h('button', '', '×');
-      x.type = 'button';
-      x.onclick = () => onRemove(t);
-      chip.append(x);
-    }
-    return chip;
-  });
+const COLORS = ['#06c755', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899'];
+function avatar(c, size = '') {
+  if (avatars[c.id]) { // รูปโปรไฟล์ที่ตั้งไว้
+    const img = h('img', 'avatar ' + size);
+    img.src = avatars[c.id];
+    img.alt = '';
+    return img;
+  }
+  const el = h('div', 'avatar ' + size, [...c.name.replace(/^[เแโใไ]/, '')][0] ?? '?'); // ข้ามสระหน้า เ แ โ ใ ไ
+  el.style.background = COLORS[[...c.id].reduce((n, ch) => n + ch.charCodeAt(0), 0) % COLORS.length];
+  return el;
+}
+
+const clock = (d) => d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+function dayLabel(d) {
+  if (d.toDateString() === new Date().toDateString()) return 'วันนี้';
+  if (d.toDateString() === new Date(Date.now() - 864e5).toDateString()) return 'เมื่อวาน';
+  return d.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+function listTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const label = dayLabel(d);
+  if (label === 'วันนี้') return clock(d);
+  return label === 'เมื่อวาน' ? label : d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 }
 
 async function start() {
@@ -122,80 +548,513 @@ async function start() {
   $('login').hidden = !!session;
   $('app').hidden = !session;
   if (!session) return;
+  myId = session.user.id;
+  // ช่องสดแบบ private ("กำลังพิมพ์…") ต้องเข้าด้วย token ผู้ใช้ — supabase-js ใส่ให้ช้า (หลังช่องแรกเชื่อมต่อแล้ว)
+  await db.realtime.setAuth(session.access_token).catch(() => {});
+  const { data: isAdmin } = await db.rpc('is_admin');
+  if (!isAdmin) { // ผู้ใช้ร้านค้าเข้าหลังร้านไม่ได้
+    $('app').hidden = true;
+    $('notAdmin').hidden = false;
+    return;
+  }
+  loadTags();
+  await Promise.all([loadAvatars(), loadShops()]); // รูปโปรไฟล์ + อีเมลสมาชิก ก่อนวาดรายการแชท
   loadContacts();
   db.channel('oa')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tags' }, loadTags)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, loadContacts)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'threads' }, loadContacts)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: m }) => {
-      if (m.contact_id !== current?.id) return;
+      dropTyper(roomKey(m.contact_id, m.shop_id), m.sender ?? m.contact_id); // ส่งข้อความแล้ว = เลิกพิมพ์
+      if (!inRoom(m)) return;
       addMsg(m);
+      renderSeen();
+      if (m.order_id) fillChatCards([m.order_id]);
       if (m.direction === 'in') markRead();
+    })
+    .subscribe();
+  // หลังร้านแยก channel — ถ้ายังไม่ได้รัน update-04 แชทก็ยังทำงานปกติ
+  counts();
+  const onChange = (v, load) => () => { counts(); if (view === v) load(); };
+  db.channel('office')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, ({ new: o }) => {
+      onChange('orders', loadOrders)();
+      if (chatSlots[o?.id]) fillChatCards([o.id]); // การ์ดในแชทที่เปิดอยู่อัปเดตตาม
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'topups' }, onChange('topups', loadTopups))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, ({ new: c }) => {
+      onChange('claims', loadClaims)();
+      if (view === 'orders') loadOrders();
+      if (chatSlots[c?.order_id]) fillChatCards([c.order_id]); // สถานะเคลมขึ้นที่การ์ดในแชท
     })
     .subscribe();
 }
 
+// ---------- รายการแชท ----------
+// ห้องแชท = คน × ร้าน (ตาราง threads) · key ไว้แยกห้องของคนเดียวกันคนละร้าน · id = คน (ใช้กับแท็ก/โน้ต/รูป)
 async function loadContacts() {
-  const { data, error } = await db.from('contacts').select().order('last_at', { ascending: false, nullsFirst: false });
-  if (error) return alert(error.message);
-  contacts = data;
-  const unread = data.reduce((n, c) => n + c.unread, 0);
-  document.title = (unread ? `(${unread}) ` : '') + 'My OA';
-  $('allTags').replaceChildren(...[...new Set(data.flatMap((c) => c.tags))].map((t) => {
-    const o = h('option');
-    o.value = t;
-    return o;
-  }));
+  const [cs, ts] = await Promise.all([
+    db.from('contacts').select(),
+    db.from('threads').select('contact_id, shop_id, last_message, last_at, unread, seen_at'),
+  ]);
+  if (cs.error) return alert(cs.error.message);
+  const byId = Object.fromEntries(cs.data.map((c) => [c.id, c]));
+  contacts = ts.error // ยังไม่ได้รัน update-13 → 1 ห้องต่อคนแบบเดิม
+    ? cs.data.map((c) => ({ ...c, key: c.id, shop_id: null }))
+    : ts.data.filter((t) => byId[t.contact_id])
+      .map((t) => ({ ...byId[t.contact_id], ...t, id: t.contact_id, key: `${t.contact_id}:${t.shop_id ?? 0}` }));
+  contacts.sort((a, b) => (b.last_at ?? '').localeCompare(a.last_at ?? ''));
+  const fresh = current && contacts.find((c) => c.key === current.key);
+  if (fresh) { current.seen_at = fresh.seen_at; renderSeen(); }
+  unreadChats = contacts.filter((c) => c.unread).length;
+  $('unreadCount').textContent = $('n-chat').textContent = unreadChats || '';
+  updateTitle();
   renderList();
+}
+
+async function loadTags() {
+  const { data, error } = await db.from('tags').select('name');
+  if (error) return alert(error.message);
+  setAllTags(data.map((t) => t.name));
+}
+
+function setAllTags(tags) {
+  allTags = tags.sort((a, b) => a.localeCompare(b, 'th'));
+  const picked = $('tagFilter').value;
+  const any = h('option', '', 'ทุกแท็ก');
+  any.value = '';
+  $('tagFilter').replaceChildren(any, ...allTags.map((t) => h('option', '', t)));
+  $('tagFilter').value = allTags.includes(picked) ? picked : '';
+  if (current) renderTags();
 }
 
 function renderList() {
   const q = $('search').value.trim().toLowerCase();
-  $('list').replaceChildren(...contacts
-    .filter((c) => !q || c.name.toLowerCase().includes(q) || c.tags.some((t) => t.toLowerCase().includes(q)))
-    .map((c) => {
-      const el = h('div', 'contact' + (c.id === current?.id ? ' active' : ''));
-      const meta = h('div', 'meta');
-      const tags = h('div', 'tags');
-      tags.append(...chips(c.tags));
-      meta.append(h('b', '', c.name), h('small', '', c.last_message ?? ''), tags);
-      el.append(h('div', 'avatar', c.name[0]), meta);
-      if (c.unread) el.append(h('span', 'badge', c.unread));
-      el.onclick = () => openChat(c);
-      return el;
-    }));
+  const tag = $('tagFilter').value;
+  const shopF = Number($('shopFilter').value);
+  const shown = contacts.filter((c) => (filter === 'all' || c.unread)
+    && (!tag || c.tags.includes(tag))
+    && (!shopF || c.shop_id === shopF)
+    && (!q || c.name.toLowerCase().includes(q) || c.tags.some((t) => t.toLowerCase().includes(q)) || msgHits.has(c.key)));
+  $('list').replaceChildren(...shown.map((c) => {
+    const el = h('div', 'item' + (c.unread ? ' unread' : '') + (c.key === current?.key ? ' active' : ''));
+    const body = h('div', 'body');
+    const top = h('div', 'top');
+    const bottom = h('div', 'bottom');
+    top.append(h('span', 'name', c.name), roomChip(c), h('time', '', listTime(c.last_at)));
+    const typing = typingText(c.key);
+    bottom.append(h('span', 'preview' + (typing ? ' typing-now' : ''), typing || (q && msgHits.get(c.key)) || c.last_message || ''));
+    if (c.unread) bottom.append(h('span', 'badge', c.unread));
+    body.append(top, bottom);
+    el.append(avatar(c), body);
+    el.onclick = () => openChat(c);
+    return el;
+  }));
+  if (!shown.length) $('list').append(h('p', 'none', contacts.length ? 'ไม่พบแชท' : 'ยังไม่มีแชท — ร้านทักมาได้จากแท็บ 💬 แชท ใน shop.html'));
 }
 
+// ค้นข้อความในทุกแชท (ฝั่ง DB) — รอพิมพ์เสร็จ 300ms
+let searchTimer;
+async function searchMessages() {
+  const q = $('search').value.trim();
+  const found = new Map();
+  if (q) {
+    // ponytail: ilike สแกนทั้งตาราง — ข้อความเป็นแสนค่อยเพิ่ม index pg_trgm
+    const { data, error } = await db.from('messages').select('contact_id, shop_id, text').ilike('text', `%${q}%`)
+      .order('created_at', { ascending: false }).limit(300);
+    if (error) return alert(error.message);
+    for (const m of data) {
+      const k = roomKey(m.contact_id, m.shop_id);
+      if (!found.has(k)) found.set(k, m.text);
+    }
+    // ข้อมูลในการ์ดออเดอร์ (เมล / ข้อมูลส่งมอบ / หมายเหตุ / สินค้า) → ห้องของคนที่เบิก ร้านที่เบิก
+    const v = q.replace(/["\\]/g, ''); // ค่าในเครื่องหมายคำพูด ใส่ , ( ) ได้
+    const { data: ords } = await db.from('orders').select('id, order_no, ordered_by, shop_id, product_name, email')
+      .or(['order_no', 'email', 'delivery', 'note', 'product_name', 'customer'].map((c) => `${c}.ilike."%${v}%"`).join(','))
+      .order('created_at', { ascending: false }).limit(300);
+    for (const o of ords ?? []) {
+      const k = roomKey(o.ordered_by, o.shop_id);
+      if (!found.has(k)) found.set(k, `📦 ${ono(o)} · ${o.product_name}${o.email ? ' · ' + o.email : ''}`);
+    }
+  }
+  if (q !== $('search').value.trim()) return; // พิมพ์ต่อระหว่างรอผล
+  msgHits = found;
+  renderList();
+}
+
+// ---------- ห้องแชท ----------
 async function openChat(c) {
   current = c;
   $('app').classList.add('open');
   $('empty').hidden = true;
-  $('head').hidden = $('info').hidden = $('msgs').hidden = $('send').hidden = false;
-  $('name').textContent = c.name;
-  $('note').value = c.note;
+  $('room').hidden = $('profile').hidden = false;
+  $('name').textContent = $('pName').textContent = c.name;
+  $('headShops').replaceChildren(roomChip(c));
+  $('headAvatar').replaceChildren(avatar(c, 'sm'));
+  $('pAvatar').replaceChildren(avatar(c, 'lg'));
+  $('pSince').textContent = 'เริ่มแชท ' + new Date(c.created_at).toLocaleDateString('th-TH', { dateStyle: 'medium' });
+  $('noteInput').value = '';
+  editingTags = false;
+  setReply(null);
+  setImgDraft(null);
+  $('qrPanel').hidden = true;
+  typingSentAt = 0;
+  renderTyping();
+  closeChatSearch();
   renderTags();
+  renderList();
   // ponytail: โหลด 200 ข้อความล่าสุด — เพิ่ม "โหลดเก่ากว่า" ถ้าต้องย้อนไกล
-  const { data } = await db.from('messages').select().eq('contact_id', c.id)
-    .order('created_at', { ascending: false }).limit(200);
+  let mq = db.from('messages').select().eq('contact_id', c.id);
+  if (c.key !== c.id) mq = c.shop_id ? mq.eq('shop_id', c.shop_id) : mq.is('shop_id', null); // เฉพาะร้านของห้องนี้
+  const [msgs, notes] = await Promise.all([
+    mq.order('created_at', { ascending: false }).limit(200),
+    db.from('notes').select().eq('contact_id', c.id).order('created_at', { ascending: false }),
+  ]);
+  const urls = await signed(msgs.data.map((m) => m.image_path)); // ขอลิงก์รูปทั้งห้องทีเดียว
+  if (current !== c) return; // กดเปลี่ยนแชทระหว่างโหลด
+  imgUrls = urls;
+  lastDay = lastDir = '';
   $('msgs').replaceChildren();
-  data.reverse().forEach(addMsg);
-  await markRead();
-  loadContacts();
-  $('text').focus();
+  chatSlots = {};
+  shownIds.clear();
+  msgById.clear();
+  msgs.data.reverse().forEach(addMsg);
+  renderSeen();
+  await fillChatCards(); // รอการ์ดเติมข้อมูลก่อน ค้นหาในแชทจะได้เจอข้อมูลในการ์ด
+  if (current !== c) return;
+  $('notes').replaceChildren(...notes.data.map(noteEl));
+  // เปิดจากผลค้นหาข้อความ → ไฮไลต์คำนั้นในแชทเลย
+  if (msgHits.has(c.key) && $('search').value.trim()) openChatSearch($('search').value.trim());
+  else $('text').focus();
+  if (c.unread) markRead();
 }
 
+// ---------- ค้นหาในแชท ----------
+function openChatSearch(q = '') {
+  $('chatSearch').hidden = false;
+  $('chatQ').value = q;
+  $('chatQ').focus();
+  searchChat();
+}
+
+function closeChatSearch() {
+  $('chatSearch').hidden = true;
+  $('chatQ').value = '';
+  searchChat();
+}
+
+// ไฮไลต์ด้วย CSS Custom Highlight API — ไม่ต้องแตะ DOM ของข้อความลูกค้า
+function searchChat() {
+  const q = $('chatQ').value.trim().toLowerCase();
+  hits = [];
+  if (q) {
+    // ทุกข้อความในห้อง: บับเบิล + ข้อมูลในการ์ดออเดอร์ (ไม่นับปุ่ม / เวลา / ตัวคั่นวัน)
+    const walker = document.createTreeWalker($('msgs'), NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.parentElement.closest('button, .stamp, .day, .quote') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+    });
+    for (let node; (node = walker.nextNode());) {
+      const t = node.textContent.toLowerCase();
+      for (let i = t.indexOf(q); i !== -1; i = t.indexOf(q, i + q.length)) {
+        const r = new Range();
+        r.setStart(node, i);
+        r.setEnd(node, i + q.length);
+        hits.push(r);
+      }
+    }
+  }
+  hitIdx = hits.length - 1; // เริ่มจากข้อความล่าสุด แล้วกด ↑ ย้อนขึ้นไป
+  showHit();
+}
+
+function showHit() {
+  CSS.highlights?.set('hit', new Highlight(...hits));
+  CSS.highlights?.set('hit-now', new Highlight(...hits.slice(hitIdx, hitIdx + 1)));
+  $('chatCount').textContent = $('chatQ').value.trim() ? `${hits.length ? hitIdx + 1 : 0}/${hits.length}` : '';
+  hits[hitIdx]?.startContainer.parentElement.scrollIntoView({ block: 'center' });
+}
+
+$('searchBtn').onclick = () => ($('chatSearch').hidden ? openChatSearch() : closeChatSearch());
+$('chatSearchClose').onclick = closeChatSearch;
+$('chatQ').oninput = searchChat;
+$('chatQ').onkeydown = (e) => { if (e.key === 'Escape') closeChatSearch(); };
+$('hitUp').onclick = () => { if (hitIdx > 0) { hitIdx--; showHit(); } };
+$('hitDown').onclick = () => { if (hitIdx < hits.length - 1) { hitIdx++; showHit(); } };
+$('chatSearch').onsubmit = (e) => { e.preventDefault(); $('hitUp').click(); }; // Enter = ผลก่อนหน้า
+
 function addMsg(m) {
-  const el = h('div', 'msg ' + m.direction, m.text);
-  el.append(h('time', '', new Date(m.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })));
-  $('msgs').append(el);
+  if (shownIds.has(m.id)) return;
+  shownIds.add(m.id);
+  const d = new Date(m.created_at);
+  if (d.toDateString() !== lastDay) {
+    lastDay = d.toDateString();
+    lastDir = '';
+    $('msgs').append(h('div', 'day', dayLabel(d)));
+  }
+  if (m.order_id) { // ร้านกดซื้อ → การ์ดออเดอร์กลางแชท (ข้อมูลเติมจาก fillChatCards)
+    const slot = h('div', 'chat-order');
+    slot.append(h('div', 'ccard', `📦 ออเดอร์ #${m.order_id} …`));
+    (chatSlots[m.order_id] ??= []).push(slot);
+    $('msgs').append(slot);
+    lastDir = '';
+    $('msgs').scrollTop = $('msgs').scrollHeight;
+    return;
+  }
+  const row = h('div', 'row ' + m.direction);
+  row.dataset.at = m.created_at;
+  // ชื่อคนพิมพ์อยู่นอกกรอบ เหนือข้อความแรกของแต่ละช่วง (เจ้าของห้อง / เพื่อนร่วมร้าน / แอดมินแต่ละคน)
+  const who = m.sender ?? (m.direction === 'in' ? m.contact_id : '');
+  const name = m.direction === 'out' ? names[who] || 'แอดมิน' : who === m.contact_id ? current.name : nameOf(who);
+  const key = m.direction + who;
+  const first = lastDir !== key;
+  if (m.direction === 'in') row.append(first ? avatar({ id: who, name }, 'sm') : h('div', 'spacer'));
+  const stamp = h('div', 'stamp');
+  const text = m.image_path && m.text === IMG_TEXT ? '' : m.text; // รูปอย่างเดียว = ไม่มีกรอบข้อความ
+  msgById.set(m.id, { id: m.id, name, text: text || IMG_TEXT });
+  const rb = h('button', 'reply', '↩');
+  rb.type = 'button';
+  rb.title = 'ตอบกลับข้อความนี้';
+  rb.onclick = () => setReply(msgById.get(m.id));
+  stamp.append(rb);
+  if (m.direction === 'out') stamp.append(h('span', 'read', 'อ่านแล้ว'));
+  stamp.append(h('time', '', clock(d)));
+  const body = h('div', 'body');
+  if (first) body.append(h('span', 'sender', name));
+  if (m.reply_to) body.append(quoteEl(m.reply_to));
+  if (m.image_path) body.append(chatImg(m.image_path));
+  if (text) body.append(h('div', 'bubble', text));
+  row.dataset.id = m.id;
+  row.append(body, stamp);
+  lastDir = key;
+  $('msgs').append(row);
   $('msgs').scrollTop = $('msgs').scrollHeight;
 }
 
-async function markRead() {
-  await db.from('contacts').update({ unread: 0 }).eq('id', current.id);
+function renderSeen() {
+  const seen = current?.seen_at && new Date(current.seen_at);
+  for (const r of $('msgs').querySelectorAll('.row.out')) r.classList.toggle('seen', !!seen && new Date(r.dataset.at) <= seen);
 }
 
-function renderTags() {
-  $('tags').replaceChildren(...chips(current.tags, (t) => saveTags(current.tags.filter((v) => v !== t))));
+async function markRead() {
+  current.unread = 0;
+  if (current.key === current.id) return void await db.from('contacts').update({ unread: 0 }).eq('id', current.id);
+  const qb = db.from('threads').update({ unread: 0 }).eq('contact_id', current.id);
+  await (current.shop_id ? qb.eq('shop_id', current.shop_id) : qb.is('shop_id', null));
 }
+
+// ข้อความที่ถูกตอบกลับ (กดแล้วเลื่อนไปหาข้อความเดิม)
+function quoteEl(id) {
+  const q = msgById.get(id);
+  const el = h('div', 'quote');
+  el.append('↩ ', h('b', '', q ? q.name : 'ข้อความก่อนหน้า'), q ? ': ' + q.text : '');
+  el.onclick = () => {
+    const r = $('msgs').querySelector(`.row[data-id="${id}"]`);
+    if (!r) return;
+    r.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    r.classList.add('flash');
+    setTimeout(() => r.classList.remove('flash'), 1500);
+  };
+  return el;
+}
+
+// รูปในแชท (bucket ส่วนตัว → ลิงก์ชั่วคราว) · กดดูรูปเต็ม
+function chatImg(path) {
+  const img = h('img', 'chat-img');
+  img.alt = 'รูปภาพ';
+  img.onclick = () => img.src && window.open(img.src, '_blank');
+  img.onload = () => { // รูปโหลดเสร็จทีหลัง → ถ้าดูข้อความล่าสุดอยู่ เลื่อนลงให้เห็นรูปเต็ม
+    const box = $('msgs');
+    if (box.scrollHeight - box.scrollTop - box.clientHeight < img.offsetHeight + 120) box.scrollTop = box.scrollHeight;
+  };
+  (imgUrls[path] ? Promise.resolve(imgUrls) : signed([path])).then((u) => {
+    imgUrls[path] = u[path];
+    if (u[path]) img.src = u[path];
+  });
+  return img;
+}
+
+function setReply(r) {
+  replyMsg = r;
+  $('replyBar').hidden = !r;
+  if (!r) return;
+  const snip = $('replyBar').querySelector('.snip');
+  snip.replaceChildren('↩ ตอบกลับ ', h('b', '', r.name), ': ' + r.text);
+  $('text').focus();
+}
+
+function setImgDraft(file) {
+  pendingImg = file;
+  $('imgBar').hidden = !file;
+  if ($('imgPrev').src) URL.revokeObjectURL($('imgPrev').src);
+  if (file) {
+    $('imgPrev').src = URL.createObjectURL(file);
+    $('text').focus();
+  } else $('imgPrev').removeAttribute('src');
+}
+
+$('send').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('text').value.trim();
+  const c = current, file = pendingImg, reply = replyMsg;
+  if (!text && !file) return;
+  if (file && !c.shop_id) return alert('ห้องนี้ไม่ได้ผูกกับร้าน ส่งรูปไม่ได้ (ส่งได้เฉพาะข้อความ)');
+  $('text').value = '';
+  sendTyping(true);
+  setReply(null);
+  setImgDraft(null);
+  const undo = (msg) => { // ส่งไม่สำเร็จ → คืนข้อความ/รูปไว้ให้กดส่งใหม่
+    alert(msg);
+    if (current !== c) return;
+    $('text').value = text;
+    setReply(reply);
+    setImgDraft(file);
+  };
+  let image_path = null;
+  if (file) { // โฟลเดอร์ = id ร้าน → สมาชิกร้านนั้นเปิดดูรูปได้
+    image_path = `${c.shop_id}/chat/${crypto.randomUUID()}.webp`;
+    const { error } = await db.storage.from('shop-files').upload(image_path, await shrinkImg(file, 1600), { contentType: 'image/webp' });
+    if (error) return undo('อัปโหลดรูปไม่สำเร็จ: ' + error.message);
+  }
+  // ข้อความจะโผล่เองผ่าน realtime
+  const { error } = await db.from('messages').insert({
+    contact_id: c.id, direction: 'out', text: text || IMG_TEXT, shop_id: c.shop_id ?? null, ...(image_path && { image_path }), ...(reply && { reply_to: reply.id }),
+  });
+  if (error) undo('ส่งไม่สำเร็จ: ' + error.message);
+};
+$('text').onkeydown = (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('send').requestSubmit(); }
+  if (e.key === 'Escape') { setReply(null); setImgDraft(null); }
+};
+$('replyX').onclick = () => setReply(null);
+$('imgX').onclick = () => setImgDraft(null);
+$('attach').onclick = () => $('imgFile').click();
+$('imgFile').onchange = () => { setImgDraft($('imgFile').files[0] ?? null); $('imgFile').value = ''; };
+// ก๊อปรูปแล้ววาง (Ctrl+V) ตอนเปิดห้องแชทอยู่ — วางในช่องพิมพ์หรือที่ไหนในหน้าก็ได้ (ยกเว้นช่องกรอกอื่น)
+document.addEventListener('paste', (e) => {
+  if (!current || view !== 'chat' || $('room').hidden) return;
+  if (e.target !== $('text') && e.target.closest?.('input, textarea, dialog')) return;
+  const file = [...e.clipboardData.files].find((f) => f.type.startsWith('image/'));
+  if (!file) return;
+  e.preventDefault();
+  setImgDraft(file);
+});
+
+// ---------- กำลังพิมพ์… (Realtime broadcast แบบ private ต่อร้าน · ไม่เก็บลงฐานข้อมูล · สิทธิ์ตั้งใน update-27) ----------
+const typingChs = new Map(); // id ร้าน → ช่อง "typing:<id ร้าน>"
+const typers = new Map();    // ห้อง (คน:ร้าน) → Map(คนที่กำลังพิมพ์ → { name, timer })
+let typingSentAt = 0;
+
+// แอดมินฟังทุกร้าน → เห็นว่าใครพิมพ์อยู่ทั้งในห้องที่เปิด และในรายการแชท
+function joinTyping() {
+  for (const s of shops) {
+    if (typingChs.has(s.id)) continue;
+    typingChs.set(s.id, db.channel(`typing:${s.id}`, { config: { private: true } })
+      .on('broadcast', { event: 'typing' }, ({ payload: p }) => gotTyping(roomKey(p.room, s.id), p))
+      .subscribe());
+  }
+}
+function gotTyping(key, p) {
+  if (p.id === myId) return; // ตัวเองจากอีกแท็บ
+  if (p.stop) return dropTyper(key, p.id);
+  const room = typers.get(key) ?? new Map();
+  typers.set(key, room);
+  clearTimeout(room.get(p.id)?.timer);
+  room.set(p.id, { name: p.admin ? names[p.id] || 'แอดมิน' : contacts.find((c) => c.id === p.id)?.name ?? nameOf(p.id), timer: setTimeout(() => dropTyper(key, p.id), 4000) }); // เงียบไป 4 วิ = เลิกพิมพ์
+  renderTyping();
+}
+function dropTyper(key, id) {
+  const room = typers.get(key);
+  if (!room?.has(id)) return;
+  clearTimeout(room.get(id).timer);
+  room.delete(id);
+  if (!room.size) typers.delete(key);
+  renderTyping();
+}
+// "A, B กำลังพิมพ์…" ของห้องนั้น (ไม่มีใครพิมพ์ = '')
+const typingText = (key) => (typers.has(key) ? [...typers.get(key).values()].map((t) => t.name).join(', ') + ' กำลังพิมพ์…' : '');
+function renderTyping() {
+  const t = current ? typingText(current.key) : '';
+  $('typing').hidden = !t;
+  $('typingWho').textContent = t;
+  renderList();
+}
+// บอกห้องว่ากำลังพิมพ์ (ส่งทุก 2 วิ ระหว่างพิมพ์) · ลบข้อความหมด/ส่งแล้ว = เลิกพิมพ์
+function sendTyping(stop = false) {
+  const ch = typingChs.get(current?.shop_id);
+  if (!ch || (stop ? !typingSentAt : Date.now() - typingSentAt < 2000)) return;
+  typingSentAt = stop ? 0 : Date.now();
+  ch.send({ type: 'broadcast', event: 'typing', payload: { room: current.id, id: myId, admin: true, stop } });
+}
+$('text').addEventListener('input', () => sendTyping(!$('text').value.trim()));
+
+// ---------- ข้อความสำเร็จรูป (แอดมินทุกคนใช้ร่วมกัน) ----------
+async function renderQuick() {
+  const { data, error } = await db.from('quick_replies').select().order('created_at');
+  if (error) return $('qrPanel').replaceChildren(h('p', 'muted', 'โหลดไม่สำเร็จ: ' + error.message));
+  const add = h('button', 'tool', '＋ บันทึกข้อความที่พิมพ์อยู่เป็นข้อความสำเร็จรูป');
+  add.type = 'button';
+  add.onclick = async () => {
+    const text = $('text').value.trim();
+    if (!text) return alert('พิมพ์ข้อความในช่องด้านล่างก่อน แล้วกดบันทึก');
+    const { error } = await db.from('quick_replies').insert({ text });
+    if (error) return alert('บันทึกไม่สำเร็จ: ' + error.message);
+    toast('บันทึกข้อความสำเร็จรูปแล้ว');
+    renderQuick();
+  };
+  $('qrPanel').replaceChildren(...data.map((q) => {
+    const use = h('button', 'use', q.text);
+    use.type = 'button';
+    use.title = 'ใส่ข้อความนี้ในช่องพิมพ์';
+    use.onclick = () => { // ใส่ตรงตำแหน่งเคอร์เซอร์ → แก้ต่อแล้วกด Enter ส่ง
+      const t = $('text');
+      t.setRangeText(q.text, t.selectionStart, t.selectionEnd, 'end');
+      $('qrPanel').hidden = true;
+      t.focus();
+    };
+    const del = h('button', 'tool', '🗑');
+    del.type = 'button';
+    del.title = 'ลบข้อความสำเร็จรูปนี้';
+    del.onclick = async () => {
+      if (!confirm('ลบข้อความสำเร็จรูปนี้?')) return;
+      const { error } = await db.from('quick_replies').delete().eq('id', q.id);
+      if (error) return alert('ลบไม่สำเร็จ: ' + error.message);
+      renderQuick();
+    };
+    const r = h('div', 'qr-item');
+    r.append(use, del);
+    return r;
+  }), ...(data.length ? [] : [h('p', 'muted', 'ยังไม่มีข้อความสำเร็จรูป — พิมพ์ข้อความที่ใช้บ่อยในช่องด้านล่าง แล้วกดบันทึก')]), add);
+}
+$('qrBtn').onclick = () => {
+  $('qrPanel').hidden = !$('qrPanel').hidden;
+  if (!$('qrPanel').hidden) renderQuick();
+};
+
+// ---------- แท็ก ----------
+// แสดงแท็กทั้งหมดในทุกแชท: เขียว = ติดอยู่, แตะเพื่อติด/เอาออก
+function renderTags() {
+  const list = [...new Set([...allTags, ...current.tags])];
+  $('tags').replaceChildren(...list.map((t) => {
+    const on = current.tags.includes(t);
+    const chip = h('button', 'tag' + (editingTags ? ' del' : on ? ' on' : ''), editingTags ? t + ' ×' : t);
+    chip.type = 'button';
+    chip.setAttribute('aria-pressed', on);
+    chip.onclick = () => (editingTags ? deleteTag(t) : saveTags(on ? current.tags.filter((v) => v !== t) : [...current.tags, t]));
+    return chip;
+  }));
+  $('tagHint').textContent = !list.length ? 'ยังไม่มีแท็ก — สร้างด้านล่าง'
+    : editingTags ? 'แตะแท็กเพื่อลบออกจากทุกแชท' : 'แตะเพื่อติด / เอาแท็กออก';
+  $('editTags').textContent = editingTags ? 'เสร็จ' : 'แก้ไข';
+}
+
+async function deleteTag(t) {
+  if (!confirm(`ลบแท็ก "${t}" ออกจากทุกแชท?`)) return;
+  const { error } = await db.from('tags').delete().eq('name', t);
+  if (error) return alert('ลบแท็กไม่สำเร็จ: ' + error.message);
+  current.tags = current.tags.filter((v) => v !== t); // DB เอาออกจากทุกแชทให้แล้ว (trigger)
+  setAllTags(allTags.filter((v) => v !== t));
+}
+
+$('editTags').onclick = () => { editingTags = !editingTags; renderTags(); };
 
 async function saveTags(tags) {
   current.tags = tags;
@@ -204,21 +1063,912 @@ async function saveTags(tags) {
   if (error) alert('บันทึกแท็กไม่สำเร็จ: ' + error.message);
 }
 
-$('addTag').onsubmit = (e) => {
+// สร้างแท็กใหม่ → ใช้ได้ทุกแชท และติดให้แชทนี้เลย
+$('addTag').onsubmit = async (e) => {
   e.preventDefault();
   const t = $('tagInput').value.trim();
+  if (!t) return;
+  if (!allTags.includes(t)) {
+    const { error } = await db.from('tags').insert({ name: t });
+    if (error && error.code !== '23505') return alert('สร้างแท็กไม่สำเร็จ: ' + error.message); // 23505 = มีอยู่แล้ว
+    setAllTags([...allTags, t]);
+  }
   $('tagInput').value = '';
-  if (t && !current.tags.includes(t)) saveTags([...current.tags, t]);
+  if (!current.tags.includes(t)) saveTags([...current.tags, t]);
 };
 
-// change = ตอนคลิกออกจากช่อง (เกิดก่อนคลิกแชทอื่น current จึงยังเป็นคนเดิม)
-$('note').onchange = async () => {
-  current.note = $('note').value;
-  const { error } = await db.from('contacts').update({ note: current.note }).eq('id', current.id);
-  if (error) alert('บันทึกโน้ตไม่สำเร็จ: ' + error.message);
+// ---------- โน้ต ----------
+function noteEl(n) {
+  const el = h('div', 'note', n.text);
+  const meta = h('div', 'meta');
+  const del = h('button', '', 'ลบ');
+  del.type = 'button';
+  del.onclick = async () => {
+    if (!confirm('ลบโน้ตนี้?')) return;
+    const { error } = await db.from('notes').delete().eq('id', n.id);
+    if (error) return alert(error.message);
+    el.remove();
+  };
+  meta.append(h('time', '', new Date(n.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })), del);
+  el.append(meta);
+  return el;
+}
+
+$('addNote').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('noteInput').value.trim();
+  if (!text) return;
+  const c = current;
+  const { data, error } = await db.from('notes').insert({ contact_id: c.id, text }).select().single();
+  if (error) return alert('บันทึกโน้ตไม่สำเร็จ: ' + error.message);
+  if (current !== c) return;
+  $('noteInput').value = '';
+  $('notes').prepend(noteEl(data));
 };
 
-$('search').oninput = renderList;
+// ---------- หลังร้าน: ออเดอร์ / เติมเครดิต / เคลม / ร้านค้า ----------
+const num = (n) => Number(n).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+const when = (iso) => new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+const title = (o) => `${o.product_name}${o.option_name ? ` (${o.option_name})` : ''} x${o.qty}`;
+const TITLES = { orders: '🧾 ออเดอร์', topups: '💰 แจ้งเติมเครดิต', claims: '🛠 เคลมสินค้า', shops: '🏪 ร้านค้า', users: '👤 ผู้ใช้' };
+const ORDER = { pending: '🆕 ออเดอร์ใหม่', waiting: '⏳ รอส่งลูกค้า', done: '✅ ส่งมอบแล้ว', cancelled: '❌ ยกเลิก' };
+const CLAIM = { pending: ['รอตรวจสอบ', 'pending'], refunded: ['คืนเครดิตแล้ว', ''], replaced: ['เปลี่ยนสินค้าแล้ว', ''], rejected: ['ไม่อนุมัติ', 'bad'] };
+const TOPUP = { pending: ['รอตรวจสอบ', 'pending'], approved: ['อนุมัติแล้ว', ''], rejected: ['ไม่อนุมัติ', 'bad'] };
+const KIND = { topup: 'เติม', order: 'ซื้อ', refund: 'คืน', adjust: 'ปรับ' };
+
+function line(...kids) {
+  const r = h('div', 'line');
+  r.append(...kids);
+  return r;
+}
+const pill = ([label, cls]) => h('span', 'pill ' + cls, label);
+const ono = (o) => o.order_no ?? '#' + o.id; // เลขออเดอร์ (ก่อนรัน update-14 = #id)
+const ORDER_KIND = { new: '🆕 เบิกใหม่', renew: '🔁 ต่ออายุ' };
+// การ์ดออเดอร์ดึงเคลมมาด้วย → สถานะเปลี่ยนตามเคลมล่าสุด
+const ORDER_SEL = '*, products(image_url), claims(id, status, reason, reply, refund, created_at, created_by, decided_by, decided_at)';
+const lastClaim = (o) => (o.claims ?? []).reduce((a, c) => (!a || c.id > a.id ? c : a), null);
+function orderPill(o) {
+  const c = lastClaim(o);
+  return c ? pill(['🛠 เคลม · ' + CLAIM[c.status][0], CLAIM[c.status][1]]) : pill([ORDER[o.status], ORDER_PILL[o.status]]);
+}
+// ใครแจ้งเคลม · ใครตัดสิน — รูปโปรไฟล์ + ชื่อตัวหนา
+function whoChip(uid, name) {
+  const el = h('span', 'who');
+  el.append(avatar({ id: uid, name }, 'xs'), h('b', '', name));
+  return el;
+}
+// บรรทัด "หัวข้อ   ค่า" (ข้ามบรรทัดที่ไม่มีข้อมูล)
+function metaRows(rows) {
+  const meta = h('div', 'claim-meta');
+  for (const [label, ...kids] of rows.filter(Boolean)) {
+    const r = h('div', 'cm-row');
+    r.append(h('span', 'lbl', label), ...kids.filter(Boolean));
+    meta.append(r);
+  }
+  return meta;
+}
+// ทีละบรรทัด: ปัญหา → ผู้แจ้งเคลม → ผู้อนุมัติเคลม
+const claimMeta = (c, withReason = true) => metaRows([
+  withReason && ['ปัญหา', h('b', '', c.reason)],
+  c.created_by && ['ผู้แจ้งเคลม', whoChip(c.created_by, nameOf(c.created_by)), c.created_at && h('span', '', when(c.created_at))],
+  c.decided_by && [c.status === 'rejected' ? 'ผู้ปฏิเสธเคลม' : 'ผู้อนุมัติเคลม', whoChip(c.decided_by, names[c.decided_by] || 'แอดมิน'), c.decided_at && h('span', '', when(c.decided_at))],
+]);
+// ออเดอร์ที่ยกเลิก: คืนเครดิตไหม · เหตุผล · ผู้ยกเลิก + เวลา
+function cancelBox(o) {
+  const box = h('div', 'cc-box cc-cancel');
+  box.append(h('b', '', '❌ ยกเลิกแล้ว' + (o.cancel_refund == null ? '' : o.cancel_refund ? ' · คืนเครดิตแล้ว' : ' · ไม่คืนเครดิต')),
+    metaRows([
+      o.delivery && ['เหตุผล', h('b', '', o.delivery)],
+      ['ผู้ยกเลิก', o.cancelled_by ? whoChip(o.cancelled_by, names[o.cancelled_by] || 'แอดมิน') : h('b', '', 'แอดมิน'), o.done_at && h('span', '', when(o.done_at))],
+    ]));
+  return box;
+}
+function claimBox(c) {
+  const box = h('div', 'cc-box' + ({ pending: ' cc-wait', rejected: ' cc-cancel' }[c.status] ?? ''));
+  const top = h('div', 'line');
+  top.append(h('b', '', `🛠 เคลม #${c.id} · ${CLAIM[c.status][0]}`));
+  if (c.reply) top.append(copyButton(c.reply, 'cc-copy', '📋 คัดลอก'));
+  box.append(top, claimMeta(c));
+  if (c.reply) box.append(h('pre', '', c.reply));
+  if (Number(c.refund) > 0) box.append(h('span', 'cc-green', `↩ คืน ${num(c.refund)} เครดิต`));
+  return box;
+}
+function button(label, cls, onclick) {
+  const b = h('button', 'btn ' + cls, label);
+  b.type = 'button';
+  b.onclick = onclick;
+  return b;
+}
+function toast(msg) {
+  const t = h('div', 'toast', msg);
+  document.body.append(t);
+  setTimeout(() => t.remove(), 2500);
+}
+async function q(builder) {
+  const { data, error } = await builder;
+  if (error) { alert(error.message); return null; }
+  return data;
+}
+function emptyIf(rows, text) {
+  if (!rows.length) $('oList').append(h('p', 'o-empty', text));
+}
+function updateTitle() {
+  const n = unreadChats + pendingTotal;
+  document.title = (n ? `(${n}) ` : '') + 'My OA';
+}
+
+function setView(v) {
+  view = v;
+  $('app').dataset.view = v;
+  if (v !== 'chat') $('app').classList.remove('open', 'show-profile');
+  for (const b of document.querySelectorAll('#rail [data-view]')) b.setAttribute('aria-pressed', b.dataset.view === v);
+  for (const el of document.querySelectorAll('#office [data-for]')) el.hidden = el.dataset.for !== v;
+  $('oTitle').textContent = TITLES[v] ?? '';
+  $('oList').className = { shops: 'grid', users: 'grid', orders: 'cards' }[v] ?? '';
+  if (v !== 'chat') reloadOffice();
+}
+for (const b of document.querySelectorAll('#rail [data-view]')) b.onclick = () => setView(b.dataset.view);
+
+function reloadOffice() {
+  counts();
+  ({ orders: loadOrders, topups: loadTopups, claims: loadClaims, shops: renderShops, users: loadUsers })[view]?.();
+}
+
+async function loadShops() {
+  const { data } = await db.from('shops').select('*, shop_members(user_id, email)');
+  shops = (data ?? []).sort((a, b) => a.name.localeCompare(b.name, 'th', { numeric: true }));
+  shopName = Object.fromEntries(shops.map((s) => [s.id, s.name]));
+  for (const s of shops) for (const m of s.shop_members) emails[m.user_id] = m.email;
+  // ตัวกรองร้านในรายการแชท
+  const picked = $('shopFilter').value;
+  const all = h('option', '', 'ทุกร้าน');
+  all.value = '';
+  $('shopFilter').replaceChildren(all, ...shops.map((s) => {
+    const o = h('option', '', s.name);
+    o.value = s.id;
+    return o;
+  }));
+  $('shopFilter').value = shops.some((s) => String(s.id) === picked) ? picked : '';
+  joinTyping(); // ร้านใหม่ → ฟังช่อง "กำลังพิมพ์…" ของร้านนั้นด้วย
+}
+
+// ห้องแชท = คน × ร้าน
+const roomKey = (contactId, shopId) => `${contactId}:${shopId ?? 0}`;
+const inRoom = (m) => current && m.contact_id === current.id
+  && (current.key === current.id || (m.shop_id ?? null) === (current.shop_id ?? null));
+function roomChip(c) {
+  const box = h('span', 'shop-chips');
+  if (c.key !== c.id) box.append(h('span', 'shop-chip', c.shop_id ? `🏪 ${shopName[c.shop_id] ?? '#' + c.shop_id}` : 'ไม่ระบุร้าน'));
+  return box;
+}
+
+async function loadAvatars() {
+  const { data } = await db.from('profiles').select('user_id, avatar_url, display_name');
+  avatars = Object.fromEntries((data ?? []).filter((p) => p.avatar_url).map((p) => [p.user_id, p.avatar_url]));
+  names = Object.fromEntries((data ?? []).filter((p) => p.display_name).map((p) => [p.user_id, p.display_name]));
+}
+
+async function counts() {
+  let total = 0;
+  for (const [t, st] of [['orders', ['pending', 'waiting']], ['topups', ['pending']], ['claims', ['pending']]]) {
+    const { count } = await db.from(t).select('id', { count: 'exact', head: true }).in('status', st);
+    $('n-' + t).textContent = count || '';
+    total += count || 0;
+  }
+  pendingTotal = total;
+  updateTitle();
+}
+
+// ทุกอย่างที่แตะเครดิตเรียกฟังก์ชันใน DB (ตรวจยอด + บันทึกประวัติให้)
+async function rpc(fn, args, okMsg) {
+  const { error } = await db.rpc(fn, args);
+  if (error) return alert(error.message);
+  toast(okMsg);
+  await loadShops();
+  reloadOffice();
+}
+
+// สลิป / รูปเคลม อยู่ใน bucket ส่วนตัว → ลิงก์ชั่วคราว 1 ชม.
+async function signed(paths) {
+  paths = [...new Set(paths.filter(Boolean))];
+  if (!paths.length) return {};
+  const { data } = await db.storage.from('shop-files').createSignedUrls(paths, 3600);
+  return Object.fromEntries((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
+}
+function thumb(url) {
+  const img = h('img', 'thumb');
+  img.src = url;
+  img.alt = 'รูปแนบ';
+  img.onclick = () => window.open(url, '_blank');
+  return img;
+}
+
+// --- ออเดอร์ ---
+async function loadOrders() {
+  const st = $('orderFilter').value;
+  // ponytail: 300 รายการต่อสถานะ — เพิ่มแบ่งหน้าเมื่อออเดอร์เยอะมาก
+  let qb = db.from('orders').select(ORDER_SEL).order('created_at', { ascending: st === 'open' }).limit(300);
+  if (st === 'open') qb = qb.in('status', ['pending', 'waiting']);
+  else if (st) qb = qb.eq('status', st);
+  orderRows = (await q(qb)) ?? [];
+  renderOrders();
+}
+
+async function renderOrders() {
+  const s = $('orderSearch').value.trim().toLowerCase();
+  let shown = orderRows.filter((o) => !s
+    || `${ono(o)} ${shopName[o.shop_id]} ${o.orderer} ${o.product_name} ${o.option_name} ${o.customer} ${o.email} ${o.note}`.toLowerCase().includes(s));
+  // เลขออเดอร์เก่า / คนละสถานะ ที่ไม่ได้โหลดมา → ค้นจากฐานข้อมูลตรง ๆ
+  if (!shown.length && /^od\d{10,}$/.test(s)) {
+    shown = (await q(db.from('orders').select(ORDER_SEL).eq('order_no', s.toUpperCase()))) ?? [];
+    if (s !== $('orderSearch').value.trim().toLowerCase()) return; // พิมพ์ต่อระหว่างรอ
+  }
+  $('oList').replaceChildren(...shown.map(orderCard));
+  emptyIf(shown, 'ไม่มีออเดอร์');
+}
+
+function copyButton(text, cls = 'cc-copy', label = '📋') {
+  const b = h('button', cls, label);
+  b.type = 'button';
+  b.title = 'คัดลอก';
+  b.onclick = () => navigator.clipboard.writeText(text).then(() => toast('คัดลอกแล้ว'));
+  return b;
+}
+
+function orderCard(o) {
+  const el = h('div', 'ocard ' + o.status + (lastClaim(o)?.status === 'pending' ? ' claiming' : ''));
+  const link = (label, cls, onclick) => {
+    const b = h('button', 'oc-link ' + cls, label);
+    b.type = 'button';
+    b.onclick = onclick;
+    return b;
+  };
+
+  const head = h('div', 'oc-head');
+  let pic = h('div', 'oc-pic', '🛍️');
+  if (o.products?.image_url) {
+    pic = h('img', 'oc-pic');
+    pic.src = o.products.image_url;
+    pic.alt = '';
+  }
+  const info = h('div', 'oc-info');
+  info.append(h('b', '', o.product_name),
+    h('span', 'muted', `${ORDER_KIND[o.kind] ?? ORDER_KIND.new} · ${o.option_name || 'ราคาเดียว'}${o.qty > 1 ? ` × ${o.qty}` : ''}`));
+  head.append(pic, info, orderPill(o));
+
+  const meta = h('div', 'oc-meta');
+  meta.append(h('b', '', ono(o)), h('span', 'shop-chip', `🏪 ${shopName[o.shop_id] ?? ''}`),
+    h('span', '', `👤 ${nameOf(o.ordered_by, o.orderer)}`), h('span', '', when(o.created_at)));
+  el.append(head, meta);
+
+  // ข้อมูลที่ร้านกรอกมา + ปุ่มคัดลอก (ไม่มี = ไม่แสดง)
+  const rows = h('div', 'oc-rows');
+  for (const [label, value] of [[o.kind === 'renew' ? 'ต่ออายุ' : 'เมล', o.email], ['วันที่', o.renew_date],
+    ['ลูกค้า', o.customer], ['หมายเหตุ', o.note]]) {
+    if (!value) continue;
+    const r = h('div', 'oc-row');
+    r.append(h('span', '', label), h('span', '', value), copyButton(value));
+    rows.append(r);
+  }
+  if (rows.children.length) el.append(rows);
+  for (const c of o.claims ?? []) el.append(claimBox(c));
+
+  const hasSale = Number(o.sale_total) > 0; // สินค้าไม่ได้ตั้งราคาขายแนะนำ → ไม่รู้ยอดขาย/กำไร
+  const profit = o.sale_total - o.total;
+  const money = h('div', 'oc-money');
+  for (const [label, value, cls] of [
+    ['ทุน', `฿${num(o.total)}`, 'cost'],
+    ['ยอดขาย', hasSale ? `฿${num(o.sale_total)}` : '-', 'sale'],
+    ['กำไร', hasSale ? `${profit >= 0 ? '+' : '−'}฿${num(Math.abs(profit))}` : '-', !hasSale || profit >= 0 ? 'sale' : 'cost'],
+  ]) {
+    const s = h('span', '', label + ' ');
+    s.append(h('b', cls, value));
+    money.append(s);
+  }
+  el.append(money);
+
+  const foot = h('div', 'oc-foot');
+  if (o.status === 'cancelled') {
+    el.append(cancelBox(o));
+  } else {
+    const text = h('textarea', 'field oc-text');
+    text.placeholder = 'ข้อมูลส่งมอบ เช่น อีเมล / รหัสผ่าน / PIN / Room / วันหมดอายุ';
+    text.value = o.delivery;
+    el.append(text);
+    foot.append(button(o.status === 'done' ? '💾 บันทึกการแก้ไข' : '✅ ส่งมอบ', '', () => {
+      if (!text.value.trim()) return alert('กรอกข้อมูลส่งมอบก่อน');
+      rpc('deliver_order', { p_id: o.id, p_delivery: text.value.trim() }, 'ส่งมอบแล้ว — แจ้งในแชทร้านแล้ว');
+    }));
+    if (o.status === 'pending') {
+      foot.append(button('⏳ รอส่ง', 'gray', () => rpc('mark_waiting', { p_id: o.id }, 'แจ้งร้านว่ากำลังเตรียมส่งแล้ว')));
+    }
+  }
+  foot.append(h('span', 'grow'), link('💬 แชท', '', () => replyTo(o)));
+  if (o.status === 'pending' || o.status === 'waiting') {
+    foot.append(link('ยกเลิก+คืนเครดิต', 'red', () => cancelOrder(o, true)), link('ยกเลิกไม่คืน', '', () => cancelOrder(o, false)));
+  }
+  el.append(foot);
+  return el;
+}
+
+function cancelOrder(o, refund) {
+  const note = prompt(`ยกเลิกออเดอร์ ${ono(o)}${refund ? ` และคืน ${num(o.total)} เครดิต` : ' แบบไม่คืนเครดิต'} — เหตุผล (ร้านจะเห็น)`);
+  if (note !== null) rpc('cancel_order', { p_id: o.id, p_note: note, p_refund: refund }, refund ? 'ยกเลิกและคืนเครดิตแล้ว' : 'ยกเลิกแล้ว (ไม่คืนเครดิต)');
+}
+
+// ↩ ตอบ → เปิดแชทของคนที่เบิก
+function replyTo(o) {
+  const c = contacts.find((x) => x.key === roomKey(o.ordered_by, o.shop_id)) ?? contacts.find((x) => x.id === o.ordered_by);
+  if (!c) return alert('ผู้เบิกคนนี้ยังไม่มีห้องแชท');
+  setView('chat');
+  openChat(c);
+}
+
+// --- การ์ดออเดอร์กลางห้องแชท ---
+async function fillChatCards(ids = Object.keys(chatSlots)) {
+  if (!ids.length) return;
+  const c = current;
+  const box = $('msgs');
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  const { data } = await db.from('orders').select(ORDER_SEL).in('id', ids);
+  if (current !== c) return; // เปลี่ยนแชทระหว่างโหลด
+  for (const o of data ?? []) for (const slot of chatSlots[o.id] ?? []) slot.replaceChildren(chatCard(o));
+  if (!$('chatSearch').hidden && $('chatQ').value.trim()) searchChat(); // การ์ดเปลี่ยน → ไฮไลต์ใหม่
+  else if (atBottom) box.scrollTop = box.scrollHeight;
+}
+
+const ORDER_PILL = { pending: 'pending', waiting: 'pending', done: '', cancelled: 'bad' };
+function chatCard(o) {
+  const el = h('div', 'ccard ' + o.status);
+  const head = h('div', 'cc-head');
+  const t = new Date(o.created_at).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  head.append(h('b', '', `📦 ${ono(o)} · ${t} · ${shopName[o.shop_id] ?? ''}`), orderPill(o));
+
+  const prod = h('div', 'cc-prod');
+  let pic = h('div', 'cc-pic', '🛍️');
+  if (o.products?.image_url) {
+    pic = h('img', 'cc-pic');
+    pic.src = o.products.image_url;
+    pic.alt = '';
+  }
+  const name = `${o.product_name}${o.option_name ? ` (${o.option_name})` : ''}`;
+  prod.append(pic, h('span', '', name));
+
+  const grid = h('div', 'cc-grid');
+  for (const [label, value, cls] of [
+    ['สินค้า', name, ''],
+    ['ยอดรวม', Number(o.sale_total) > 0 ? `฿${num(o.sale_total)}` : '-', 'cc-green'],
+    ['ชื่อ', o.customer || nameOf(o.ordered_by, o.orderer), ''],
+    ['ประเภท', (ORDER_KIND[o.kind] ?? ORDER_KIND.new) + (o.qty > 1 ? ` × ${o.qty}` : ''), 'cc-green'],
+  ]) {
+    const cell = h('div');
+    cell.append(h('small', '', label), h('span', cls, value));
+    grid.append(cell);
+  }
+  el.append(head, prod, grid);
+
+  if (o.email) {
+    const mail = h('div', 'cc-box');
+    const l = h('div', 'cc-line', o.email);
+    l.append(copyButton(o.email, 'cc-copy'));
+    mail.append(h('small', '', o.kind === 'renew' ? `🔁 อีเมลที่ต่ออายุ${o.renew_date ? ' · วันที่ ' + o.renew_date : ''}` : '📧 เมลที่ใช้'), l);
+    el.append(mail);
+  }
+  if (o.note) el.append(h('div', 'muted', '📝 ' + o.note));
+  el.append(h('div', 'cc-credit', `💳 หักเครดิต ฿${num(o.total)}`));
+
+  if (o.status === 'done') {
+    const done = h('div', 'cc-box');
+    const top = h('div', 'cc-line');
+    top.append(h('span', 'cc-green', '✅ ส่งมอบแล้ว'), copyButton(o.delivery, 'cc-copy', '📋 คัดลอก'));
+    done.append(top, h('pre', '', o.delivery));
+    el.append(...(o.claims?.length ? o.claims.map(claimBox) : [done])); // เคลมแล้ว → สถานะเคลมขึ้นแทน "ส่งมอบแล้ว"
+  } else if (o.status === 'cancelled') {
+    el.append(cancelBox(o));
+  } else {
+    // ส่งมอบได้จากในแชทเลย
+    const wait = h('div', 'cc-box cc-wait');
+    const text = h('textarea', 'field');
+    text.placeholder = 'ข้อมูลส่งมอบ เช่น อีเมล / รหัสผ่าน / PIN / Room / วันหมดอายุ';
+    const acts = h('div', 'acts');
+    acts.append(button('✅ ยืนยันส่งมอบ', '', async () => {
+      if (!text.value.trim()) return alert('กรอกข้อมูลส่งมอบก่อน');
+      await rpc('deliver_order', { p_id: o.id, p_delivery: text.value.trim() }, 'ส่งมอบแล้ว');
+      fillChatCards([o.id]);
+    }));
+    if (o.status === 'pending') {
+      acts.append(button('⏳ รอส่งลูกค้า', 'gray', async () => {
+        await rpc('mark_waiting', { p_id: o.id }, 'แจ้งร้านว่ากำลังเตรียมส่งแล้ว');
+        fillChatCards([o.id]);
+      }));
+    }
+    const more = h('button', 'cc-more', 'ยกเลิก / การ์ดเต็ม →');
+    more.type = 'button';
+    more.onclick = () => goOrder(o);
+    acts.append(more);
+    wait.append(h('small', '', o.status === 'waiting' ? '⏳ รอส่งลูกค้า — กรอกข้อมูลส่งมอบ' : '🟡 ออเดอร์ใหม่ — กรอกข้อมูลส่งมอบ'), text, acts);
+    el.append(wait);
+  }
+  return el;
+}
+
+// ไปที่การ์ดเต็มของออเดอร์ในเมนู 🧾 ออเดอร์
+function goOrder(o) {
+  $('orderFilter').value = '';
+  $('orderSearch').value = ono(o);
+  setView('orders');
+}
+$('orderFilter').onchange = loadOrders;
+$('orderSearch').oninput = renderOrders;
+
+// --- แจ้งเติมเครดิต ---
+async function loadTopups() {
+  const st = $('topupFilter').value;
+  let qb = db.from('topups').select().order('created_at', { ascending: st === 'pending' }).limit(200);
+  if (st) qb = qb.eq('status', st);
+  const rows = (await q(qb)) ?? [];
+  const urls = await signed(rows.map((t) => t.slip_path));
+  $('oList').replaceChildren(...rows.map((t) => {
+    const el = h('div', 'o-card');
+    el.append(line(h('b', '', shopName[t.shop_id] ?? `ร้าน #${t.shop_id}`), pill(TOPUP[t.status])));
+    el.append(line(h('span', 'amount plus', `+${num(t.amount)}`), h('span', 'muted', `#${t.id} · ${when(t.created_at)}`)));
+    if (urls[t.slip_path]) el.append(thumb(urls[t.slip_path]));
+    if (t.status === 'pending' && urls[t.slip_path]) {
+      const bot = h('div', 'bot', '🤖 กำลังตรวจสลิป…');
+      bot.dataset.bot = t.id;
+      el.append(bot);
+    } else if (t.slip_ref) el.append(h('div', 'muted', 'เลขอ้างอิงสลิป ' + t.slip_ref));
+    if (t.status === 'pending') {
+      const acts = h('div', 'acts');
+      acts.append(
+        button('✓ อนุมัติ เติมเครดิต', '', () => confirm(`เติม ${num(t.amount)} เครดิต ให้ ${shopName[t.shop_id]}?`)
+          && rpc('decide_topup', { p_id: t.id, p_approve: true, p_note: '' }, 'เติมเครดิตแล้ว')),
+        button('✕ ไม่อนุมัติ', 'gray', () => {
+          const note = prompt('เหตุผลที่ไม่อนุมัติ (ร้านจะเห็น)');
+          if (note !== null) rpc('decide_topup', { p_id: t.id, p_approve: false, p_note: note }, 'ไม่อนุมัติแล้ว');
+        }));
+      el.append(acts);
+    } else if (t.note) el.append(h('div', 'muted', 'หมายเหตุ: ' + t.note));
+    return el;
+  }));
+  emptyIf(rows, 'ไม่มีรายการ');
+  // 🤖 ตรวจสลิปที่รออนุมัติทีละใบ (จำผลไว้ — รายการรีเฟรชไม่ต้องอ่านใหม่)
+  for (const t of rows.filter((x) => x.status === 'pending' && urls[x.slip_path])) {
+    slipChecks[t.id] ??= (slipQueue = slipQueue.then(() => checkSlip(t, urls[t.slip_path])));
+    slipChecks[t.id].then((lines) => document.querySelector(`[data-bot="${t.id}"]`)
+      ?.replaceChildren(...lines.map(([text, cls]) => h('span', cls, text))));
+  }
+}
+$('topupFilter').onchange = loadTopups;
+
+const slipChecks = {};          // topup id → Promise ผลตรวจ
+let slipQueue = Promise.resolve();
+async function checkSlip(t, url) {
+  let r;
+  try { r = await SlipBot.read(url); } catch { return [['🤖 อ่านสลิปไม่ได้ — ตรวจด้วยตาเอง', 'warn']]; }
+  const out = [r.amount == null ? ['? อ่านยอดในสลิปไม่ได้', 'warn']
+    : r.amount === Number(t.amount) ? [`✓ ยอดในสลิป ฿${num(r.amount)} ตรงกับที่แจ้ง`, 'ok']
+    : [`✗ ยอดในสลิป ฿${num(r.amount)} ไม่ตรงกับที่แจ้ง ฿${num(t.amount)}`, 'bad']];
+  if (!r.ref) return [...out, ['? ไม่พบเลขอ้างอิงในสลิป', 'warn']];
+  out.push([`เลขอ้างอิง ${r.ref} ${r.refFrom === 'qr' ? '(จาก QR)' : '(อ่านจากตัวอักษร)'}`, '']);
+  if (t.slip_ref && t.slip_ref !== r.ref) out.push(['✗ เลขอ้างอิงไม่ตรงกับที่ร้านส่งมา', 'bad']);
+  const { data: dup, error } = await db.from('topups').select('id').eq('slip_ref', r.ref).neq('id', t.id).neq('status', 'rejected');
+  if (!error) out.push(dup.length ? [`✗ สลิปซ้ำ! เคยใช้กับรายการ ${dup.map((d) => '#' + d.id).join(', ')}`, 'bad'] : ['✓ สลิปนี้ยังไม่เคยใช้เติม', 'ok']);
+  return out;
+}
+
+// --- เคลม (ประวัติการเคลมทั้งหมดอยู่ที่นี่) ---
+async function loadClaims() {
+  const st = $('claimFilter').value;
+  let qb = db.from('claims').select('*, orders(order_no, product_name, option_name, qty, total, customer, delivery)')
+    .order('created_at', { ascending: st === 'pending' }).limit(300);
+  if (st) qb = qb.eq('status', st);
+  claimRows = (await q(qb)) ?? [];
+  claimUrls = await signed(claimRows.map((c) => c.image_path));
+  renderClaims();
+}
+
+function renderClaims() {
+  const s = $('claimSearch').value.trim().toLowerCase();
+  const shown = claimRows.filter((c) => !s
+    || `#${c.id} ${c.orders?.order_no ?? '#' + c.order_id} ${shopName[c.shop_id]} ${c.orders?.product_name} ${c.reason}`.toLowerCase().includes(s));
+  $('oList').replaceChildren(...shown.map((c) => {
+    const o = c.orders ?? {};
+    const el = h('div', 'o-card');
+    el.append(line(h('span', 'muted', `เคลม #${c.id} · ออเดอร์ ${c.orders?.order_no ?? '#' + c.order_id} · ${when(c.created_at)} · ${shopName[c.shop_id] ?? ''}`), pill(CLAIM[c.status])));
+    el.append(claimMeta(c, false));
+    el.append(line(h('b', '', title(o)), h('span', 'muted', `ยอด ${num(o.total)} เครดิต${o.customer ? ' · ลูกค้า: ' + o.customer : ''}`)));
+    el.append(h('div', '', 'ปัญหา: ' + c.reason));
+    if (claimUrls[c.image_path]) el.append(thumb(claimUrls[c.image_path]));
+    el.append(h('div', 'muted', 'ข้อมูลที่ส่งไปเดิม'), h('div', 'box', o.delivery || '-'));
+    if (c.status !== 'pending') {
+      // ใครกดตัดสิน (บันทึกตั้งแต่ update-21 · เคลมก่อนหน้านั้นไม่รู้ว่าใคร)
+      el.append(h('div', 'muted', `ตัดสินโดย ${c.decided_by ? names[c.decided_by] || 'แอดมิน' : 'แอดมิน'} · ${when(c.decided_at)}`));
+      if (c.reply) el.append(h('div', 'muted', 'คำตอบ'), h('div', 'box', c.reply));
+      if (Number(c.refund) > 0) el.append(h('b', 'plus', `คืน ${num(c.refund)} เครดิต`));
+      return el;
+    }
+    const reply = h('textarea', 'field');
+    reply.placeholder = 'คำตอบถึงร้าน / ข้อมูลสินค้าใหม่ (ถ้าเปลี่ยนสินค้า)';
+    const refund = h('input', 'field');
+    refund.type = 'number';
+    refund.min = 0;
+    refund.step = 'any';
+    refund.value = o.total;
+    refund.style.width = '110px';
+    const decide = (status, msg) => rpc('decide_claim', {
+      p_id: c.id, p_status: status, p_reply: reply.value.trim(), p_refund: status === 'refunded' ? Number(refund.value) : null,
+    }, msg);
+    const acts = h('div', 'acts');
+    acts.append(
+      refund,
+      button('คืนเครดิต', '', () => confirm(`คืน ${num(refund.value)} เครดิต ให้ ${shopName[c.shop_id]}?`) && decide('refunded', 'คืนเครดิตแล้ว')),
+      button('เปลี่ยนสินค้า', 'gray', () => (reply.value.trim() ? decide('replaced', 'ส่งสินค้าใหม่แล้ว') : alert('ใส่ข้อมูลสินค้าใหม่ในช่องคำตอบก่อน'))),
+      button('ไม่อนุมัติ', 'red', () => decide('rejected', 'ไม่อนุมัติแล้ว')));
+    el.append(reply, acts);
+    return el;
+  }));
+  emptyIf(shown, 'ไม่มีเคลม');
+}
+$('claimFilter').onchange = loadClaims;
+$('claimSearch').oninput = renderClaims;
+
+// --- ร้านค้า ---
+function renderShops() {
+  const s = $('shopSearch').value.trim().toLowerCase();
+  const shown = shops.filter((x) => !s || `${x.name} ${x.shop_members.map((m) => m.email).join(' ')}`.toLowerCase().includes(s));
+  $('oList').replaceChildren(...shown.map((shop) => {
+    const el = h('div', 'o-card');
+    el.append(line(h('b', '', shop.name), h('span', 'amount', num(shop.credit))));
+
+    const members = h('div', 'chips');
+    members.append(...shop.shop_members.map((m) => {
+      const chip = h('span', 'chip', m.email);
+      const x = h('button', '', '×');
+      x.setAttribute('aria-label', 'เอาออกจากร้าน ' + m.email);
+      x.onclick = async () => {
+        if (!confirm(`เอา ${m.email} ออกจาก ${shop.name}?`)) return;
+        await q(db.from('shop_members').delete().eq('shop_id', shop.id).eq('user_id', m.user_id));
+        await loadShops();
+        renderShops();
+      };
+      chip.append(x);
+      return chip;
+    }));
+    if (!shop.shop_members.length) members.append(h('span', 'muted', 'ยังไม่มีผู้ดูแล'));
+
+    const add = h('form', 'acts');
+    const email = h('input', 'field');
+    email.type = 'email';
+    email.placeholder = 'อีเมลผู้ดูแล';
+    email.required = true;
+    email.style.flex = '1';
+    add.append(email, button('+ เพิ่ม', 'gray', () => add.requestSubmit()));
+    add.onsubmit = (e) => {
+      e.preventDefault();
+      rpc('add_member', { p_shop: shop.id, p_email: email.value }, 'เพิ่มผู้ดูแลแล้ว');
+    };
+
+    const logs = h('div', 'logs');
+    logs.hidden = true;
+    const acts = h('div', 'acts');
+    acts.append(
+      button('± ปรับเครดิต', 'gray', () => {
+        const amount = Number(prompt(`ปรับเครดิต ${shop.name} (เช่น 500 หรือ -100)`));
+        if (!amount) return;
+        const note = prompt('เหตุผล (ร้านจะเห็น)');
+        if (note !== null) rpc('adjust_credit', { p_shop: shop.id, p_amount: amount, p_note: note }, 'ปรับเครดิตแล้ว');
+      }),
+      button('ประวัติเครดิต', 'gray', async () => {
+        logs.hidden = !logs.hidden;
+        if (logs.hidden) return;
+        const rows = (await q(db.from('credit_logs').select().eq('shop_id', shop.id).order('created_at', { ascending: false }).limit(100))) ?? [];
+        logs.replaceChildren(...rows.map((l) => {
+          const r = h('div');
+          const amt = Number(l.amount);
+          r.append(h('span', 'muted', `${when(l.created_at)} · ${KIND[l.kind]} ${l.note}`),
+            h('span', amt > 0 ? 'plus' : 'minus', `${amt > 0 ? '+' : ''}${num(amt)} → ${num(l.balance)}`));
+          return r;
+        }));
+        if (!rows.length) logs.append(h('span', 'muted', 'ยังไม่มีรายการ'));
+      }));
+    el.append(members, add, acts, logs);
+    return el;
+  }));
+  emptyIf(shown, shops.length ? 'ไม่พบร้าน' : 'ยังไม่มีร้าน — เพิ่มด้านบน');
+}
+$('shopSearch').oninput = renderShops;
+
+// --- ผู้ใช้: สร้าง / ร้านที่รับผิดชอบ / รหัสผ่าน / รูปโปรไฟล์ / ลบ ---
+async function loadUsers() {
+  users = (await q(db.rpc('admin_list_users'))) ?? [];
+  amSuper = !!users.find((u) => u.id === myId)?.is_super;
+  for (const u of users) {
+    if (u.avatar_url) avatars[u.id] = u.avatar_url;
+    if (u.display_name) names[u.id] = u.display_name;
+  }
+  renderUsers();
+}
+
+const randomPass = () => {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  return Array.from(crypto.getRandomValues(new Uint32Array(8)), (n) => chars[n % chars.length]).join('');
+};
+
+async function saveName(uid, name) {
+  const { error } = await db.from('profiles').upsert({ user_id: uid, display_name: name || null, updated_at: new Date().toISOString() });
+  if (error) { alert('บันทึกชื่อไม่สำเร็จ: ' + error.message); return false; }
+  if (name) names[uid] = name;
+  else delete names[uid];
+  return true; // ชื่อห้องแชทเปลี่ยนตามเอง (trigger ในฐานข้อมูล)
+}
+
+// รหัสผ่าน: ซ่อนไว้ กด 👁 ถึงดึงมาดู
+function passwordRow(u) {
+  const row = h('div', 'acts pw');
+  const val = h('code', '', '••••••••');
+  const eye = h('button', 'btn gray', '👁 ดูรหัสผ่าน');
+  eye.type = 'button';
+  eye.onclick = async () => {
+    if (eye.dataset.open) {
+      val.textContent = '••••••••';
+      eye.textContent = '👁 ดูรหัสผ่าน';
+      delete eye.dataset.open;
+      return;
+    }
+    const pw = await q(db.rpc('admin_get_password', { p_user: u.id }));
+    if (pw === null) return toast('ยังไม่มีรหัสที่ดูได้ — กด 🔑 ตั้งรหัสใหม่ก่อน');
+    val.textContent = pw;
+    eye.textContent = '🙈 ซ่อน';
+    eye.dataset.open = '1';
+    const copy = h('button', 'btn gray', '📋');
+    copy.type = 'button';
+    copy.title = 'คัดลอกรหัสผ่าน';
+    copy.onclick = () => navigator.clipboard.writeText(pw).then(() => toast('คัดลอกรหัสผ่านแล้ว'));
+    row.append(copy);
+  };
+  row.append(h('span', 'muted', '🔑 รหัสผ่าน'), val, eye);
+  return row;
+}
+
+const shopsOf = (uid) => shops.filter((s) => s.shop_members.some((m) => m.user_id === uid));
+
+function renderUsers() {
+  const s = $('userSearch').value.trim().toLowerCase();
+  const shown = users.filter((u) => !s || `${names[u.id] ?? ''} ${u.email} ${shopsOf(u.id).map((x) => x.name).join(' ')}`.toLowerCase().includes(s));
+  $('oList').replaceChildren(...shown.map((u) => {
+    const el = h('div', 'o-card');
+    const top = h('div', 'u-top');
+    const info = h('div', 'u-info');
+    const seen = u.last_sign_in_at ? `เข้าล่าสุด ${when(u.last_sign_in_at)}` : 'ยังไม่เคยเข้าระบบ';
+    info.append(h('b', '', names[u.id] || '(ยังไม่ได้ตั้งชื่อ)'), h('div', 'muted', `${u.email} · ${seen}`));
+    top.append(avatar({ id: u.id, name: names[u.id] || u.email }), info);
+    top.append(pill(u.is_super ? ['Superadmin', 'pending'] : u.is_admin ? ['แอดมิน', ''] : ['ผู้ใช้', 'user']));
+    // แอดมินทั่วไปแตะบัญชีแอดมินคนอื่นไม่ได้ (ฐานข้อมูลกันไว้แล้ว ซ่อนปุ่มให้ตรงกัน)
+    const manageable = amSuper || u.id === myId || !u.is_admin;
+
+    // ร้านที่รับผิดชอบ: × เอาออก / เลือกเพิ่ม
+    const mine = shopsOf(u.id);
+    const chips = h('div', 'chips');
+    chips.append(...mine.map((shop) => {
+      const chip = h('span', 'chip', shop.name);
+      const x = h('button', '', '×');
+      x.setAttribute('aria-label', `เอา ${u.email} ออกจาก ${shop.name}`);
+      x.onclick = async () => {
+        if (!confirm(`เอา ${u.email} ออกจาก ${shop.name}?`)) return;
+        await q(db.from('shop_members').delete().eq('shop_id', shop.id).eq('user_id', u.id));
+        await loadShops();
+        renderUsers();
+      };
+      chip.append(x);
+      return chip;
+    }));
+    if (!mine.length) chips.append(h('span', 'muted', 'ยังไม่ได้รับผิดชอบร้านไหน'));
+    const add = h('select', 'field');
+    const first = h('option', '', '+ เพิ่มร้านที่รับผิดชอบ');
+    first.value = '';
+    add.append(first, ...shops.filter((x) => !mine.includes(x)).map((x) => {
+      const o = h('option', '', x.name);
+      o.value = x.id;
+      return o;
+    }));
+    add.onchange = () => add.value && rpc('add_member', { p_shop: Number(add.value), p_email: u.email }, 'เพิ่มร้านแล้ว');
+
+    const file = h('input');
+    file.type = 'file';
+    file.accept = 'image/*';
+    file.hidden = true;
+    file.onchange = async () => {
+      if (await uploadAvatar(u.id, file.files[0])) { toast('เปลี่ยนรูปแล้ว'); renderUsers(); }
+    };
+    const acts = h('div', 'acts');
+    acts.append(file,
+      button('✏️ ชื่อ', 'gray', async () => {
+        const name = prompt(`ชื่อผู้ใช้ของ ${u.email} (แสดงในแชท)`, names[u.id] ?? '');
+        if (name !== null && await saveName(u.id, name.trim().slice(0, 50))) { toast('บันทึกชื่อแล้ว'); renderUsers(); }
+      }),
+      button('🖼 รูปโปรไฟล์', 'gray', () => file.click()));
+    if (manageable) {
+      acts.append(button('🔑 ตั้งรหัสใหม่', 'gray', () => {
+        const pw = prompt(`รหัสผ่านใหม่ของ ${u.email} (อย่างน้อย 6 ตัว)`, randomPass());
+        if (pw) rpc('admin_set_password', { p_user: u.id, p_password: pw }, 'ตั้งรหัสผ่านใหม่แล้ว — กด 👁 เพื่อดู');
+      }));
+    }
+    if (manageable && u.id !== myId && !u.is_super) {
+      acts.append(button('🗑 ลบ', 'gray', () => confirm(`ลบผู้ใช้ ${u.email}?\nจะออกจากทุกร้านและห้องแชทของคนนี้ถูกลบ (ประวัติออเดอร์/เครดิตของร้านยังอยู่)`)
+        && rpc('admin_delete_user', { p_user: u.id }, 'ลบผู้ใช้แล้ว')));
+    }
+
+    // บทบาท: Superadmin เท่านั้นที่เปลี่ยนได้
+    let roleRow = null;
+    if (amSuper && u.id !== myId && !u.is_super) {
+      roleRow = h('label', 'acts muted');
+      const sel = h('select', 'field');
+      for (const [value, label] of [['user', 'ผู้ใช้ (ร้านค้า)'], ['admin', 'แอดมิน (หลังร้านทุกร้าน)']]) {
+        const o = h('option', '', label);
+        o.value = value;
+        sel.append(o);
+      }
+      sel.value = u.is_admin ? 'admin' : 'user';
+      sel.onchange = () => {
+        const toAdmin = sel.value === 'admin';
+        if (!confirm(toAdmin
+          ? `ตั้ง ${names[u.id] || u.email} เป็นแอดมิน?\nจะเข้า admin.html ได้ และเห็น/จัดการทุกร้าน ทุกออเดอร์ ทุกแชท`
+          : `เปลี่ยน ${names[u.id] || u.email} เป็นผู้ใช้ธรรมดา?\nจะเข้าหลังร้านไม่ได้ เหลือเฉพาะร้านที่รับผิดชอบใน shop.html`)) {
+          sel.value = u.is_admin ? 'admin' : 'user';
+          return;
+        }
+        rpc('admin_set_admin', { p_user: u.id, p_on: toAdmin }, toAdmin ? 'ตั้งเป็นแอดมินแล้ว' : 'เปลี่ยนเป็นผู้ใช้แล้ว');
+      };
+      roleRow.append('👑 บทบาท', sel);
+    }
+    el.append(top);
+    if (manageable) el.append(passwordRow(u));
+    else el.append(h('div', 'muted', '🔒 บัญชีแอดมิน — ดู/ตั้งรหัส/ลบ ได้เฉพาะ Superadmin'));
+    if (roleRow) el.append(roleRow);
+    el.append(chips, add, acts);
+    return el;
+  }));
+  emptyIf(shown, users.length ? 'ไม่พบผู้ใช้' : 'ยังไม่มีผู้ใช้ — กด "+ เพิ่มผู้ใช้"');
+}
+$('userSearch').oninput = renderUsers;
+
+// ย่อรูปให้ด้านยาวไม่เกิน max px เป็น webp
+async function shrinkImg(file, max) {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const canvas = new OffscreenCanvas(Math.round(bmp.width * scale), Math.round(bmp.height * scale));
+  canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  return canvas.convertToBlob({ type: 'image/webp', quality: 0.85 });
+}
+
+// ponytail: รูปเก่าตอนเปลี่ยนรูปยังค้างใน storage — ลบเองใน Supabase ถ้าเริ่มเปลืองที่
+async function uploadAvatar(uid, file) {
+  if (!file) return false;
+  const path = `${uid}/${crypto.randomUUID()}.webp`;
+  const { error } = await db.storage.from('avatars').upload(path, await shrinkImg(file, 400), { contentType: 'image/webp' });
+  if (error) { alert('อัปโหลดรูปไม่สำเร็จ: ' + error.message); return false; }
+  const url = db.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+  const { error: e2 } = await db.from('profiles').upsert({ user_id: uid, avatar_url: url, updated_at: new Date().toISOString() });
+  if (e2) { alert('บันทึกรูปไม่สำเร็จ: ' + e2.message); return false; }
+  avatars[uid] = url;
+  return true;
+}
+
+// หน้าต่างสร้างผู้ใช้
+$('addUser').onclick = () => {
+  $('userForm').reset();
+  $('uShops').replaceChildren(...shops.map((s) => {
+    const l = h('label');
+    const cb = h('input');
+    cb.type = 'checkbox';
+    cb.value = s.id;
+    l.append(cb, s.name);
+    return l;
+  }));
+  if (!shops.length) $('uShops').append(h('span', 'muted', 'ยังไม่มีร้าน — สร้างในเมนู 🏪 ร้านค้า'));
+  $('uAdmin').closest('.checks').hidden = !amSuper; // ตั้งเป็นแอดมินได้เฉพาะ Superadmin
+  $('userDlg').showModal();
+};
+$('uCancel').onclick = () => $('userDlg').close();
+$('uGen').onclick = () => { $('uPass').value = randomPass(); };
+$('userForm').onsubmit = async (e) => {
+  e.preventDefault();
+  $('uOk').disabled = true;
+  try {
+    const email = $('uEmail').value.trim().toLowerCase();
+    const { data: uid, error } = await db.rpc('admin_create_user', { p_email: email, p_password: $('uPass').value });
+    if (error) throw error;
+    await saveName(uid, $('uName').value.trim());
+    if ($('uAdmin').checked) {
+      const { error: eA } = await db.rpc('admin_set_admin', { p_user: uid, p_on: true });
+      if (eA) throw eA;
+    }
+    for (const cb of $('uShops').querySelectorAll('input:checked')) {
+      const { error: e2 } = await db.rpc('add_member', { p_shop: Number(cb.value), p_email: email });
+      if (e2) throw e2;
+    }
+    await uploadAvatar(uid, $('uAvatar').files[0]);
+    $('userDlg').close();
+    toast('สร้างผู้ใช้แล้ว — ล็อกอินที่ shop.html ได้ทันที');
+    await loadShops();
+    loadUsers();
+  } catch (err) {
+    alert('สร้างผู้ใช้ไม่สำเร็จ: ' + err.message);
+  } finally {
+    $('uOk').disabled = false;
+  }
+};
+
+$('newShop').onsubmit = async (e) => {
+  e.preventDefault();
+  const { error } = await db.from('shops').insert({ name: $('newShopName').value.trim() });
+  if (error) return alert(error.code === '23505' ? 'มีร้านชื่อนี้แล้ว' : error.message);
+  $('newShopName').value = '';
+  await loadShops();
+  renderShops();
+};
+
+// ---------- อื่นๆ ----------
+$('search').oninput = () => {
+  renderList();
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(searchMessages, 300);
+};
+$('tagFilter').onchange = renderList;
+$('shopFilter').onchange = renderList;
+for (const b of document.querySelectorAll('.tabs button')) {
+  b.onclick = () => {
+    filter = b.dataset.f;
+    for (const x of document.querySelectorAll('.tabs button')) x.setAttribute('aria-pressed', x === b);
+    renderList();
+  };
+}
+$('infoBtn').onclick = () => $('app').classList.toggle('show-profile');
+$('pClose').onclick = () => $('app').classList.remove('show-profile');
+$('back').onclick = () => { current = null; $('app').classList.remove('open', 'show-profile'); renderList(); };
+// ✏️ แชทใหม่: เลือกร้าน + ผู้ใช้ แล้วเปิดห้องคุยได้เลย (ไม่ต้องรอให้ร้านทักหรือกดเบิกก่อน)
+$('newChat').onclick = () => {
+  $('ncPick').replaceChildren(...shops.filter((s) => s.shop_members.length).map((s) => {
+    const g = h('optgroup');
+    g.label = '🏪 ' + s.name;
+    g.append(...s.shop_members.map((m) => {
+      const o = h('option', '', nameOf(m.user_id, m.email));
+      o.value = `${m.user_id}:${s.id}`;
+      return o;
+    }));
+    return g;
+  }));
+  $('newChatDlg').showModal();
+};
+$('ncCancel').onclick = () => $('newChatDlg').close();
+$('ncForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const [user, shop] = $('ncPick').value.split(':');
+  const { error } = await db.rpc('admin_open_room', { p_user: user, p_shop: Number(shop) });
+  if (error) return alert('เปิดห้องไม่สำเร็จ: ' + error.message);
+  $('newChatDlg').close();
+  await loadContacts();
+  setView('chat');
+  const c = contacts.find((x) => x.key === roomKey(user, Number(shop)));
+  if (c) openChat(c);
+};
+
+// สลับโหมดมืด/สว่าง (จำไว้ในเครื่องนี้ · stock.html ใช้ค่าเดียวกัน)
+function renderThemeBtn() {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  $('themeBtn').querySelector('b').textContent = dark ? '☀️' : '🌙';
+  $('themeBtn').querySelector('span').textContent = dark ? 'สว่าง' : 'มืด';
+}
+$('themeBtn').onclick = () => {
+  const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('admin-theme', t); } catch {}
+  renderThemeBtn();
+};
+renderThemeBtn();
+$('logout').onclick = () => db.auth.signOut({ scope: 'local' }).then(() => location.reload());
+$('switchAcc').onclick = () => db.auth.signOut({ scope: 'local' }).then(() => location.reload());
 
 $('login').onsubmit = async (e) => {
   e.preventDefault();
@@ -226,19 +1976,6 @@ $('login').onsubmit = async (e) => {
   if (error) return alert(error.message);
   start();
 };
-
-$('send').onsubmit = async (e) => {
-  e.preventDefault();
-  const text = $('text').value.trim();
-  if (!text) return;
-  $('text').value = '';
-  // ข้อความจะโผล่เองผ่าน realtime
-  const { error } = await db.from('messages').insert({ contact_id: current.id, direction: 'out', text });
-  if (error) { alert('ส่งไม่สำเร็จ: ' + error.message); $('text').value = text; }
-};
-
-$('back').onclick = () => { current = null; $('app').classList.remove('open'); renderList(); };
-$('logout').onclick = () => db.auth.signOut().then(() => location.reload());
 
 start();
 </script>
