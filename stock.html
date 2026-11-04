@@ -44,6 +44,18 @@
   #sLow { color: var(--warn); }
   #sOut { color: var(--bad); }
   .tools { display: flex; gap: 10px; }
+  #catBtn { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 8px 12px; white-space: nowrap; }
+  #catBtn:hover { border-color: var(--green); }
+  /* 🖼️ รูปปุ่มหมวด: ตัวอย่างปุ่มแบบเดียวกับหน้าร้าน */
+  .cat-dlg { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .ci-row { display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .ci-tile { position: relative; width: 220px; height: 58px; flex: none; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 0 14px;
+    background: #13201a linear-gradient(135deg, rgba(34, 197, 94, .3), transparent) center 25% / cover; color: #fff; font-weight: 700; font-size: 15px; }
+  .ci-tile::before { content: ''; position: absolute; inset: 0; background: rgba(4, 10, 6, .42); }
+  .ci-tile span { position: relative; font-size: 18px; text-shadow: 0 2px 8px #000, 0 0 2px #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ci-row .grow { flex: 1; }
+  .ci-row label { cursor: pointer; }
+  .ci-del { color: var(--bad); }
   #list { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   .group { padding: 8px 16px; background: var(--hover); color: var(--muted); font-size: 12px; font-weight: 600; }
   .prow { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--line); }
@@ -63,7 +75,7 @@
   .edit { color: var(--green); font-weight: 600; flex: none; }
   .none { color: var(--muted); text-align: center; padding: 40px; }
 
-  dialog { margin: auto; background: var(--bg); color: var(--txt); border: 0; border-radius: 12px; padding: 0; width: min(520px, calc(100% - 24px)); max-height: calc(100dvh - 24px); }
+  dialog { margin: auto; background: var(--bg); color: var(--txt); border: 0; border-radius: 12px; padding: 0; width: min(860px, calc(100% - 24px)); max-height: calc(100dvh - 24px); } /* กว้างพอให้ตารางแพ็กเกจไม่ถูกตัด */
   dialog::backdrop { background: rgba(0, 0, 0, .4); }
   #form { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
   #form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--label); }
@@ -78,7 +90,7 @@
   .hint { color: var(--muted); font-size: 11px; }
   /* ตารางแพ็กเกจ: ชื่อ · ทุน (เครดิตที่หัก) · ราคาขาย */
   .pk { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--label); }
-  .pk-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr 32px; gap: 6px; align-items: center; }
+  .pk-row { display: grid; grid-template-columns: 1.4fr 1fr .6fr 1.2fr .8fr .8fr 32px; gap: 8px; align-items: center; } /* ประเภทกว้างสุด (เช่น Pack 1 Premium) */
   .pk-head { color: var(--muted); font-size: 11px; }
   .pk-del { border: 0; background: none; color: var(--muted); font-size: 18px; border-radius: 6px; }
   .pk-del:hover { background: var(--hover); color: var(--bad); }
@@ -113,6 +125,7 @@
     </div>
     <div class="tools">
       <input id="search" class="field" type="search" placeholder="ค้นหาสินค้า / หมวด">
+      <button id="catBtn" type="button">🖼️ รูปปุ่มหมวด</button>
       <button id="addBtn" class="btn" style="white-space: nowrap">+ เพิ่มสินค้า</button>
     </div>
     <div id="list"></div>
@@ -127,20 +140,23 @@
       <label style="flex: 1">รูปสินค้า<input id="fImage" type="file" accept="image/*"></label>
     </div>
     <label>ชื่อสินค้า *<input id="fName" class="field" required maxlength="100"></label>
-    <label>หมวดหมู่<input id="fCategory" class="field" list="catList" placeholder="เช่น 1. แอพสตรีมมิ่ง" autocomplete="off">
-      <span class="hint">ใส่เลขนำหน้าเพื่อเรียงลำดับหมวดบนหน้าร้าน</span></label>
-    <datalist id="catList"></datalist>
+    <label>หมวดหมู่<select id="fCategory" class="field"></select>
+      <span class="hint">กดเลือกหมวดที่มีอยู่ หรือเลือก "✏️ เพิ่มหมวดใหม่…" ท้ายรายการ · ใส่เลขนำหน้าเพื่อเรียงลำดับหมวดบนหน้าร้าน</span></label>
     <label>รายละเอียด<textarea id="fDesc" class="field"></textarea></label>
     <div class="pk">
       <span>แพ็กเกจและราคา *</span>
-      <div class="pk-row pk-head"><span>ชื่อแพ็กเกจ</span><span>🏭 ทุน (เครดิตที่หัก)</span><span>💰 ราคาขาย</span><span></span></div>
+      <div class="pk-row pk-head"><span>ประเภท</span><span>ชื่อแพ็กเกจ</span><span>🎁 แถม (วัน)</span><span>✏️ กรอกเอง</span><span>🏭 ทุน (เครดิตที่หัก)</span><span>💰 ราคาขาย</span><span></span></div>
       <div id="fPkgs" class="pk"></div>
       <button type="button" id="addPkg" class="pk-add">+ เพิ่มแพ็กเกจ</button>
+      <datalist id="grpList"></datalist>
+      <span class="hint">ชื่อที่ร้านเห็น = ชื่อแพ็กเกจ + กรอกเอง + แถม เช่น "1 เดือน + แถม 3 วัน" · เลือกชื่อแพ็กเกจเป็น "ปิด" = ใช้ข้อความในช่องกรอกเองเป็นชื่อ</span>
+      <span class="hint">ประเภท = จัดกลุ่มราคาบนหน้าร้าน เช่น แบบหาร / แบบส่วนตัว (ร้านเลือกประเภทก่อนแล้วค่อยเลือกราคา · ไม่ใส่ก็ได้)</span>
       <span class="hint">ทุน = เครดิตที่หักจากร้านตอนเบิก · ราคาขาย = ราคาที่ร้านขายลูกค้า (ใช้คิดกำไรต่อบิล ไม่ใส่ก็ได้) · มีราคาเดียวเว้นชื่อว่างได้</span>
     </div>
     <div class="row2">
       <label>สต็อค<input id="fStock" class="field" type="number" min="0" step="1"></label>
-      <label>ป้ายบนรูป<input id="fBadge" class="field" maxlength="20" placeholder="เช่น ขายดี 🔥"></label>
+      <label>ป้ายใต้สินค้า<input id="fBadge" class="field" maxlength="20" placeholder="เช่น สินค้าขายดี 🔥">
+        <span class="hint">มีคำว่า ขายดี = แถบแดง · ฟรี / แถม = แถบเหลือง · อื่นๆ = แถบฟ้า</span></label>
     </div>
     <label class="check"><input id="fActive" type="checkbox"> แสดงบนหน้าร้าน</label>
     <div class="actions">
@@ -152,11 +168,20 @@
   </form>
 </dialog>
 
+<dialog id="catDlg">
+  <div class="cat-dlg">
+    <b style="font-size: 16px">🖼️ รูปพื้นหลังปุ่มหมวด (หน้าร้าน แท็บ 🛒 สินค้า)</b>
+    <span class="hint">กด 📷 เปลี่ยนรูป เพื่ออัปโหลดรูปใหม่ · รูปถูกครอปให้เต็มปุ่ม (เห็นช่วงบนค่อนกลางของรูป) · ร้านเห็นรูปใหม่หลังรีเฟรชหน้า</span>
+    <div id="catImgList"></div>
+    <div class="actions"><span class="grow"></span><button type="button" class="btn" id="catClose">เสร็จ</button></div>
+  </div>
+</dialog>
+
 <script>
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: 'oa-admin' } }); // session เดียวกับ admin.html (แยกจาก shop.html)
 const $ = (id) => document.getElementById(id);
 const byName = (a, b) => a.localeCompare(b, 'th', { numeric: true });
-const baht = (n) => '฿' + Number(n).toLocaleString('th-TH');
+const baht = (n) => '฿\u202F' + Number(n).toLocaleString('th-TH');
 let products = [];
 let editing = null; // สินค้าที่กำลังแก้ (null = เพิ่มใหม่)
 
@@ -187,7 +212,9 @@ async function load() {
   $('sTotal').textContent = products.length;
   $('sLow').textContent = products.filter((p) => status(p).key === 'low').length;
   $('sOut').textContent = products.filter((p) => status(p).key === 'out').length;
-  $('catList').replaceChildren(...[...new Set(products.map((p) => p.category))].map((c) => h('option', '', c)));
+  // ประเภทแพ็กเกจที่เคยใช้ (ช่วยพิมพ์) + ค่าเริ่มต้น
+  const groups = new Set(['แบบหาร', 'แบบส่วนตัว', ...products.flatMap((p) => p.options.map((o) => o.group).filter(Boolean))]);
+  $('grpList').replaceChildren(...[...groups].map((g) => h('option', '', g)));
   render();
 }
 
@@ -214,7 +241,7 @@ function row(p) {
   } else thumb = h('div', 'thumb', '🛍️');
 
   const main = h('div', 'pmain');
-  main.append(h('b', '', p.name), h('small', '', p.options.map((o) => `${o.name} ทุน ${baht(o.price)}${o.sale != null ? ` / ขาย ${baht(o.sale)}` : ''}`.trim()).join(' · ')));
+  main.append(h('b', '', p.name), h('small', '', p.options.map((o) => `${o.group ? o.group + ' ' : ''}${o.name} ทุน ${baht(o.price)}${o.sale != null ? ` / ขาย ${baht(o.sale)}` : ''}`.trim()).join(' · ')));
 
   // ปรับสต็อคเร็วๆ: − / ตัวเลข / +
   const qty = h('div', 'qty');
@@ -258,7 +285,7 @@ function openForm(p = null) {
   editing = p;
   $('dlgTitle').textContent = p ? 'แก้ไขสินค้า' : 'เพิ่มสินค้า';
   $('fName').value = p?.name ?? '';
-  $('fCategory').value = p?.category ?? '';
+  fillCats(p?.category ?? '');
   $('fDesc').value = p?.description ?? '';
   $('fPkgs').replaceChildren(...(p?.options?.length ? p.options : [{}]).map(pkgRow));
   $('fStock').value = p?.stock ?? 0;
@@ -270,7 +297,87 @@ function openForm(p = null) {
   $('dlg').showModal();
 }
 
-// แถวแพ็กเกจ 1 แถว: ชื่อ · ทุน (= price เครดิตที่หัก, บังคับ) · ราคาขาย (= sale, ไม่ใส่ก็ได้)
+// หมวดหมู่: เลือก / ➕ เพิ่ม / ✏️ แก้ชื่อ / 🗑 ลบ — แก้ชื่อและลบ มีผลกับสินค้าทุกตัวในหมวดนั้น
+function fillCats(value) {
+  const sel = $('fCategory');
+  fillPick(sel, [...new Set(products.map((x) => x.category).filter(Boolean))].sort(byName), value,
+    '— เลือกหมวด (ไม่เลือก = อื่นๆ)', '➕ เพิ่มหมวดใหม่…', 'ชื่อหมวดใหม่ (ใส่เลขนำหน้าเพื่อเรียงลำดับ เช่น 4. เกม)');
+  for (const [v, label] of [['__rename', '✏️ แก้ชื่อหมวดที่เลือก…'], ['__delete', '🗑 ลบหมวดที่เลือก…']]) {
+    const o = h('option', '', label);
+    o.value = v;
+    sel.append(o);
+  }
+  const pick = sel.onchange;
+  sel.onchange = async () => {
+    if (sel.value !== '__rename' && sel.value !== '__delete') return pick();
+    const act = sel.value;
+    const old = sel.dataset.prev;
+    sel.value = old;
+    if (!old) return alert('เลือกหมวดที่จะแก้ก่อน แล้วค่อยกดอีกครั้ง');
+    const n = products.filter((x) => x.category === old).length;
+    let to;
+    if (act === '__rename') {
+      to = prompt(`แก้ชื่อหมวด "${old}"\n(สินค้าทุกตัวในหมวดนี้ ${n} รายการ จะเปลี่ยนตาม)`, old)?.trim().slice(0, 50);
+      if (!to || to === old) return;
+    } else {
+      to = 'อื่นๆ';
+      if (old === to) return alert('หมวด "อื่นๆ" ลบไม่ได้ (เป็นหมวดของสินค้าที่ไม่ได้เลือกหมวด)');
+      if (!confirm(`ลบหมวด "${old}"?\nสินค้า ${n} รายการในหมวดนี้จะย้ายไปหมวด "อื่นๆ"`)) return;
+    }
+    if (n) {
+      const { error } = await db.from('products').update({ category: to }).eq('category', old);
+      if (error) return alert('แก้หมวดไม่สำเร็จ: ' + error.message);
+      await load(); // รายการสินค้า + หมวดในหน้าเปลี่ยนตาม
+    }
+    // รูปปุ่มหมวดบนหน้าร้าน: แก้ชื่อ = รูปย้ายตาม · ลบหมวด = ลบรูป
+    // ponytail: ชื่อใหม่มีรูปอยู่แล้ว → ย้ายไม่ได้ (ใช้รูปของชื่อใหม่) ไม่แจ้งเตือน
+    await (act === '__rename' ? db.from('category_images').update({ name: to }).eq('name', old) : db.from('category_images').delete().eq('name', old));
+    if (editing?.category === old) editing.category = to;
+    fillCats(act === '__delete' && !n ? '' : to);
+  };
+}
+
+// ช่องกดเลือกจากรายการ + "พิมพ์เอง…" ท้ายรายการ (ใช้กับหมวดหมู่ และชื่อแพ็กเกจ)
+// ค่าเดิมที่ไม่อยู่ในรายการ ยังเลือกไว้ให้ · ยกเลิกตอนพิมพ์ = กลับค่าเดิม
+function fillPick(sel, list, value, emptyLabel, customLabel, ask) {
+  const opt = (v, label = v) => {
+    const o = h('option', '', label);
+    o.value = v;
+    return o;
+  };
+  const custom = opt('__custom', customLabel);
+  sel.replaceChildren(...(list.includes(value) ? [] : [opt(value, value || emptyLabel)]), ...list.map((n) => opt(n)), custom);
+  sel.value = sel.dataset.prev = value;
+  sel.onchange = () => {
+    if (sel.value === '__custom') {
+      const t = prompt(ask, '')?.trim().slice(0, 50);
+      if (!t) { sel.value = sel.dataset.prev; return; }
+      if (![...sel.options].some((o) => o.value === t)) sel.insertBefore(opt(t), custom);
+      sel.value = t;
+    }
+    sel.dataset.prev = sel.value;
+  };
+}
+
+// แถวแพ็กเกจ 1 แถว: ประเภท (group) · ชื่อแพ็กเกจ (กดเลือก / ปิด) · แถม (วัน) · กรอกเอง · ทุน (= price เครดิตที่หัก, บังคับ) · ราคาขาย (= sale)
+// ชื่อที่ร้านเห็นและบันทึกในออเดอร์ (name) = ชื่อแพ็กเกจ + กรอกเอง + "+ แถม N วัน" · เก็บส่วนประกอบไว้เปิดแก้ทีหลัง (base / extra / bonus)
+const PKG_NAMES = ['7 วัน', '14 วัน', '15 วัน', '1 เดือน', '2 เดือน', '3 เดือน', '6 เดือน', '1 ปี'];
+function pkgName(base, extra, bonus) {
+  const s = [base, extra].filter(Boolean).join(' ');
+  return bonus ? (s ? `${s} + แถม ${bonus} วัน` : `แถม ${bonus} วัน`) : s;
+}
+function nameSelect(value) {
+  const sel = h('select', 'field');
+  sel.setAttribute('aria-label', 'ชื่อแพ็กเกจ');
+  sel.append(...[...PKG_NAMES, ''].map((n) => {
+    const o = h('option', '', n || 'ปิด');
+    o.value = n;
+    return o;
+  }));
+  sel.value = value;
+  return sel;
+}
+
 function pkgRow(o = {}) {
   const r = h('div', 'pk-row');
   const input = (label, value, num) => {
@@ -280,9 +387,20 @@ function pkgRow(o = {}) {
     if (num) Object.assign(el, { type: 'number', min: 0, step: 'any', inputMode: 'decimal' });
     return el;
   };
-  const name = input('ชื่อแพ็กเกจ', o.name);
-  name.maxLength = 50;
-  name.placeholder = 'เช่น 1 เดือน';
+  const grp = input('ประเภท', o.group);
+  grp.maxLength = 30;
+  grp.placeholder = 'เช่น แบบหาร';
+  grp.setAttribute('list', 'grpList');
+  // ของเดิม (ไม่มีส่วนประกอบ): ชื่ออยู่ในรายการ = เลือกชื่อนั้น · ไม่อยู่ (เช่น Plus) = ปิด + ชื่อเดิมในช่องกรอกเอง
+  const legacy = o.base === undefined && o.extra === undefined && o.bonus === undefined;
+  const base = !legacy ? o.base ?? '' : o.name === undefined ? PKG_NAMES[0] : PKG_NAMES.includes(o.name) ? o.name : '';
+  const name = nameSelect(base);
+  const bonus = input('แถมวันใช้งาน (วัน)', o.bonus, true);
+  bonus.step = 1;
+  bonus.placeholder = '0';
+  const extra = input('กรอกเอง', !legacy ? o.extra : base ? '' : o.name);
+  extra.maxLength = 50;
+  extra.placeholder = 'เช่น จอ 4K / Plus';
   const cost = input('ทุน (เครดิตที่หัก)', o.price, true);
   cost.required = true;
   const sale = input('ราคาขาย', o.sale, true);
@@ -291,25 +409,34 @@ function pkgRow(o = {}) {
   del.type = 'button';
   del.setAttribute('aria-label', 'ลบแพ็กเกจนี้');
   del.onclick = () => r.remove();
-  r.append(name, cost, sale, del);
+  r.append(grp, name, bonus, extra, cost, sale, del);
   return r;
 }
 $('addPkg').onclick = () => {
-  const r = pkgRow();
+  const prev = [...$('fPkgs').children].at(-1);
+  const i = PKG_NAMES.indexOf(prev?.querySelector('select').value); // ระยะเวลาถัดจากแถวบน (7 วัน → 14 วัน → …)
+  const r = pkgRow({ group: prev?.querySelector('input').value, name: PKG_NAMES[Math.min(i + 1, PKG_NAMES.length - 1)] });
   $('fPkgs').append(r);
-  r.querySelector('input').focus();
+  r.querySelector('select').focus();
 };
 const readPkgs = () => [...$('fPkgs').children].map((r) => {
-  const [name, cost, sale] = r.querySelectorAll('input');
-  const o = { name: name.value.trim(), price: Number(cost.value) };
+  const [grp, bonus, extra, cost, sale] = r.querySelectorAll('input');
+  const base = r.querySelector('select').value;
+  const ext = extra.value.trim();
+  const b = Math.max(0, Math.round(Number(bonus.value) || 0));
+  const o = { name: pkgName(base, ext, b), price: Number(cost.value) };
+  if (base) o.base = base;
+  if (ext) o.extra = ext;
+  if (b) o.bonus = b;
+  if (grp.value.trim()) o.group = grp.value.trim();
   if (sale.value !== '') o.sale = Number(sale.value);
   return o;
 });
 
-// ย่อรูปให้ด้านยาวไม่เกิน 1200px เป็น webp (รูปจากมือถือมักเกิน 5MB)
+// ย่อรูปให้ด้านยาวไม่เกิน 600px เป็น webp (การ์ดหน้าร้านแสดงราว 200–250px · รูปใหญ่กว่านี้ทำหน้าร้านแลค)
 async function shrink(file) {
   const bmp = await createImageBitmap(file);
-  const scale = Math.min(1, 1200 / Math.max(bmp.width, bmp.height));
+  const scale = Math.min(1, 600 / Math.max(bmp.width, bmp.height));
   const canvas = new OffscreenCanvas(Math.round(bmp.width * scale), Math.round(bmp.height * scale));
   canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
   return canvas.convertToBlob({ type: 'image/webp', quality: 0.85 });
@@ -366,6 +493,54 @@ $('delBtn').onclick = async () => {
 };
 
 $('cancelBtn').onclick = () => $('dlg').close();
+
+// ---------- 🖼️ รูปพื้นหลังปุ่มหมวด (หน้าร้าน) · 'ทั้งหมด' + ทุกหมวดที่มีสินค้า ----------
+async function openCatImgs() {
+  const { data, error } = await db.from('category_images').select('name, image_url');
+  if (error) return alert('โหลดรูปหมวดไม่สำเร็จ: ' + error.message + '\n(รัน update-38.sql แล้วหรือยัง?)');
+  const imgs = Object.fromEntries(data.map((r) => [r.name, r.image_url]));
+  const names = ['ทั้งหมด', ...[...new Set(products.map((p) => p.category).filter(Boolean))].sort(byName)];
+  $('catImgList').replaceChildren(...names.map((n) => {
+    const tile = h('div', 'ci-tile');
+    tile.append(h('span', '', n));
+    if (imgs[n]) tile.style.backgroundImage = `url("${imgs[n]}")`;
+    const file = h('input');
+    file.type = 'file';
+    file.accept = 'image/*';
+    file.hidden = true;
+    const pick = h('label', 'edit', '📷 เปลี่ยนรูป');
+    pick.append(file);
+    file.onchange = async () => {
+      if (!file.files[0]) return;
+      pick.firstChild.textContent = 'กำลังอัปโหลด…';
+      try {
+        const url = await uploadImage(file.files[0]);
+        const { error } = await db.from('category_images').upsert({ name: n, image_url: url, updated_at: new Date().toISOString() });
+        if (error) throw error;
+      } catch (e) {
+        alert('เปลี่ยนรูปไม่สำเร็จ: ' + e.message);
+      }
+      openCatImgs();
+    };
+    const row = h('div', 'ci-row');
+    row.append(tile, h('span', 'grow'), pick);
+    if (imgs[n]) {
+      const del = h('button', 'ci-del', 'ลบรูป');
+      del.type = 'button';
+      del.onclick = async () => {
+        if (!confirm(`ลบรูปปุ่ม "${n}"?\n(ปุ่มจะเป็นพื้นสีเขียวเรียบ)`)) return;
+        const { error } = await db.from('category_images').update({ image_url: null }).eq('name', n); // ลำดับหมวดยังอยู่
+        if (error) return alert('ลบรูปไม่สำเร็จ: ' + error.message);
+        openCatImgs();
+      };
+      row.append(del);
+    }
+    return row;
+  }));
+  if (!$('catDlg').open) $('catDlg').showModal();
+}
+$('catBtn').onclick = openCatImgs;
+$('catClose').onclick = () => $('catDlg').close();
 $('addBtn').onclick = () => openForm();
 $('search').oninput = render;
 // สลับโหมดมืด/สว่าง (ค่าเดียวกับ admin.html)

@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>สรุปยอดขาย</title>
+<link rel="icon" href="favicon.png"> <!-- ไอคอนแท็บต้องเป็นสี่เหลี่ยมจัตุรัส (logo.png กว้าง จะถูกบีบ) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<style>
+  /* โทนเดียวกับหน้าร้าน: พื้นดำอมเขียว · เงิน/กำไร/ขอบการ์ด = เขียว GG-PLUS */
+  :root { color-scheme: dark; --bg: #070c09; --card: #0d1611; --card2: #13201a; --line: #1c3527; --txt: #e8f6ee; --muted: #8ca596;
+    --ac: #22c55e; --ink: #04140a; --bad: #f43f5e;
+    --grad: linear-gradient(135deg, #22c55e, #15803d); --grad2: linear-gradient(135deg, #a3e635, #16a34a);
+    --edge: rgba(34, 197, 94, .32); }
+  * { box-sizing: border-box; margin: 0; }
+  .kpi:not(.hero), .card { border-color: var(--edge) !important; box-shadow: 0 0 22px rgba(34, 197, 94, .05); } /* ขอบการ์ดเขียว */
+  .v-cost { color: #fb923c; } .v-share { color: #facc15; } .v-exp { color: #f87171; } /* สีตัวเลขแต่ละการ์ด */
+  [hidden] { display: none !important; }
+  body { font-family: Prompt, system-ui, sans-serif; color: var(--txt); min-height: 100dvh; background: var(--bg) fixed;
+    background-image: radial-gradient(900px 500px at 0% 0%, rgba(34, 197, 94, .12), transparent 60%), radial-gradient(800px 500px at 100% 100%, rgba(22, 163, 74, .10), transparent 60%); }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--ac); }
+  .field { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; outline: none; }
+  .field:focus { border-color: var(--ac); }
+  .field:disabled { opacity: .5; cursor: default; }
+  .btn { background: var(--grad); color: var(--ink); border: 0; border-radius: 10px; padding: 9px 16px; font-weight: 600; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .plus { color: var(--ac); }
+  .minus { color: var(--bad); }
+
+  header { position: sticky; top: 0; z-index: 5; background: rgba(7, 12, 9, .85); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .bar { padding: 10px 20px; display: flex; gap: 12px; align-items: center; }
+  .bar h1 { font-size: 18px; margin-right: auto; display: flex; align-items: center; gap: 10px; }
+  .bar h1 img { height: 30px; width: auto; flex: none; object-fit: contain; } /* ไม่ให้โลโก้ถูกบีบตอนจอแคบ */
+  .back { color: var(--muted); text-decoration: none; font-size: 13px; white-space: nowrap; }
+  .back:hover { color: var(--txt); }
+  /* เต็มจอทุกส่วน */
+  main { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .wrap { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .seg { display: inline-flex; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+  .seg button { background: none; border: 0; border-radius: 8px; padding: 5px 12px; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--card2); color: var(--txt); font-weight: 600; }
+  .controls .spacer { flex: 1; }
+  #period { font-size: 15px; font-weight: 600; }
+  /* รูปร้าน + ช่องเลือกร้าน อยู่ในกรอบเดียวกัน */
+  .shop-pick { position: relative; }
+  .shop-box { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; cursor: pointer; font-weight: 600; }
+  .shop-box[aria-expanded="true"] { border-color: var(--ac); }
+  .shop-box:disabled { cursor: default; opacity: 1; }
+  .shop-box:disabled .caret { display: none; } /* ร้านเดียว = ไม่มีลูกศร */
+  .caret { color: var(--muted); font-size: 11px; }
+  .spic { width: 30px; height: 30px; border-radius: 8px; object-fit: cover; flex: none; display: grid; place-items: center; background: var(--grad2); color: #fff; font-size: 14px; font-weight: 700; }
+  /* รายการร้าน: รูป + ชื่อ · ร้านที่เลือกอยู่มี ✓ */
+  .shop-list { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; min-width: 250px; max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: 0 12px 32px rgba(0, 0, 0, .5); }
+  .shop-opt { display: grid; grid-template-columns: 16px 30px 1fr; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 10px;
+    background: none; border: 1px solid transparent; border-left-width: 3px; text-align: left; font-weight: 600; }
+  .shop-opt:hover { background: var(--card2); }
+  .shop-opt.on { background: rgba(236, 72, 153, .1); border-color: rgba(236, 72, 153, .45); border-left-color: #ec4899; color: #f9a8d4; }
+  .shop-opt .tick { color: var(--ac); font-weight: 700; }
+
+  /* ตัวเลขหลัก */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  @media (min-width: 1100px) { .kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); } .kpi b { font-size: 26px !important; } } /* จอกว้าง: 5 ใบแถวเดียว */
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+  .kpi small { color: var(--muted); font-size: 12px; }
+  .kpi b { font-size: 22px; font-variant-numeric: tabular-nums; }
+  .kpi.hero { border: 1px solid transparent; background: linear-gradient(var(--card), var(--card)) padding-box, var(--grad) border-box; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .card h2 { font-size: 15px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .two { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; } /* กราฟ 2 ส่วน · สินค้าขายดี 1 ส่วน */
+  @media (max-width: 900px) { .two { grid-template-columns: 1fr; } }
+
+  /* กราฟแท่งยอดขาย: แท่งบาง ปลายมน ช่องไฟ 2px · เส้นกริดจาง · ชี้แท่งดูรายละเอียด */
+  .chart { position: relative; height: clamp(220px, 36vh, 440px); margin-left: 48px; display: flex; align-items: stretch; gap: 2px; border-bottom: 1px solid var(--line); }
+  .chart .grid { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(140, 165, 150, .16); pointer-events: none; }
+  .chart .grid span { position: absolute; right: calc(100% + 8px); top: -8px; font-size: 10px; color: var(--muted); white-space: nowrap; }
+  .chart .col { flex: 1; min-width: 3px; display: flex; align-items: flex-end; justify-content: center; }
+  .chart .col i { width: 100%; max-width: 44px; background: var(--ac); border-radius: 4px 4px 0 0; }
+  .chart .col:hover i { filter: brightness(1.3); }
+  .xlabels { display: flex; gap: 2px; margin-left: 48px; font-size: 10px; color: var(--muted); }
+  .xlabels span { flex: 1; min-width: 3px; text-align: center; white-space: nowrap; overflow: visible; }
+  #tip { position: fixed; z-index: 30; pointer-events: none; background: #0b140f; border: 1px solid var(--edge); border-radius: 10px; padding: 8px 12px; font-size: 12px; line-height: 1.6; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .stat { background: var(--card2); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 1px; }
+  .stat small { color: var(--muted); font-size: 11px; }
+  .stat b { font-variant-numeric: tabular-nums; }
+
+  /* สินค้าขายดี */
+  .top { display: flex; flex-direction: column; gap: 12px; }
+  .top-row { display: grid; grid-template-columns: 20px 36px 1fr auto; gap: 10px; align-items: center; }
+  .top-row .rank { color: var(--muted); font-weight: 700; text-align: center; }
+  .top-row .pic { width: 36px; height: 36px; border-radius: 9px; object-fit: cover; background: #fff; display: grid; place-items: center; font-size: 18px; }
+  .top-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+  .top-row .meter { height: 6px; border-radius: 3px; background: var(--card2); margin-top: 5px; overflow: hidden; }
+  .top-row .meter i { display: block; height: 100%; background: var(--ac); border-radius: 3px; }
+  .top-row .amt { text-align: right; font-variant-numeric: tabular-nums; }
+  .top-row .amt small { display: block; color: var(--muted); font-size: 11px; }
+
+  /* ชีตรวมยอดขาย */
+  .table-wrap { overflow: auto; max-height: 78vh; border: 1px solid var(--line); border-radius: 12px; }
+  #sheetCard:fullscreen { border-radius: 0; background: var(--bg); }
+  #sheetCard:fullscreen .table-wrap { max-height: calc(100vh - 80px); }
+  #fullBtn { padding: 5px 12px; font-size: 13px; }
+  th small { display: block; font-size: 10px; font-weight: 400; opacity: .8; }
+  th.fb { color: #93c5fd; }
+  td.fb { color: #bfdbfe; }
+  th.off, td.off { color: var(--muted); }
+  table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; position: sticky; top: 0; background: var(--card2); z-index: 1; }
+  th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--card); z-index: 1; }
+  th:first-child { background: var(--card2); z-index: 2; }
+  th.exp { color: #fbbf24; }
+  tbody tr:hover td { background: rgba(140, 165, 150, .07); }
+  tfoot td { font-weight: 700; background: var(--card2); position: sticky; bottom: 0; }
+  td input { width: 92px; text-align: right; background: var(--card2); border: 1px solid transparent; border-radius: 6px; padding: 4px 6px; font-variant-numeric: tabular-nums; }
+  td input:hover { border-color: var(--line); }
+  td input:focus { border-color: var(--ac); outline: none; }
+
+  .gate { min-height: 70dvh; display: grid; place-content: center; gap: 10px; text-align: center; }
+</style>
+</head>
+<body>
+<div id="tip" hidden></div>
+
+<header>
+  <div class="bar">
+    <h1><img src="logo.png" alt="" onerror="this.remove()">📊 สรุปยอดขาย</h1>
+    <a id="back" class="back" href="shop.html">← กลับหน้าร้าน</a>
+  </div>
+</header>
+
+<div id="gate" class="gate" hidden></div>
+
+<main id="app" hidden>
+ <div class="wrap">
+  <div class="controls">
+    <div class="shop-pick">
+      <button id="shopBtn" class="field shop-box" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="เลือกร้าน"></button>
+      <div id="shopList" class="shop-list" role="listbox" hidden></div>
+    </div>
+    <div class="seg" id="modes" role="group" aria-label="ช่วงเวลา">
+      <button type="button" data-mode="today" aria-pressed="false">วันนี้</button>
+      <button type="button" data-mode="7d" aria-pressed="false">7 วัน</button>
+      <button type="button" data-mode="month" aria-pressed="true">เดือน</button>
+      <button type="button" data-mode="year" aria-pressed="false">ปี</button>
+    </div>
+    <button id="prev" class="field" type="button" aria-label="ก่อนหน้า">◀</button>
+    <input id="monthSel" class="field" type="month" aria-label="เลือกเดือน">
+    <select id="yearSel" class="field" aria-label="เลือกปี" hidden></select>
+    <button id="next" class="field" type="button" aria-label="ถัดไป">▶</button>
+    <span class="spacer"></span>
+    <button id="csv" class="btn" type="button">⬇ โหลด Excel (CSV)</button>
+  </div>
+  <div id="period"></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="two">
+    <section class="card">
+      <h2>📈 ยอดขาย<span class="muted">ชี้ที่แท่งเพื่อดูทุน · กำไร · ออเดอร์</span></h2>
+      <div><div class="chart" id="chart"></div><div class="xlabels" id="xlabels"></div></div>
+      <div class="stats" id="stats"></div>
+    </section>
+    <section class="card">
+      <h2>🔥 สินค้าขายดี
+        <span class="seg" id="groupBy" role="group" aria-label="จัดกลุ่ม">
+          <button type="button" data-g="app" aria-pressed="true">รวมแอป</button>
+          <button type="button" data-g="pkg" aria-pressed="false">แยกแพ็กเกจ</button>
+        </span>
+      </h2>
+      <div class="top" id="top"></div>
+    </section>
+  </div>
+ </div>
+
+  <section class="card" id="sheetCard">
+    <h2>🧾 ชีตรวมยอดขาย<span class="muted" id="sheetNote"></span><button id="fullBtn" class="field" type="button">⛶ เต็มจอ</button></h2>
+    <div class="table-wrap"><table id="sheet"></table></div>
+  </section>
+</main>
+
+<script>
+// หน้าเดียวใช้ได้ทั้งร้าน (ล็อกอินจาก shop.html) และแอดมิน (sales.html?admin=1 · ล็อกอินจาก admin.html)
+const P = new URLSearchParams(location.search);
+const asAdmin = P.has('admin');
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, asAdmin ? { auth: { storageKey: 'oa-admin' } } : undefined);
+const GG_SHARE = 0.30; // หักส่วนแบ่ง GG-PLUS จากกำไรก่อนหัก (ยอดขาย − ทุน) รายวัน · วันที่ขาดทุนไม่หัก
+const EXP = [['ads_fb', 'ค่าโฆษณาเฟส'], ['ads_other', 'ค่าโฆษณาอื่นๆ'], ['staff', 'ค่าจ้างพนักงาน'], ['other', 'อื่นๆ / ภาษี']]; // หักจากกำไร
+const EDIT = [...EXP.map((e) => e[0]), 'fb_sales', 'extra'];  // ช่องที่ร้านกรอกเอง
+const OFF = ['fb_sales', 'topup', 'extra'];                     // ไม่เข้าสูตรกำไร (ว่าง = —)
+// คอลัมน์ชีต: [ค่า, หัวตาราง, หมายเหตุใต้หัว, class]
+const COLS = [['sales', 'ยอดขาย'], ['orders', 'ออเดอร์'], ['cost', 'ทุน (เครดิต)'], ['gross', 'กำไรก่อนหัก'], ['share', `หัก GG-PLUS ${GG_SHARE * 100}%`], ['after', 'กำไรหลังหัก'],
+  ...EXP.map(([k, label]) => [k, label, '', 'exp']), ['exp', 'รวมค่าใช้จ่าย'], ['net', 'กำไรสุทธิ'],
+  ['fb_sales', '📘 ยอดขาย Facebook', 'ไม่รวมในกำไร', 'fb'], ['topup', '📦 เติมเครดิต', 'อัตโนมัติ · ไม่เข้าสูตร', 'off'],
+  ['extra', '🧾 ค่าใช้จ่ายอื่นๆ', 'กรอกเอง · ไม่เข้าสูตร', 'off']];
+const SUMS = ['sales', 'cost', 'orders', 'ads_fb', 'ads_other', 'staff', 'other', 'gross', 'share', 'after', 'exp', 'net', 'fb_sales', 'topup', 'extra'];
+
+const $ = (id) => document.getElementById(id);
+function h(tag, cls = '', text = '') {
+  const el = document.createElement(tag);
+  el.className = cls;
+  el.textContent = text;
+  return el;
+}
+const num = (n) => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const baht = (n) => (n < 0 ? '−฿\u202F' : '฿\u202F') + num(Math.abs(n));
+const round2 = (n) => Math.round(n * 100) / 100;
+const pad = (n) => String(n).padStart(2, '0');
+const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const dayLabel = (s) => new Date(s + 'T00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+const rowLabel = (r) => (r.month ? new Date(r.day + '-01T00:00').toLocaleDateString('th-TH', { month: 'long' }) : dayLabel(r.day));
+const short = (n) => (n >= 1e6 ? +(n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? +(n / 1e3).toFixed(1) + 'K' : String(Math.round(n)));
+
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+let mode = 'month';
+let month = new Date(today.getFullYear(), today.getMonth(), 1);
+let year = today.getFullYear();
+let shopId = null;    // null = ทุกร้าน (แอดมิน)
+let shopRows = [];    // ร้านให้เลือก [{ id (null = ทุกร้าน), name, pic }]
+let rows = [];        // แถวในชีต (รายวัน หรือรายเดือนในมุมมองปี)
+let dayCount = 0;
+let products = [];
+let group = 'app';
+
+// ---------- เข้าระบบ / เลือกร้าน ----------
+async function start() {
+  $('back').href = asAdmin ? 'admin.html' : 'shop.html';
+  $('back').textContent = asAdmin ? '← กลับหน้าแอดมิน' : '← กลับหน้าร้าน';
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) return gate(`เข้าสู่ระบบที่${asAdmin ? 'หน้าแอดมิน' : 'หน้าร้าน'}ก่อน แล้วกลับมาหน้านี้`);
+  const [{ data: shops }, { data: isAdmin }] = await Promise.all([db.from('shops').select('*'), db.rpc('is_admin')]); // * = มีรูปร้าน
+  if (!shops?.length) return gate('ยังไม่มีร้านที่ดูแล');
+  shops.sort((a, b) => a.name.localeCompare(b.name, 'th', { numeric: true }));
+  shopRows = [...(isAdmin ? [{ id: null, name: 'ทุกร้าน', pic: null }] : []), ...shops.map((s) => ({ id: s.id, name: s.name, pic: s.avatar_url }))];
+  let want = P.get('shop');
+  if (want === null && !isAdmin) try { want = localStorage.getItem('shop'); } catch {} // ร้านที่เลือกไว้ในหน้าร้าน
+  shopId = shops.find((s) => String(s.id) === want)?.id ?? (isAdmin ? null : shops[0].id);
+  renderShopPick();
+  $('monthSel').max = iso(today).slice(0, 7);
+  $('yearSel').replaceChildren(...Array.from({ length: 6 }, (_, i) => {
+    const o = h('option', '', `ปี ${today.getFullYear() - i + 543}`);
+    o.value = today.getFullYear() - i;
+    return o;
+  }));
+  $('app').hidden = false;
+  load();
+}
+
+function gate(msg) {
+  const go = h('a', '', asAdmin ? 'ไปหน้าแอดมิน →' : 'ไปหน้าร้าน →');
+  go.href = asAdmin ? 'admin.html' : 'shop.html';
+  $('gate').replaceChildren(h('div', '', msg), go);
+  $('gate').hidden = false;
+}
+
+// ---------- ช่วงเวลา ----------
+function range() {
+  if (mode === 'today') return [today, today];
+  if (mode === '7d') return [new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6), today];
+  const end = mode === 'month' ? new Date(month.getFullYear(), month.getMonth() + 1, 0) : new Date(year, 11, 31);
+  return [mode === 'month' ? month : new Date(year, 0, 1), end < today ? end : today]; // ไม่เกินวันนี้
+}
+
+function periodText() {
+  const [from, to] = range();
+  if (mode === 'today') return 'วันนี้ ' + dayLabel(iso(today));
+  if (mode === '7d') return `7 วันล่าสุด · ${dayLabel(iso(from))} – ${dayLabel(iso(to))}`;
+  if (mode === 'month') return 'เดือน' + month.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+  return `ปี ${year + 543}`;
+}
+
+function syncControls() {
+  for (const b of $('modes').children) b.setAttribute('aria-pressed', b.dataset.mode === mode);
+  $('monthSel').hidden = mode !== 'month';
+  $('yearSel').hidden = mode !== 'year';
+  $('prev').hidden = $('next').hidden = mode === 'today' || mode === '7d';
+  $('monthSel').value = iso(month).slice(0, 7);
+  $('yearSel').value = year;
+  $('next').disabled = mode === 'month' ? +month >= +new Date(today.getFullYear(), today.getMonth(), 1) : year >= today.getFullYear();
+}
+
+// ---------- โหลด + คำนวณ ----------
+function derive(v) {
+  v.gross = round2(v.sales - v.cost);
+  v.share = round2(Math.max(0, v.gross) * GG_SHARE);
+  v.after = round2(v.gross - v.share);
+  v.exp = round2(v.ads_fb + v.ads_other + v.staff + v.other);
+  v.net = round2(v.after - v.exp);
+  return v;
+}
+const total = (list, base = {}) => {
+  const t = { ...base };
+  for (const k of SUMS) t[k] = round2(list.reduce((a, r) => a + r[k], 0));
+  return t;
+};
+
+let loading = 0;
+async function load() {
+  syncControls();
+  $('period').textContent = periodText() + ' · ' + shopName();
+  const ticket = ++loading;
+  const [from, to] = range();
+  const args = { p_shop: shopId, p_from: iso(from), p_to: iso(to) };
+  const [d, p] = await Promise.all([db.rpc('sales_daily', args), db.rpc('sales_products', args)]);
+  if (ticket !== loading) return; // เปลี่ยนช่วง/ร้านระหว่างโหลด
+  if (d.error || p.error) return alert('โหลดยอดขายไม่สำเร็จ: ' + (d.error ?? p.error).message);
+  // ทุกวันในช่วง (วันที่ไม่มีขาย = 0) · หัก GG-PLUS คิดรายวัน
+  const byDay = Object.fromEntries(d.data.map((r) => [r.day, r]));
+  const days = [];
+  for (const x = new Date(from); x <= to; x.setDate(x.getDate() + 1)) {
+    const r = byDay[iso(x)] ?? {};
+    days.push(derive({ day: iso(x), sales: +r.sales || 0, cost: +r.cost || 0, orders: r.orders || 0,
+      ads_fb: +r.ads_fb || 0, ads_other: +r.ads_other || 0, staff: +r.staff || 0, other: +r.other || 0,
+      fb_sales: +r.fb_sales || 0, extra: +r.extra || 0, topup: +r.topup || 0 })); // 3 ช่องหลัง = update-32
+  }
+  dayCount = days.length;
+  if (mode === 'year') { // มุมมองปี = รวมเป็นรายเดือน
+    const byMonth = {};
+    for (const r of days) (byMonth[r.day.slice(0, 7)] ??= []).push(r);
+    rows = Object.entries(byMonth).map(([m, list]) => total(list, { day: m, month: true }));
+  } else rows = days;
+  products = p.data;
+  renderKpis();
+  renderChart();
+  renderTop();
+  renderSheet();
+}
+
+// ---------- ตัวเลขหลัก ----------
+function renderKpis() {
+  const t = total(rows);
+  const card = (label, value, sub, cls = '', vcls = '') => {
+    const el = h('div', 'kpi ' + cls);
+    el.append(h('small', '', label), h('b', vcls, value), h('span', 'muted', sub));
+    return el;
+  };
+  const net = card('✅ กำไรสุทธิ', baht(t.net), t.sales ? `${(t.net / t.sales * 100).toFixed(1)}% ของยอดขาย` : 'ยังไม่มียอดขาย', 'hero');
+  net.querySelector('b').className = t.net < 0 ? 'minus' : 'plus';
+  $('kpis').replaceChildren(
+    card('💰 ยอดขายรวม', baht(t.sales), `${t.orders.toLocaleString('th-TH')} ออเดอร์`),
+    card('🏭 ทุน (เครดิตที่ใช้เบิก)', baht(t.cost), 'หักที่ได้คืนจากเคลมแล้ว', '', 'v-cost'),
+    card(`🤝 หัก GG-PLUS ${GG_SHARE * 100}%`, baht(t.share), `จากกำไรก่อนหัก ${baht(t.gross)}`, '', 'v-share'),
+    card('📉 ค่าใช้จ่ายอื่นๆ', baht(t.exp), 'โฆษณา + พนักงาน + อื่นๆ', '', 'v-exp'),
+    net);
+}
+
+// ---------- กราฟ ----------
+function niceMax(n) { // ปัดขึ้นเป็น 1 / 2 / 5 × 10^k ให้เส้นกริดเป็นเลขกลมๆ
+  if (n <= 0) return 0;
+  const p = 10 ** Math.floor(Math.log10(n));
+  return [1, 2, 5, 10].map((m) => m * p).find((v) => v >= n);
+}
+
+function renderChart() {
+  const top = niceMax(Math.max(...rows.map((r) => r.sales)));
+  const grid = [1, 0.5].map((f) => {
+    const g = h('div', 'grid');
+    g.style.bottom = f * 100 + '%';
+    g.append(h('span', '', '฿\u202F' + short(top * f)));
+    return g;
+  });
+  const cols = rows.map((r) => {
+    const col = h('div', 'col');
+    const bar = h('i');
+    bar.style.height = top && r.sales > 0 ? `max(2px, ${(r.sales / top) * 100}%)` : '0';
+    col.append(bar);
+    col.onpointerenter = col.onpointermove = (e) => showTip(e, r);
+    col.onpointerleave = () => ($('tip').hidden = true);
+    return col;
+  });
+  $('chart').replaceChildren(...(top ? grid : []), ...cols);
+  const every = Math.ceil(rows.length / 10); // ป้ายวันที่ไม่เกิน ~10 อัน
+  $('xlabels').replaceChildren(...rows.map((r, i) => h('span', '', i % every ? '' : r.month ? rowLabel(r).slice(0, 3) : String(+r.day.slice(8)))));
+  // สถิติ
+  const best = rows.reduce((a, r) => (r.sales > a.sales ? r : a), rows[0]);
+  const worst = rows.reduce((a, r) => (r.sales < a.sales ? r : a), rows[0]);
+  const t = total(rows);
+  const stat = (label, value, sub) => {
+    const el = h('div', 'stat');
+    el.append(h('small', '', label), h('b', '', value), h('small', '', sub));
+    return el;
+  };
+  const unit = mode === 'year' ? 'เดือน' : 'วัน';
+  $('stats').replaceChildren(
+    stat(`${unit}ที่ขายได้มากสุด`, baht(best.sales), rowLabel(best)),
+    stat(`${unit}ที่ขายได้น้อยสุด`, baht(worst.sales), rowLabel(worst)),
+    stat('เฉลี่ยต่อวัน', baht(round2(t.sales / dayCount)), `${dayCount} วัน`),
+    stat('เฉลี่ยต่อออเดอร์', baht(t.orders ? round2(t.sales / t.orders) : 0), `${t.orders} ออเดอร์`));
+}
+
+function showTip(e, r) {
+  const tip = $('tip');
+  const net = h('div', r.net < 0 ? 'minus' : 'plus', `กำไรสุทธิ ${baht(r.net)}`);
+  tip.replaceChildren(h('b', '', rowLabel(r)), h('div', '', `ยอดขาย ${baht(r.sales)}`),
+    h('div', 'muted', `ทุน ${baht(r.cost)} · ${r.orders} ออเดอร์`), net);
+  tip.hidden = false;
+  tip.style.left = Math.max(8, Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8)) + 'px';
+  tip.style.top = Math.max(8, e.clientY - tip.offsetHeight - 14) + 'px';
+}
+
+// ---------- สินค้าขายดี ----------
+function renderTop() {
+  const map = new Map();
+  for (const p of products) {
+    const key = group === 'app' ? p.product_name : `${p.product_name}${p.option_name ? ' · ' + p.option_name : ''}`;
+    const g = map.get(key) ?? { name: key, img: p.image_url, orders: 0, sales: 0 };
+    g.orders += p.orders;
+    g.sales += +p.sales;
+    g.img ??= p.image_url;
+    map.set(key, g);
+  }
+  const list = [...map.values()].sort((a, b) => b.sales - a.sales || b.orders - a.orders);
+  const sum = list.reduce((a, g) => a + g.sales, 0);
+  $('top').replaceChildren(...list.slice(0, 10).map((g, i) => {
+    const pct = sum ? (g.sales / sum) * 100 : 0;
+    const row = h('div', 'top-row');
+    let pic = h('div', 'pic', '📦');
+    if (g.img) {
+      pic = h('img', 'pic');
+      pic.src = g.img;
+      pic.alt = '';
+    }
+    const mid = h('div');
+    const meter = h('div', 'meter');
+    const fill = h('i');
+    fill.style.width = pct + '%';
+    meter.append(fill);
+    mid.append(h('div', 'name', g.name), meter);
+    const amt = h('div', 'amt', baht(g.sales));
+    amt.append(h('small', '', `${g.orders} ออเดอร์ · ${pct.toFixed(0)}%`));
+    row.append(h('span', 'rank', i + 1), pic, mid, amt);
+    return row;
+  }));
+  if (list.length > 10) $('top').append(h('p', 'muted', `และอีก ${list.length - 10} รายการ`));
+  if (!list.length) $('top').append(h('p', 'muted', 'ยังไม่มีการขายในช่วงนี้'));
+}
+
+// ---------- ชีต (กรอกค่าใช้จ่ายได้เมื่อดูร้านเดียว รายวัน) ----------
+const cell = (k, v) => (k === 'orders' ? v.toLocaleString('th-TH') : OFF.includes(k) && !v ? '—' : num(v));
+function fillRow(tr, r) {
+  for (const td of tr.querySelectorAll('td[data-k]')) {
+    td.textContent = cell(td.dataset.k, r[td.dataset.k]);
+    td.classList.toggle('minus', r[td.dataset.k] < 0);
+  }
+}
+
+function renderSheet() {
+  const editable = mode !== 'year' && shopId !== null;
+  const head = h('tr');
+  head.append(h('th', '', mode === 'year' ? 'เดือน' : 'วันที่'), ...COLS.map(([, label, note, cls = '']) => {
+    const th = h('th', cls, label);
+    if (note) th.append(h('small', '', `(${note})`));
+    return th;
+  }));
+  const thead = h('thead');
+  thead.append(head);
+  const tbody = h('tbody');
+  const foot = h('tr');
+  tbody.append(...rows.map((r) => {
+    const tr = h('tr');
+    tr.append(h('td', '', rowLabel(r)));
+    for (const [k, , , cls = ''] of COLS) {
+      const td = h('td', cls === 'exp' ? '' : cls);
+      if (editable && EDIT.includes(k)) {
+        const input = h('input');
+        input.type = 'number';
+        input.min = '0';
+        input.step = 'any';
+        input.inputMode = 'decimal';
+        input.value = r[k] || '';
+        input.setAttribute('aria-label', `${COLS.find((c) => c[0] === k)[1]} ${rowLabel(r)}`);
+        input.onchange = () => saveExpense(r, k, input, tr, foot);
+        td.append(input);
+      } else td.dataset.k = k;
+      tr.append(td);
+    }
+    fillRow(tr, r);
+    return tr;
+  }));
+  foot.append(h('td', '', 'รวม'), ...COLS.map(([k, , , cls = '']) => {
+    const td = h('td', cls === 'exp' ? '' : cls);
+    td.dataset.k = k;
+    return td;
+  }));
+  fillRow(foot, total(rows));
+  const tfoot = h('tfoot');
+  tfoot.append(foot);
+  $('sheet').replaceChildren(thead, tbody, tfoot);
+  $('sheetNote').textContent = editable ? 'กดช่องว่างเพื่อกรอกค่าใช้จ่าย / ยอด Facebook บันทึกเองทันที'
+    : shopId === null ? 'ดูทุกร้านรวมกัน · เลือกร้านเพื่อกรอกค่าใช้จ่าย' : 'มุมมองปีรวมเป็นรายเดือน · กรอกค่าใช้จ่ายในมุมมองเดือน';
+}
+
+async function saveExpense(r, k, input, tr, foot) {
+  const v = round2(Math.max(0, Number(input.value) || 0));
+  const { error } = await db.from('shop_expenses').upsert({ shop_id: shopId, day: r.day, [k]: v }, { onConflict: 'shop_id,day' });
+  if (error) {
+    alert('บันทึกค่าใช้จ่ายไม่สำเร็จ: ' + error.message);
+    input.value = r[k] || '';
+    return;
+  }
+  r[k] = v;
+  input.value = v || '';
+  derive(r);
+  fillRow(tr, r);
+  fillRow(foot, total(rows));
+  renderKpis();
+}
+
+// ---------- โหลดเป็นไฟล์ (เปิดใน Excel ได้ ภาษาไทยไม่เพี้ยน) ----------
+$('csv').onclick = () => {
+  const lines = [[mode === 'year' ? 'เดือน' : 'วันที่', ...COLS.map((c) => c[1])],
+    ...rows.map((r) => [rowLabel(r), ...COLS.map(([k]) => r[k])]),
+    ['รวม', ...COLS.map(([k]) => total(rows)[k])]];
+  const csv = '﻿' + lines.map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const a = h('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `ยอดขาย-${shopName()}-${periodText()}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+// ชีตเต็มจอ (เบราว์เซอร์ที่ไม่รองรับ เช่น iPhone → ซ่อนปุ่ม)
+$('fullBtn').hidden = !document.fullscreenEnabled;
+$('fullBtn').onclick = () => (document.fullscreenElement ? document.exitFullscreen() : $('sheetCard').requestFullscreen());
+document.onfullscreenchange = () => { $('fullBtn').textContent = document.fullscreenElement ? '✕ ออกจากเต็มจอ' : '⛶ เต็มจอ'; };
+
+// ---------- เลือกร้าน: ปุ่ม (รูป + ชื่อ) → รายการร้านพร้อมรูป ----------
+const shopName = () => shopRows.find((s) => s.id === shopId)?.name ?? '';
+function shopPic(s) { // รูปร้าน · ไม่มีรูป = ตัวอักษรแรก · ทุกร้าน = 🏪
+  if (!s.pic) return h('span', 'spic', s.id === null ? '🏪' : ([...s.name][0] ?? '?').toUpperCase());
+  const img = h('img', 'spic');
+  img.src = s.pic;
+  img.alt = '';
+  return img;
+}
+function renderShopPick() {
+  const cur = shopRows.find((s) => s.id === shopId);
+  $('shopBtn').replaceChildren(shopPic(cur), h('span', '', cur.name), h('span', 'caret', '▾'));
+  $('shopBtn').disabled = shopRows.length < 2;
+  $('shopList').replaceChildren(...shopRows.map((s) => {
+    const on = s.id === shopId;
+    const b = h('button', 'shop-opt' + (on ? ' on' : ''));
+    b.type = 'button';
+    b.setAttribute('role', 'option');
+    b.setAttribute('aria-selected', on);
+    b.append(h('span', 'tick', on ? '✓' : ''), shopPic(s), h('span', '', s.name));
+    b.onclick = () => {
+      shopId = s.id;
+      toggleShopList(false);
+      renderShopPick();
+      load();
+    };
+    return b;
+  }));
+}
+function toggleShopList(open = $('shopList').hidden) {
+  $('shopList').hidden = !open;
+  $('shopBtn').setAttribute('aria-expanded', open);
+}
+$('shopBtn').onclick = (e) => { e.stopPropagation(); toggleShopList(); };
+document.addEventListener('click', (e) => { if (!e.target.closest('.shop-pick')) toggleShopList(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') toggleShopList(false); });
+
+// ---------- ตัวเลือก ----------
+for (const b of $('modes').children) b.onclick = () => { mode = b.dataset.mode; load(); };
+$('monthSel').onchange = () => {
+  const [y, m] = $('monthSel').value.split('-').map(Number);
+  if (y) month = new Date(Math.min(+new Date(y, m - 1, 1), +new Date(today.getFullYear(), today.getMonth(), 1))); // ไม่เกินเดือนนี้
+  load();
+};
+$('yearSel').onchange = () => { year = Number($('yearSel').value); load(); };
+const shift = (n) => {
+  if (mode === 'month') month = new Date(month.getFullYear(), month.getMonth() + n, 1);
+  else year += n;
+  load();
+};
+$('prev').onclick = () => shift(-1);
+$('next').onclick = () => shift(1);
+for (const b of $('groupBy').children) b.onclick = () => {
+  group = b.dataset.g;
+  for (const x of $('groupBy').children) x.setAttribute('aria-pressed', x === b);
+  renderTop();
+};
+
+start();
+</script>
+</body>
+</html>
