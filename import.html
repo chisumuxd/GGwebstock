@@ -183,7 +183,8 @@ $('go').onclick = async () => {
     log('✓ คำนวณยอดคงเหลือในประวัติเครดิตครบทุกร้าน');
     await batches('ค่าใช้จ่ายรายวัน', 'import_legacy_expenses', data.expenses, 500);
     await batches('เคลม', 'import_legacy_claims', data.claims, 500);
-    await batches('แชท', 'import_legacy_chats', data.chats, 400);
+    // แชทที่ไม่รู้เจ้าของ (ห้อง "📜 แชทเก่า bearplus") ไม่เอา — ตั้งใจลบห้องพวกนี้ไปแล้ว (5 พ.ย.)
+    await batches('แชท', 'import_legacy_chats', data.chats.filter((c) => /^[a-z0-9._+-]+$/.test(c.by ?? '')), 400);
     if ($('setBalance').checked) await batches('ยอดเครดิตคงเหลือ', 'import_legacy_balances', data.shops.filter((s) => s.credit != null).map((s) => ({ shop: s.key, credit: s.credit })), 100);
     $('step').textContent = `✅ เสร็จ (${Math.round((Date.now() - t0) / 1000)} วินาที)`;
     log('✅ นำเข้าเสร็จ');
