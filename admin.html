@@ -80,6 +80,10 @@
   .shop-opt .tick { color: var(--green); font-weight: 700; }
   #tagFilter, #shopFilter { border: 0; background: none; color: var(--muted); font: inherit; max-width: 78px; flex: none; cursor: pointer; }
   .shop-chips { display: flex; gap: 4px; flex: none; }
+  /* 👁 แอดมินคนอื่นที่เปิดห้องนี้อยู่ (presence) */
+  .viewers { flex: none; display: inline-flex; align-items: center; gap: 3px; max-width: 120px; background: var(--txt); color: var(--bg); border-radius: 999px;
+    padding: 1px 8px; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item.watched { box-shadow: inset 3px 0 var(--txt); }
   .shop-chip { background: var(--gtint); color: var(--gtext); border-radius: 6px; padding: 0 6px; font-size: 11px; font-weight: 600; white-space: nowrap; }
   .shop-chip img { width: 14px; height: 14px; border-radius: 4px; object-fit: cover; vertical-align: -2px; margin-right: 4px; }
   /* รูปร้าน (การ์ดร้านค้า) — กดเพื่อเปลี่ยน */
@@ -465,7 +469,7 @@
     <p id="empty">เลือกแชททางซ้าย เพื่อดูข้อความ แท็ก และโน้ต</p>
     <div id="room" hidden>
       <div class="chat-head">
-        <button id="back" aria-label="กลับ">‹</button><span id="headAvatar"></span><span id="name"></span><span id="headShops"></span>
+        <button id="back" aria-label="กลับ">‹</button><span id="headAvatar"></span><span id="name"></span><span id="headShops"></span><span id="headViewers"></span>
         <button id="searchBtn" aria-label="ค้นหาในแชท" title="ค้นหาในแชท"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
         <button id="infoBtn">ข้อมูล</button>
       </div>
@@ -621,6 +625,8 @@ let claimRooms = [];     // 🛠 ห้องเคลม (1 เคลม = 1 �
 let hasClaimRooms = false; // รัน update-43 แล้ว (มี claim_id) → ห้องปกติไม่แสดงข้อความห้องเคลม
 let claimUnread = 0;
 let claimPinEl = null;   // การ์ดเคลมหัวห้องที่เปิดอยู่
+let viewers = {};        // ห้อง (key) → แอดมินคนอื่นที่เปิดห้องนั้นอยู่ [{ id, name }]
+let presenceCh = null;
 const shownIds = new Set(); // ข้อความที่แสดงแล้ว — realtime มาชนกับตอนโหลดห้องใหม่จะไม่ขึ้นซ้ำ
 const msgById = new Map();  // ข้อความในห้องที่เปิดอยู่ → ใช้แสดงข้อความที่ถูกตอบกลับ
 let imgUrls = {};           // รูปในแชท: path → ลิงก์ชั่วคราว
@@ -688,6 +694,7 @@ async function start() {
   await Promise.all([loadAvatars(), loadShops()]); // รูปโปรไฟล์ + อีเมลสมาชิก ก่อนวาดรายการแชท
   loadContacts();
   loadClaimRooms();
+  joinPresence();
   db.channel('oa')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tags' }, loadTags)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, loadContacts)
@@ -768,11 +775,11 @@ function renderList() {
     && (!shopF || c.shop_id === shopF)
     && (!q || c.name.toLowerCase().includes(q) || c.tags.some((t) => t.toLowerCase().includes(q)) || msgHits.has(c.key)));
   $('list').replaceChildren(...shown.map((c) => {
-    const el = h('div', 'item' + (c.unread ? ' unread' : '') + (c.key === current?.key ? ' active' : ''));
+    const el = h('div', 'item' + (c.unread ? ' unread' : '') + (c.key === current?.key ? ' active' : '') + (viewers[c.key] ? ' watched' : ''));
     const body = h('div', 'body');
     const top = h('div', 'top');
     const bottom = h('div', 'bottom');
-    top.append(h('span', 'name', c.name), roomChip(c), h('time', '', listTime(c.last_at)));
+    top.append(h('span', 'name', c.name), roomChip(c), viewerChip(c.key), h('time', '', listTime(c.last_at)));
     const typing = typingText(c.key);
     bottom.append(h('span', 'preview' + (typing ? ' typing-now' : ''), typing || (q && msgHits.get(c.key)) || c.last_message || ''));
     if (c.unread) bottom.append(h('span', 'badge', c.unread));
@@ -783,6 +790,37 @@ function renderList() {
     return el;
   }));
   if (!shown.length) $('list').append(h('p', 'none', contacts.length ? 'ไม่พบแชท' : 'ยังไม่มีแชท — ร้านทักมาได้จากแท็บ 💬 แชท ใน shop.html'));
+}
+
+// ---------- 👁 แอดมินคนไหนเปิดแชทไหนอยู่ (Realtime presence แบบ private · update-44) ----------
+// แต่ละหน้าแอดมินบอกห้องที่เปิดอยู่ (ซ่อนแท็บ/ปิดห้อง = ไม่ได้ดู) · เห็นเฉพาะแอดมินคนอื่น
+function joinPresence() {
+  presenceCh = db.channel('admin-presence', { config: { private: true, presence: { key: myId } } })
+    .on('presence', { event: 'sync' }, () => {
+      viewers = {};
+      for (const [uid, metas] of Object.entries(presenceCh.presenceState())) {
+        if (uid === myId) continue;
+        for (const room of new Set(metas.map((m) => m.room).filter(Boolean))) (viewers[room] ??= []).push({ id: uid, name: metas[0].name });
+      }
+      renderList();
+      renderViewers();
+    })
+    .subscribe((st) => { if (st === 'SUBSCRIBED') trackRoom(); });
+}
+function trackRoom() {
+  const watching = document.visibilityState === 'visible' && view === 'chat'; // ไปหน้าออเดอร์/เคลม ฯลฯ = ไม่ได้ดูแชทแล้ว
+  presenceCh?.track({ room: watching ? current?.key ?? null : null, name: names[myId] || 'แอดมิน' });
+}
+document.addEventListener('visibilitychange', trackRoom);
+function viewerChip(key) {
+  const v = viewers[key];
+  if (!v?.length) return '';
+  const el = h('span', 'viewers', '👁 ' + v[0].name + (v.length > 1 ? ` +${v.length - 1}` : '')); // หลายคน = คนแรก +จำนวน (ชี้ดูชื่อครบ)
+  el.title = 'กำลังเปิดแชทนี้: ' + v.map((x) => x.name).join(', ');
+  return el;
+}
+function renderViewers() {
+  $('headViewers').replaceChildren(current ? viewerChip(current.key) : '');
 }
 
 // ---------- 🛠 ห้องเคลม: 1 เคลม = 1 ห้อง · รอตรวจอยู่บน · จบแล้วอยู่ล่าง ----------
@@ -810,11 +848,11 @@ function renderClaimList(q, shopF) {
   const shown = claimRooms.filter((c) => (!shopF || c.shop_id === shopF)
     && (!q || `#${c.id} ${shopName[c.shop_id] ?? ''} ${c.orders?.order_no ?? ''} ${c.orders?.product_name ?? ''} ${c.app_type ?? ''} ${c.reason}`.toLowerCase().includes(q)));
   const row = (c) => {
-    const el = h('div', 'item' + (c.admin_unread ? ' unread' : '') + (current?.key === 'claim:' + c.id ? ' active' : ''));
+    const el = h('div', 'item' + (c.admin_unread ? ' unread' : '') + (current?.key === 'claim:' + c.id ? ' active' : '') + (viewers['claim:' + c.id] ? ' watched' : ''));
     const body = h('div', 'body');
     const top = h('div', 'top');
     const bottom = h('div', 'bottom');
-    top.append(h('span', 'name', `เคลม #${c.id} · ${shopName[c.shop_id] ?? '#' + c.shop_id}`), pill(CLAIM[c.status]), h('time', '', listTime(c.last_at ?? c.created_at)));
+    top.append(h('span', 'name', `เคลม #${c.id} · ${shopName[c.shop_id] ?? '#' + c.shop_id}`), pill(CLAIM[c.status]), viewerChip('claim:' + c.id), h('time', '', listTime(c.last_at ?? c.created_at)));
     bottom.append(h('span', 'preview', c.last_message || `${c.orders?.product_name ?? ''} · ${c.reason}`));
     if (c.admin_unread) bottom.append(h('span', 'badge', c.admin_unread));
     body.append(top, bottom);
@@ -943,6 +981,7 @@ $('ctxDelete').onclick = async () => {
     $('room').hidden = $('profile').hidden = true;
     $('empty').hidden = false;
     $('app').classList.remove('open', 'show-profile');
+    trackRoom();
   }
   toast('ลบแชทแล้ว');
   loadContacts();
@@ -1025,6 +1064,8 @@ async function openChat(c) {
   $('name').textContent = c.name;
   $('pName').textContent = c.person ?? c.name; // ห้องเคลม: แผงข้อมูลขวา = คนแจ้งเคลม
   $('headShops').replaceChildren(roomChip(c));
+  trackRoom();
+  renderViewers();
   $('headAvatar').replaceChildren(avatar(c, 'sm'));
   $('pAvatar').replaceChildren(avatar({ ...c, name: c.person ?? c.name }, 'lg'));
   $('pSince').textContent = 'เริ่มแชท ' + new Date(c.created_at).toLocaleDateString('th-TH', { dateStyle: 'medium' });
@@ -1552,6 +1593,7 @@ function updateTitle() {
 function setView(v) {
   view = v;
   $('app').dataset.view = v;
+  trackRoom();
   if (v !== 'chat') $('app').classList.remove('open', 'show-profile');
   for (const b of document.querySelectorAll('#rail [data-view]')) b.setAttribute('aria-pressed', b.dataset.view === v);
   for (const el of document.querySelectorAll('#office [data-for]')) el.hidden = el.dataset.for !== v;
@@ -2523,7 +2565,7 @@ for (const b of document.querySelectorAll('.tabs button')) {
 }
 $('infoBtn').onclick = () => $('app').classList.toggle('show-profile');
 $('pClose').onclick = () => $('app').classList.remove('show-profile');
-$('back').onclick = () => { current = null; $('app').classList.remove('open', 'show-profile'); renderList(); };
+$('back').onclick = () => { current = null; $('app').classList.remove('open', 'show-profile'); renderList(); trackRoom(); };
 // ✏️ แชทใหม่: เลือกร้าน + ผู้ใช้ แล้วเปิดห้องคุยได้เลย (ไม่ต้องรอให้ร้านทักหรือกดเบิกก่อน)
 $('newChat').onclick = () => {
   $('ncPick').replaceChildren(...shops.filter((s) => s.shop_members.length).map((s) => {
