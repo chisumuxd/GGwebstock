@@ -100,16 +100,21 @@ $('file').onchange = async () => {
 };
 
 // ส่งทีละชุด (ไม่ให้เกินเวลา 8 วิ ต่อครั้งของ Supabase) · ผิดพลาด = หยุด (กดเริ่มใหม่ได้ ไม่ซ้ำ)
+// ชุดไหนช้าเกินเวลา → แบ่งครึ่งแล้วลองชุดเดิมใหม่ (ลดได้ถึง 25 รายการ)
 async function batches(label, fn, rows, size) {
-  let done = 0;
   let added = 0;
-  for (let i = 0; i < rows.length; i += size) {
+  for (let i = 0; i < rows.length;) {
     $('step').textContent = `${label} ${Math.min(i + size, rows.length).toLocaleString('th-TH')} / ${rows.length.toLocaleString('th-TH')}`;
     const { data: n, error } = await db.rpc(fn, { p_rows: rows.slice(i, i + size) });
+    if (error && /timeout/i.test(error.message) && size > 25) {
+      size = Math.ceil(size / 2);
+      log(`${label}: ชุดใหญ่เกิน ลดเหลือชุดละ ${size} แล้วลองใหม่`);
+      continue;
+    }
     if (error) throw new Error(`${label}: ${error.message}`);
     added += n ?? 0;
-    done = Math.min(i + size, rows.length);
-    $('bar').value = done / rows.length;
+    i += size;
+    $('bar').value = Math.min(i, rows.length) / rows.length;
   }
   log(`✓ ${label}: เพิ่ม/อัปเดต ${added.toLocaleString('th-TH')} จาก ${rows.length.toLocaleString('th-TH')} รายการ`);
 }
@@ -155,7 +160,7 @@ $('go').onclick = async () => {
     log('✓ คำนวณยอดคงเหลือในประวัติเครดิตครบทุกร้าน');
     await batches('ค่าใช้จ่ายรายวัน', 'import_legacy_expenses', data.expenses, 500);
     await batches('เคลม', 'import_legacy_claims', data.claims, 500);
-    await batches('แชท', 'import_legacy_chats', data.chats, 800);
+    await batches('แชท', 'import_legacy_chats', data.chats, 400);
     if ($('setBalance').checked) await batches('ยอดเครดิตคงเหลือ', 'import_legacy_balances', data.shops.filter((s) => s.credit != null).map((s) => ({ shop: s.key, credit: s.credit })), 100);
     $('step').textContent = `✅ เสร็จ (${Math.round((Date.now() - t0) / 1000)} วินาที)`;
     log('✅ นำเข้าเสร็จ');
