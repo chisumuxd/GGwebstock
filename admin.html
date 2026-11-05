@@ -794,18 +794,31 @@ function renderList() {
 
 // ---------- 👁 แอดมินคนไหนเปิดแชทไหนอยู่ (Realtime presence แบบ private · update-44) ----------
 // แต่ละหน้าแอดมินบอกห้องที่เปิดอยู่ (ซ่อนแท็บ/ปิดห้อง = ไม่ได้ดู) · เห็นเฉพาะแอดมินคนอื่น
+// 1 แท็บ = 1 ตัวตน (บัญชีเดียวกันเปิด 2 เครื่อง/2 แท็บ ก็เห็นกันเอง) · ไม่นับแค่แท็บนี้
+const myTab = crypto.randomUUID().slice(0, 8);
 function joinPresence() {
-  presenceCh = db.channel('admin-presence', { config: { private: true, presence: { key: myId } } })
+  const me = `${myId}:${myTab}`;
+  presenceCh = db.channel('admin-presence', { config: { private: true, presence: { key: me } } })
     .on('presence', { event: 'sync' }, () => {
       viewers = {};
-      for (const [uid, metas] of Object.entries(presenceCh.presenceState())) {
-        if (uid === myId) continue;
-        for (const room of new Set(metas.map((m) => m.room).filter(Boolean))) (viewers[room] ??= []).push({ id: uid, name: metas[0].name });
+      for (const [key, metas] of Object.entries(presenceCh.presenceState())) {
+        if (key === me) continue;
+        const uid = key.split(':')[0];
+        for (const room of new Set(metas.map((m) => m.room).filter(Boolean))) {
+          const list = (viewers[room] ??= []);
+          if (!list.some((x) => x.id === uid)) list.push({ id: uid, name: metas[0].name }); // คนเดียวกันหลายแท็บ = ชื่อเดียว
+        }
       }
       renderList();
       renderViewers();
     })
-    .subscribe((st) => { if (st === 'SUBSCRIBED') trackRoom(); });
+    .subscribe((st, err) => {
+      if (st === 'SUBSCRIBED') trackRoom();
+      else if (st === 'CHANNEL_ERROR') { // ส่วนใหญ่ = ยังไม่ได้รัน update-44
+        console.warn('admin-presence:', err?.message ?? st);
+        toast('สถานะ 👁 ใครเปิดแชทอยู่ ใช้ไม่ได้ — รัน update-44.sql แล้วหรือยัง');
+      }
+    });
 }
 function trackRoom() {
   const watching = document.visibilityState === 'visible' && view === 'chat'; // ไปหน้าออเดอร์/เคลม ฯลฯ = ไม่ได้ดูแชทแล้ว
