@@ -47,6 +47,7 @@
   #rail span { font-size: 10px; }
   #rail [aria-pressed="true"] { background: var(--sel); color: var(--green); font-weight: 700; }
   #rail .end { margin-top: auto; }
+  #moreBtn { display: none; } /* ☰ เฉพาะมือถือ */
   .count { position: absolute; top: 2px; right: 8px; background: #ef4444; color: #fff; border-radius: 999px; font-size: 10px; font-weight: 700; padding: 0 5px; }
   .count:empty { display: none; }
 
@@ -354,13 +355,20 @@
     #side { width: 100%; border: 0; }
     #app.open #side, #app:not(.open) #chat { display: none; }
     #back { display: inline; }
-    /* เมนูย้ายไปล่างจอ ซ่อนตอนเปิดห้องแชท */
-    #app { padding-bottom: 58px; }
+    /* เมนูย้ายไปล่างจอ ซ่อนตอนเปิดห้องแชท · แถวล่าง = 4 เมนูหลัก + ☰ เมนู
+       กด ☰ → เมนูที่เหลือเลื่อนขึ้นมาเหนือแถวล่าง (wrap-reverse = แถวแรกอยู่ล่างสุด ใกล้นิ้ว) */
+    #app { padding-bottom: 60px; }
     #app.open { padding-bottom: 0; }
     #app.open #rail { display: none; }
-    #rail { position: fixed; left: 0; right: 0; bottom: 0; width: auto; height: 58px; flex-direction: row; padding: 0 4px; gap: 0; border: 0; border-top: 1px solid var(--line); background: var(--bg); z-index: 20; }
-    #rail > * { flex: 1; width: auto; padding: 6px 0; font-size: 18px; }
+    #rail { position: fixed; left: 0; right: 0; bottom: 0; width: auto; height: auto; flex-direction: row; flex-wrap: wrap-reverse; align-items: stretch;
+      padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); gap: 0; border: 0; border-top: 1px solid var(--line); background: var(--bg); z-index: 20; }
+    #rail > * { flex: 0 0 20%; width: auto; min-height: 52px; padding: 6px 0; font-size: 20px; justify-content: center; }
+    #rail span { font-size: 11px; white-space: nowrap; }
     #rail .end { margin-top: 0; }
+    #moreBtn { display: flex; }
+    #rail:not(.more) #moreBtn ~ * { display: none; }
+    #rail.more { box-shadow: 0 -10px 30px rgba(0, 0, 0, .25); border-radius: 16px 16px 0 0; }
+    #rail.more #moreBtn { background: var(--sel); color: var(--green); font-weight: 700; } /* ☰ ที่เปิดอยู่ */
     .count { right: 4px; }
   }
 </style>
@@ -386,6 +394,7 @@
     <button data-view="orders" aria-pressed="false">🧾<span>ออเดอร์</span><i class="count" id="n-orders"></i></button>
     <button data-view="claims" aria-pressed="false">🛠<span>เคลม</span><i class="count" id="n-claims"></i></button>
     <button data-view="topups" aria-pressed="false">💰<span>เติมเครดิต</span><i class="count" id="n-topups"></i></button>
+    <button id="moreBtn" type="button" aria-label="เมนูเพิ่มเติม">☰<span>เมนู</span></button>
     <button data-view="shops" aria-pressed="false">🏪<span>ร้านค้า</span></button>
     <a href="stock.html">📦<span>สินค้า</span></a>
     <button data-view="promos" aria-pressed="false">✨<span>โปรโมชั่น</span></button>
@@ -1362,7 +1371,10 @@ function setView(v) {
   $('oList').className = { shops: 'grid', users: 'grid', orders: 'cards' }[v] ?? '';
   if (v !== 'chat') reloadOffice();
 }
-for (const b of document.querySelectorAll('#rail [data-view]')) b.onclick = () => setView(b.dataset.view);
+for (const b of document.querySelectorAll('#rail [data-view]')) b.onclick = () => { $('rail').classList.remove('more'); setView(b.dataset.view); };
+// มือถือ: ☰ เปิด/ปิดเมนูที่เหลือ · กดที่อื่นแล้วปิด
+$('moreBtn').onclick = () => $('rail').classList.toggle('more');
+document.addEventListener('click', (e) => { if (!e.target.closest('#rail')) $('rail').classList.remove('more'); });
 
 function reloadOffice() {
   counts();
