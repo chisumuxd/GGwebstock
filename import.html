@@ -106,18 +106,22 @@ $('file').onchange = async () => {
 };
 
 // ส่งทีละชุด (ไม่ให้เกินเวลา 8 วิ ต่อครั้งของ Supabase) · ผิดพลาด = หยุด (กดเริ่มใหม่ได้ ไม่ซ้ำ)
-// ชุดไหนช้าเกินเวลา → แบ่งครึ่งแล้วลองชุดเดิมใหม่ (ลดได้ถึง 25 รายการ)
+// ช้าเกินเวลา / เซิร์ฟเวอร์ยุ่ง (connection pool เต็ม) → รอ แบ่งครึ่ง (ไม่ต่ำกว่า 25) แล้วลองชุดเดิมใหม่ สูงสุด 8 ครั้งติดกัน
 async function batches(label, fn, rows, size) {
   let added = 0;
+  let tries = 0;
   for (let i = 0; i < rows.length;) {
     $('step').textContent = `${label} ${Math.min(i + size, rows.length).toLocaleString('th-TH')} / ${rows.length.toLocaleString('th-TH')}`;
     const { data: n, error } = await db.rpc(fn, { p_rows: rows.slice(i, i + size) });
-    if (error && /timeout/i.test(error.message) && size > 25) {
-      size = Math.ceil(size / 2);
-      log(`${label}: ชุดใหญ่เกิน ลดเหลือชุดละ ${size} แล้วลองใหม่`);
+    if (error && /time ?out|timed out|connection pool|failed to fetch/i.test(error.message) && tries < 8) {
+      tries++;
+      size = Math.max(25, Math.ceil(size / 2));
+      log(`${label}: เซิร์ฟเวอร์ยุ่ง รอ ${tries * 5} วิ แล้วลองใหม่ (ชุดละ ${size})`);
+      await new Promise((r) => setTimeout(r, tries * 5000));
       continue;
     }
     if (error) throw new Error(`${label}: ${error.message}`);
+    tries = 0;
     added += n ?? 0;
     i += size;
     $('bar').value = Math.min(i, rows.length) / rows.length;
