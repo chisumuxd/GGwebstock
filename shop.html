@@ -109,9 +109,10 @@
   .arranging [draggable="true"] { cursor: grab; outline: 2px dashed rgba(251, 191, 36, .75); outline-offset: -3px; }
   .arranging .card .btn { pointer-events: none; opacity: .4; } /* กำลังจัด = กดเบิกไม่ได้ กันกดพลาด */
   .dragging { opacity: .3; }
-  /* แบนเนอร์หน้าสินค้า: โลโก้ + ชื่อร้าน + ปุ่มไปแท็บโปรโมชั่น · รูปพื้น = ggplus/all.jpg */
+  /* แบนเนอร์หน้าสินค้า: โลโก้ + ชื่อร้าน + ปุ่มไปแท็บโปรโมชั่น · รูปปก = ggplus/all.jpg ชิดขวา
+     รูปต้นฉบับกว้าง 500px → แสดงกว้าง 440px (ไม่ขยายเกินจริง = ไม่เบลอ) · ไล่เงาเฉพาะขอบซ้ายของรูป ตัวรูปไม่หรี่ */
   .hero { min-height: 120px; border-radius: 18px; border: 1px solid var(--edge); overflow: hidden; display: flex; align-items: center; gap: 16px; padding: 14px 28px;
-    background: linear-gradient(90deg, #06120b 35%, rgba(6, 18, 11, .15)), url(ggplus/all.jpg) right 22% / 55% auto no-repeat, #06120b; }
+    background: linear-gradient(90deg, #06120b calc(100% - 440px), rgba(6, 18, 11, 0) calc(100% - 300px)), url(ggplus/all.jpg) right 20% / 440px auto no-repeat, #06120b; }
   .hero img { height: 60px; flex: none; }
   .hero > div { min-width: 0; }
   .hero h2 { font-size: 30px; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; background: linear-gradient(135deg, #a3e635, #22c55e); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -123,8 +124,9 @@
   #cats button { position: relative; height: 66px; border-radius: 12px; border: 1px solid var(--edge); overflow: hidden; padding: 0 10px; display: grid; place-items: center;
     background: var(--card2) linear-gradient(135deg, rgba(var(--ac-rgb), .3), transparent) center 25% / cover; }
   #cats button::before { content: ''; position: absolute; inset: 0; background: rgba(4, 10, 6, .42); } /* หรี่รูปให้ชื่ออ่านง่าย */
-  #cats span { position: relative; max-width: 100%; font-weight: 700; font-size: 20px; text-shadow: 0 2px 8px #000, 0 0 2px #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #cats small { position: absolute; top: 4px; right: 6px; font-size: 10px; background: rgba(0, 0, 0, .65); border-radius: 999px; padding: 0 6px; }
+  #cats span { position: relative; max-width: 100%; font-weight: 700; font-size: 24px; text-shadow: 0 2px 8px #000, 0 0 3px #000, 0 0 1px #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #cats small { position: absolute; top: 5px; right: 6px; min-width: 22px; text-align: center; font-size: 12px; font-weight: 700; line-height: 18px; color: #fff;
+    background: rgba(0, 0, 0, .8); border: 1px solid rgba(255, 255, 255, .45); border-radius: 999px; padding: 0 6px; } /* จำนวนสินค้า: ตัวขาวหนาบนพื้นดำ ขอบขาว เห็นชัดทุกรูป */
   #cats button[aria-pressed="true"] { border: 2px solid var(--ac); box-shadow: 0 0 16px rgba(var(--ac-rgb), .4); }
   #cats button[aria-pressed="true"] small { background: var(--ac); color: var(--ink); font-weight: 700; }
   select.field { width: auto; }
@@ -414,8 +416,9 @@
     .card .cost b { font-size: 17px; }
     #cats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     #cats button { height: 58px; }
-    #cats span { font-size: 17px; }
-    .hero { min-height: 84px; padding: 10px 14px; gap: 10px; }
+    #cats span { font-size: 19px; }
+    .hero { min-height: 84px; padding: 10px 14px; gap: 10px;
+      background: linear-gradient(90deg, #06120b 45%, rgba(6, 18, 11, .25)), url(ggplus/all.jpg) right 20% / 240px auto no-repeat, #06120b; } /* จอแคบ: รูปเล็กลง ชื่อร้านยังอ่านออก */
     .hero img { display: none; } /* มือถือ: โลโก้มีที่หัวเว็บแล้ว เหลือที่ให้ชื่อร้าน */
     .hero h2 { font-size: 16px; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; }
     .hero span { display: none; }
