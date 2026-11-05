@@ -107,7 +107,7 @@
 <body>
 <form id="login" hidden>
   <h1>จัดการสินค้า</h1>
-  <input id="email" class="field" type="email" placeholder="อีเมล" autocomplete="username" required>
+  <input id="email" class="field" type="text" placeholder="ไอดี หรือ อีเมล" autocomplete="username" autocapitalize="off" spellcheck="false" required>
   <input id="password" class="field" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" required>
   <button class="btn">เข้าสู่ระบบ</button>
 </form>
@@ -561,7 +561,8 @@ $('logout').onclick = () => db.auth.signOut({ scope: 'local' }).then(() => locat
 
 $('login').onsubmit = async (e) => {
   e.preventDefault();
-  const { error } = await db.auth.signInWithPassword({ email: $('email').value, password: $('password').value });
+  const id = $('email').value.trim();
+  const { error } = await db.auth.signInWithPassword({ email: id.includes('@') ? id : id.toLowerCase() + '@gg.biz', password: $('password').value }); // ไอดีเดิม = ไอดี@gg.biz
   if (error) return alert(error.message);
   start();
 };

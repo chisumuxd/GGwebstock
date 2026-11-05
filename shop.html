@@ -292,6 +292,8 @@
   .c-pick span { display: inline-block; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card2); color: var(--txt); font-weight: 600; font-size: 13px; }
   .c-pick input:checked + span { background: var(--grad); color: var(--ink); border-color: transparent; }
   .c-pick input:focus-visible + span { outline: 2px solid var(--ac); outline-offset: 2px; }
+  .pw-form { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .pw-form .acts { display: flex; gap: 8px; justify-content: flex-end; }
   dialog::backdrop { background: rgba(2, 6, 4, .72); backdrop-filter: blur(3px); }
   dialog form { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
   dialog label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
@@ -474,7 +476,7 @@
     <img class="auth-logo" src="logo.png" alt="" onerror="this.remove()">
     <h1 id="authTitle">เข้าสู่ระบบ</h1>
     <span class="muted">สำหรับร้านค้าที่เป็นสมาชิก</span>
-    <input id="email" class="field" type="email" placeholder="อีเมล" autocomplete="username" required>
+    <input id="email" class="field" type="text" placeholder="ไอดี หรือ อีเมล" autocomplete="username" autocapitalize="off" spellcheck="false" required>
     <input id="password" class="field" type="password" placeholder="รหัสผ่าน (6 ตัวขึ้นไป)" autocomplete="current-password" minlength="6" required>
     <button id="authBtn" class="btn">เข้าสู่ระบบ</button>
     <button type="button" id="authSwitch" class="link">ยังไม่มีบัญชี? สมัครสมาชิก</button>
@@ -508,6 +510,7 @@
             <a id="salesLink" role="menuitem" href="sales.html">📊 เช็คยอดขาย</a>
             <button type="button" role="menuitem" data-go="services">🛡️ บริการเสริม</button>
             <button type="button" role="menuitem" id="menuName" class="m-only">✏️ ตั้งชื่อ</button>
+            <button type="button" role="menuitem" id="menuPw">🔑 เปลี่ยนรหัสผ่าน</button>
             <button type="button" role="menuitem" class="logout">🚪 ออกจากระบบ</button>
           </div>
         </div>
@@ -677,6 +680,15 @@
   </form>
 </dialog>
 
+<dialog id="pwDlg">
+  <form id="pwForm" class="pw-form">
+    <b>🔑 เปลี่ยนรหัสผ่าน</b>
+    <input id="pw1" class="field" type="password" placeholder="รหัสผ่านใหม่ (6 ตัวขึ้นไป)" minlength="6" autocomplete="new-password" required>
+    <input id="pw2" class="field" type="password" placeholder="พิมพ์รหัสผ่านใหม่อีกครั้ง" minlength="6" autocomplete="new-password" required>
+    <div class="acts"><button type="button" class="ghost" id="pwCancel">ยกเลิก</button><button class="btn">บันทึก</button></div>
+  </form>
+</dialog>
+
 <dialog id="claimDlg">
   <form id="claimForm">
     <b id="cTitle"></b>
@@ -809,7 +821,9 @@ async function start() {
 
 $('authForm').onsubmit = async (e) => {
   e.preventDefault();
-  const creds = { email: $('email').value.trim(), password: $('password').value };
+  const id = $('email').value.trim();
+  if (signup && !id.includes('@')) return alert('สมัครสมาชิกใช้อีเมลจริง (ไอดีแบบไม่มี @ ใช้ได้เฉพาะบัญชีที่แอดมินสร้างให้)');
+  const creds = { email: id.includes('@') ? id : id.toLowerCase() + '@gg.biz', password: $('password').value }; // ไอดีเดิม (เช่น odin) = odin@gg.biz
   const { data: res, error } = signup ? await db.auth.signUp(creds) : await db.auth.signInWithPassword(creds);
   if (error) return alert(error.message);
   if (signup && !res.session) return alert('สมัครแล้ว — กดยืนยันในอีเมลก่อน แล้วแจ้งอีเมลนี้ให้แอดมินเพิ่มเข้าร้าน');
@@ -1589,6 +1603,17 @@ function renderMe() {
 
 // ชื่อของฉัน: กดชื่อที่หัวเว็บ (มือถือ: เมนู ☰ → ตั้งชื่อ)
 $('menuName').onclick = () => $('meName').click();
+// เปลี่ยนรหัสผ่านเอง (บัญชีที่ย้ายจาก bearplus ได้รหัสชั่วคราวจากแอดมิน)
+$('menuPw').onclick = () => { $('pwForm').reset(); $('pwDlg').showModal(); };
+$('pwCancel').onclick = () => $('pwDlg').close();
+$('pwForm').onsubmit = async (e) => {
+  e.preventDefault();
+  if ($('pw1').value !== $('pw2').value) return alert('รหัสผ่านสองช่องไม่ตรงกัน');
+  const { error } = await db.auth.updateUser({ password: $('pw1').value });
+  if (error) return alert('เปลี่ยนรหัสผ่านไม่สำเร็จ: ' + error.message);
+  $('pwDlg').close();
+  toast('เปลี่ยนรหัสผ่านแล้ว');
+};
 $('meName').onclick = async () => {
   const name = prompt('ชื่อผู้ใช้ (แสดงในแชท)', dnames[me] ?? '');
   if (name === null) return;

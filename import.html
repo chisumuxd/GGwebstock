@@ -43,6 +43,11 @@
       <b>2. ตัวเลือก</b>
       <label><input id="skipPending" type="checkbox" checked> <span>ข้ามออเดอร์ที่ยังไม่ส่งมอบ <span class="muted">(รอบแรก — ออเดอร์ที่ค้างจะมาในรอบสุดท้าย กันงานซ้ำสองระบบ)</span></span></label>
       <label><input id="setBalance" type="checkbox"> <span>ตั้งยอดเครดิตคงเหลือของร้านตาม bearplus <span class="muted">(ติ๊กเฉพาะรอบสุดท้าย วันเลิกใช้ bearplus)</span></span></label>
+      <label style="flex-direction: column; gap: 6px">
+        <span><b>รหัสผ่านชั่วคราว</b> ของบัญชีที่ย้ายมา <span class="muted">(ใช้กับบัญชีที่สร้างใหม่เท่านั้น · บัญชีที่มีอยู่แล้วไม่เปลี่ยน · ร้านล็อกอินด้วยไอดีเดิม + รหัสนี้ แล้วเปลี่ยนเองได้ที่เมนู ☰)</span></span>
+        <input id="tempPw" type="password" minlength="6" autocomplete="new-password" placeholder="อย่างน้อย 6 ตัว"
+          style="font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: #000; color: var(--txt); max-width: 260px">
+      </label>
       <span class="muted warn">⚠️ ระหว่างนำเข้า ปิดหน้า admin / shop ที่เปิดค้างไว้ก่อน (ข้อมูลเข้าเยอะ หน้าอื่นจะหน่วง) · นำเข้าซ้ำได้ ไม่ซ้ำ ถ้าค้าง/หลุด กดเริ่มใหม่ได้เลย</span>
     </div>
     <div class="card">
@@ -90,6 +95,7 @@ $('file').onchange = async () => {
   $('summary').innerHTML = `<table>
     <tr><th>ข้อมูล</th><th style="text-align: right">จำนวน</th></tr>
     <tr><td>ร้าน</td><td class="n">${n('shops')}</td></tr>
+    <tr><td>บัญชีผู้ใช้</td><td class="n">${n('accounts')}</td></tr>
     <tr><td>ออเดอร์ (ค้างอยู่ ${pending.toLocaleString('th-TH')})</td><td class="n">${n('orders')}</td></tr>
     <tr><td>เครดิต</td><td class="n">${n('credits')}</td></tr>
     <tr><td>ค่าใช้จ่ายรายวัน</td><td class="n">${n('expenses')}</td></tr>
@@ -148,6 +154,19 @@ $('go').onclick = async () => {
       }
     }
     log(`✓ ร้าน ${map.length} ร้าน (ใส่โลโก้ใหม่ ${logos} ร้าน)`);
+    if (data.accounts?.length) { // บัญชีจาก bearplus (ไอดีเดิม@gg.biz) ทีละ 10 บัญชี
+      if ($('tempPw').value.length < 6) throw new Error('ใส่รหัสผ่านชั่วคราว (อย่างน้อย 6 ตัว) ก่อน');
+      let made = 0;
+      let skipped = 0;
+      for (let i = 0; i < data.accounts.length; i += 10) {
+        $('step').textContent = `บัญชี ${Math.min(i + 10, data.accounts.length)} / ${data.accounts.length}`;
+        const { data: res, error: e } = await db.rpc('import_legacy_accounts', { p_rows: data.accounts.slice(i, i + 10), p_password: $('tempPw').value });
+        if (e) throw new Error('บัญชี: ' + e.message);
+        made += res.filter((a) => a.new).length;
+        skipped += Math.min(10, data.accounts.length - i) - res.length;
+      }
+      log(`✓ บัญชี ${data.accounts.length} บัญชี (สร้างใหม่ ${made} · มีอยู่แล้ว ${data.accounts.length - made - skipped}${skipped ? ` · ข้ามไอดีที่ใช้เป็นอีเมลไม่ได้ ${skipped}` : ''})`);
+    }
 
     const orders = $('skipPending').checked ? data.orders.filter((o) => o.status !== 'pending') : data.orders;
     await batches('ออเดอร์', 'import_legacy_orders', orders, 500);
