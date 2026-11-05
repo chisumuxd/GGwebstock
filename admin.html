@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>My OA</title>
+<title>GGplus Stock-chat</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script src="slipbot.js?v=2"></script>
@@ -54,7 +54,8 @@
   /* รายการแชท */
   #side { width: 340px; border-right: 1px solid var(--line); display: flex; flex-direction: column; flex: none; }
   .side-top { padding: 14px 16px 0; display: flex; flex-direction: column; gap: 12px; }
-  .account { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+  .account { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; white-space: nowrap; }
+  .acc-logo { width: 34px; height: 34px; border-radius: 9px; object-fit: contain; flex: none; } /* โลโก้ GG-PLUS (favicon.png สี่เหลี่ยมจัตุรัส) */
   #search { background: var(--hover); border-color: transparent; }
   /* แถวตัวกรอง: [ทั้งหมด ยังไม่อ่าน] ซ้าย · [ร้าน ▾ แท็ก ▾] ขวา — บรรทัดเดียวเสมอ ชื่อร้านยาวตัด … แทนการตกบรรทัด */
   .filters { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); }
@@ -388,7 +389,8 @@
 </div>
 
 <form id="login" hidden>
-  <h1>My OA</h1>
+  <img class="acc-logo" src="favicon.png" alt="" style="width: 64px; height: 64px; align-self: center">
+  <h1>GGplus Stock-chat</h1>
   <input id="email" class="field" type="email" placeholder="อีเมล" autocomplete="username" required>
   <input id="password" class="field" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" required>
   <button class="btn">เข้าสู่ระบบ</button>
@@ -412,7 +414,7 @@
 
   <aside id="side">
     <div class="side-top">
-      <div class="account"><div class="avatar sm" style="background: var(--green)">OA</div>My OA
+      <div class="account"><img class="acc-logo" src="favicon.png" alt="">GGplus Stock-chat
         <button id="newChat" class="btn gray" type="button" title="เริ่มคุยกับร้านได้เลย ไม่ต้องรอร้านทัก">✏️ แชทใหม่</button></div>
       <input id="search" class="field" type="search" placeholder="ค้นหาชื่อ / แท็ก / ข้อความ">
       <div class="filters">
@@ -1365,7 +1367,7 @@ function emptyIf(rows, text) {
 }
 function updateTitle() {
   const n = unreadChats + pendingTotal;
-  document.title = (n ? `(${n}) ` : '') + 'My OA';
+  document.title = (n ? `(${n}) ` : '') + 'GGplus Stock-chat';
 }
 
 function setView(v) {
