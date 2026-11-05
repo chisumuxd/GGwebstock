@@ -50,8 +50,8 @@
   .cat-dlg { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
   .ci-row { display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .ci-tile { position: relative; width: 220px; height: 58px; flex: none; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 0 14px;
-    background: #13201a linear-gradient(135deg, rgba(34, 197, 94, .3), transparent) center 25% / cover; color: #fff; font-weight: 700; font-size: 15px; }
-  .ci-tile::before { content: ''; position: absolute; inset: 0; background: rgba(4, 10, 6, .42); }
+    background: #13201a linear-gradient(135deg, rgba(34, 197, 94, .3), transparent) 50% 0 / cover; color: #fff; font-weight: 700; font-size: 15px; }
+  .ci-tile::before { content: ''; position: absolute; inset: 0; background: rgba(4, 10, 6, .18); }
   .ci-tile span { position: relative; font-size: 18px; text-shadow: 0 2px 8px #000, 0 0 2px #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ci-row .grow { flex: 1; }
   .ci-row label { cursor: pointer; }
@@ -503,7 +503,10 @@ async function openCatImgs() {
   $('catImgList').replaceChildren(...names.map((n) => {
     const tile = h('div', 'ci-tile');
     tile.append(h('span', '', n));
-    if (imgs[n]) tile.style.backgroundImage = `url("${imgs[n]}")`;
+    if (imgs[n]) { // ตำแหน่งรูปแบบเดียวกับหน้าร้าน (ส่วนบนของรูป · รูปตั้งต้นบางรูปช่วงกลาง)
+      tile.style.backgroundImage = `url("${imgs[n]}")`;
+      tile.style.backgroundPosition = { 'promo.jpg': '50% 37%', 'free.jpg': '50% 29%', 'duo.jpg': '50% 11%' }[imgs[n].split('/').pop()] ?? '';
+    }
     const file = h('input');
     file.type = 'file';
     file.accept = 'image/*';

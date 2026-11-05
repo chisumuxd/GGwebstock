@@ -122,8 +122,8 @@
   /* ปุ่มหมวด = แบนเนอร์รูป ชื่ออยู่กลาง จำนวนมุมขวาบน (แอดมินตั้งรูปที่หน้า stock → 🖼️ รูปปุ่มหมวด) · 5 ช่องต่อแถว / มือถือ 2 · ไม่มีรูป = พื้นเขียวเรียบ */
   #cats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; flex-basis: 100%; }
   #cats button { position: relative; height: 66px; border-radius: 12px; border: 1px solid var(--edge); overflow: hidden; padding: 0 10px; display: grid; place-items: center;
-    background: var(--card2) linear-gradient(135deg, rgba(var(--ac-rgb), .3), transparent) center 25% / cover; }
-  #cats button::before { content: ''; position: absolute; inset: 0; background: rgba(4, 10, 6, .42); } /* หรี่รูปให้ชื่ออ่านง่าย */
+    background: var(--card2) linear-gradient(135deg, rgba(var(--ac-rgb), .3), transparent) 50% 0 / cover; } /* เห็นส่วนบนของรูป (โลโก้แอป) แบบ bearplus */
+  #cats button::before { content: ''; position: absolute; inset: 0; background: rgba(4, 10, 6, .18); } /* หรี่นิดเดียว รูปยังสด · ชื่ออ่านออกด้วยเงาตัวหนังสือ */
   #cats span { position: relative; max-width: 100%; font-weight: 700; font-size: 24px; text-shadow: 0 2px 8px #000, 0 0 3px #000, 0 0 1px #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #cats small { position: absolute; top: 5px; right: 6px; min-width: 22px; text-align: center; font-size: 12px; font-weight: 700; line-height: 18px; color: #fff;
     background: rgba(0, 0, 0, .8); border: 1px solid rgba(255, 255, 255, .45); border-radius: 999px; padding: 0 6px; } /* จำนวนสินค้า: ตัวขาวหนาบนพื้นดำ ขอบขาว เห็นชัดทุกรูป */
@@ -689,6 +689,7 @@ let data = { orders: [], claims: [], topups: [], logs: [] };
 let cat = '';
 let catImgs = {}; // ชื่อหมวด → รูปพื้นหลังปุ่ม ('ทั้งหมด' = ปุ่มทั้งหมด)
 let catSort = {}; // ชื่อหมวด → ลำดับที่ Superadmin จัด
+const CAT_POS = { 'promo.jpg': '50% 37%', 'free.jpg': '50% 29%', 'duo.jpg': '50% 11%' }; // จุดโฟกัสรูปตั้งต้น (ตาม bearplus) · รูปอื่น = ส่วนบน
 let arranging = false; // โหมด ✋ จัดลำดับ (Superadmin)
 const rank = (n) => n ?? Infinity; // ยังไม่จัดลำดับ = ต่อท้าย
 let buying = null;         // { p, i } ในหน้าต่างซื้อ
@@ -1072,7 +1073,10 @@ function renderCats() {
     b.append(h('span', '', label), h('small', '', n));
     b.title = label; // ชื่อยาวถูกตัด … → ชี้เมาส์ดูชื่อเต็ม
     const img = catImgs[value || 'ทั้งหมด'];
-    if (img) b.style.backgroundImage = `url("${img}")`;
+    if (img) {
+      b.style.backgroundImage = `url("${img}")`;
+      b.style.backgroundPosition = CAT_POS[img.split('/').pop()] ?? ''; // รูปตั้งต้นบางรูป ส่วนบนเป็นตัวหนังสือ → เลื่อนไปช่วงกลาง
+    }
     b.setAttribute('aria-pressed', cat === value);
     b.onclick = () => { cat = value; renderCats(); renderProducts(); };
     if (arranging && value) { // "ทั้งหมด" อยู่แรกเสมอ ลากไม่ได้
