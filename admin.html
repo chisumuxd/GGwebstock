@@ -362,8 +362,12 @@
     #app.open #rail { display: none; }
     #rail { position: fixed; left: 0; right: 0; bottom: 0; width: auto; height: auto; flex-direction: row; flex-wrap: wrap-reverse; align-items: stretch;
       padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); gap: 0; border: 0; border-top: 1px solid var(--line); background: var(--bg); z-index: 20; }
-    #rail > * { flex: 0 0 20%; width: auto; min-height: 52px; padding: 6px 0; font-size: 20px; justify-content: center; }
-    #rail span { font-size: 11px; white-space: nowrap; }
+    #rail > * { flex: 0 0 20%; width: auto; min-height: 52px; padding: 6px 0; font-size: 20px; line-height: 24px; justify-content: center; order: 2; }
+    #rail span { font-size: 11px; line-height: 14px; font-weight: 600; white-space: nowrap; } /* ชื่อทุกปุ่มขนาด/ความหนาเท่ากัน (ปุ่มที่เลือก = เปลี่ยนแค่สี) */
+    /* ลำดับ (ล่าง → บน): แถวหลัก 4 เมนู + ☰ · Light mode + ออกจากระบบ · ร้านค้า สินค้า … */
+    #rail > :nth-child(-n+5) { order: 0; }
+    #rail #themeBtn, #rail #logout { order: 1; }
+    #rail #logout { margin-right: 60%; } /* เต็มแถว → ร้านค้า/สินค้า ขึ้นแถวบนถัดไป */
     #rail .end { margin-top: 0; }
     #moreBtn { display: flex; }
     #rail:not(.more) #moreBtn ~ * { display: none; }
@@ -401,7 +405,7 @@
     <button data-view="services" aria-pressed="false">🛡️<span>บริการ</span></button>
     <button data-view="users" aria-pressed="false">👤<span>ผู้ใช้</span></button>
     <button id="themeBtn" class="end" type="button" aria-label="สลับ Dark mode / Light mode"><b>🌙</b><span>Dark mode</span></button>
-    <button id="logout">⎋<span>ออกจากระบบ</span></button>
+    <button id="logout">🚪<span>ออกจากระบบ</span></button>
   </nav>
 
   <aside id="side">
