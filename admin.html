@@ -56,11 +56,13 @@
   .side-top { padding: 14px 16px 0; display: flex; flex-direction: column; gap: 12px; }
   .account { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
   #search { background: var(--hover); border-color: transparent; }
-  .filters { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
-  .tabs { display: flex; gap: 20px; }
+  /* แถวตัวกรอง: [ทั้งหมด ยังไม่อ่าน] ซ้าย · [ร้าน ▾ แท็ก ▾] ขวา — บรรทัดเดียวเสมอ ชื่อร้านยาวตัด … แทนการตกบรรทัด */
+  .filters { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); }
+  .tabs { display: flex; gap: 14px; flex: none; }
+  .f-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
   /* ตัวกรองร้าน: ปุ่ม → รายการร้านพร้อมรูป (แบบเดียวกับหน้า sales) */
-  .shop-pick { position: relative; display: inline-block; }
-  #shopBtn { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); max-width: 150px; padding: 2px 6px; border-radius: 6px; }
+  .shop-pick { position: relative; display: flex; min-width: 0; }
+  #shopBtn { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); max-width: 140px; min-width: 0; padding: 2px 6px; border-radius: 6px; }
   #shopBtn:hover, #shopBtn[aria-expanded="true"] { background: var(--hover); color: var(--txt); }
   #shopBtn .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #shopBtn .caret { font-size: 10px; }
@@ -73,7 +75,7 @@
   .shop-opt:hover { background: var(--hover); }
   .shop-opt.on { background: var(--pick-bg); border-color: var(--pick-line); border-left-color: #ec4899; color: var(--pick); }
   .shop-opt .tick { color: var(--green); font-weight: 700; }
-  #tagFilter, #shopFilter { border: 0; background: none; color: var(--muted); font: inherit; max-width: 110px; cursor: pointer; }
+  #tagFilter, #shopFilter { border: 0; background: none; color: var(--muted); font: inherit; max-width: 78px; flex: none; cursor: pointer; }
   .shop-chips { display: flex; gap: 4px; flex: none; }
   .shop-chip { background: var(--gtint); color: var(--gtext); border-radius: 6px; padding: 0 6px; font-size: 11px; font-weight: 600; white-space: nowrap; }
   .shop-chip img { width: 14px; height: 14px; border-radius: 4px; object-fit: cover; vertical-align: -2px; margin-right: 4px; }
@@ -83,7 +85,7 @@
   .shop-pic .avatar { border-radius: 12px; }
   .shop-pic::after { content: '📷'; position: absolute; right: -4px; bottom: -4px; font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 50%; width: 20px; height: 20px; display: grid; place-items: center; }
   #headShops .shop-chips { flex-wrap: wrap; }
-  .tabs button { padding: 8px 0; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs button { padding: 8px 0; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
   .tabs button[aria-pressed="true"] { color: var(--txt); font-weight: 700; border-color: var(--txt); }
   #list { overflow-y: auto; flex: 1; }
   #list .none { color: var(--muted); text-align: center; padding: 40px 0; }
@@ -418,7 +420,7 @@
           <button data-f="all" aria-pressed="true">ทั้งหมด</button>
           <button data-f="unread" aria-pressed="false">ยังไม่อ่าน <span id="unreadCount"></span></button>
         </div>
-        <span><span class="shop-pick"><button id="shopBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="กรองตามร้าน"></button><div id="shopList" class="shop-list" role="listbox" hidden></div></span><select id="shopFilter" aria-label="กรองตามร้าน" hidden><option value="">ทุกร้าน</option></select><select id="tagFilter" aria-label="กรองตามแท็ก"></select></span>
+        <span class="f-right"><span class="shop-pick"><button id="shopBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="กรองตามร้าน"></button><div id="shopList" class="shop-list" role="listbox" hidden></div></span><select id="shopFilter" aria-label="กรองตามร้าน" hidden><option value="">ทุกร้าน</option></select><select id="tagFilter" aria-label="กรองตามแท็ก"></select></span>
       </div>
     </div>
     <div id="list"></div>
@@ -792,6 +794,7 @@ function renderShopPick() {
   const rows = [{ id: '', name: 'ทุกร้าน' }, ...shops.map((s) => ({ id: String(s.id), name: s.name }))];
   const sel = rows.find((r) => r.id === cur) ?? rows[0];
   $('shopBtn').replaceChildren(...(sel.id ? [shopPic(sel.id, sel.name)] : []), h('span', 'nm', sel.name), h('span', 'caret', '▾'));
+  $('shopBtn').title = sel.name; // ชื่อยาวถูกตัด … → ชี้เมาส์ดูชื่อเต็ม
   $('shopList').replaceChildren(...rows.map((r) => {
     const on = r.id === sel.id;
     const b = h('button', 'shop-opt' + (on ? ' on' : ''));
