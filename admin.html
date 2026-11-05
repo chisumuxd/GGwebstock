@@ -44,7 +44,7 @@
   #rail { width: 72px; flex: none; background: var(--hover); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; }
   #rail > * { position: relative; width: 62px; padding: 8px 0; border-radius: 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 20px; color: var(--muted); text-decoration: none; }
   #rail > *:hover { background: var(--rail-hover); }
-  #rail span { font-size: 10px; }
+  #rail span { font-size: 10px; line-height: 1.2; text-align: center; } /* ชื่อยาว (Light mode / ออกจากระบบ) ตัดเป็น 2 บรรทัดได้ */
   #rail [aria-pressed="true"] { background: var(--sel); color: var(--green); font-weight: 700; }
   #rail .end { margin-top: auto; }
   #moreBtn { display: none; } /* ☰ เฉพาะมือถือ */
@@ -400,8 +400,8 @@
     <button data-view="promos" aria-pressed="false">✨<span>โปรโมชั่น</span></button>
     <button data-view="services" aria-pressed="false">🛡️<span>บริการ</span></button>
     <button data-view="users" aria-pressed="false">👤<span>ผู้ใช้</span></button>
-    <button id="themeBtn" class="end" type="button" aria-label="สลับโหมดมืด / สว่าง"><b>🌙</b><span>มืด</span></button>
-    <button id="logout">⎋<span>ออก</span></button>
+    <button id="themeBtn" class="end" type="button" aria-label="สลับ Dark mode / Light mode"><b>🌙</b><span>Dark mode</span></button>
+    <button id="logout">⎋<span>ออกจากระบบ</span></button>
   </nav>
 
   <aside id="side">
@@ -2368,7 +2368,7 @@ $('ncForm').onsubmit = async (e) => {
 function renderThemeBtn() {
   const dark = document.documentElement.dataset.theme === 'dark';
   $('themeBtn').querySelector('b').textContent = dark ? '☀️' : '🌙';
-  $('themeBtn').querySelector('span').textContent = dark ? 'สว่าง' : 'มืด';
+  $('themeBtn').querySelector('span').textContent = dark ? 'Light mode' : 'Dark mode'; // ชื่อ = โหมดที่จะสลับไป
 }
 $('themeBtn').onclick = () => {
   const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';

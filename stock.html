@@ -548,7 +548,7 @@ $('addBtn').onclick = () => openForm();
 $('search').oninput = render;
 // สลับโหมดมืด/สว่าง (ค่าเดียวกับ admin.html)
 function renderThemeBtn() {
-  $('themeBtn').textContent = document.documentElement.dataset.theme === 'dark' ? '☀️ สว่าง' : '🌙 มืด';
+  $('themeBtn').textContent = document.documentElement.dataset.theme === 'dark' ? '☀️ Light mode' : '🌙 Dark mode';
 }
 $('themeBtn').onclick = () => {
   const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
