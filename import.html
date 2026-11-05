@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>นำเข้าข้อมูล bearplus</title>
+<link rel="icon" href="favicon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<style>
+  /* หน้าใช้ครั้งคราว: ย้ายข้อมูลจาก bearplus (ไฟล์ที่ดึงมา) เข้า Supabase · Superadmin เท่านั้น · ย้ายเสร็จลบไฟล์นี้ได้ */
+  :root { color-scheme: dark; --bg: #0d0f13; --card: #12151a; --line: #2a2f37; --txt: #e7e9ee; --muted: #8b93a1; --green: #06c755; --bad: #f87171; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, sans-serif; font-size: 14px; background: var(--bg); color: var(--txt); }
+  main { max-width: 760px; margin: 24px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  h1 { font-size: 20px; margin: 0; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .warn { color: #fbbf24; }
+  label { display: flex; gap: 8px; align-items: flex-start; }
+  button { font: inherit; border: 0; border-radius: 8px; padding: 10px 18px; background: var(--green); color: #fff; font-weight: 700; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  progress { width: 100%; height: 14px; }
+  #log { white-space: pre-wrap; font: 12px/1.6 ui-monospace, monospace; max-height: 260px; overflow: auto; background: #000; padding: 10px; border-radius: 8px; }
+  .bad { color: var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <h1>📦 นำเข้าข้อมูลจาก bearplus</h1>
+  <div id="gate" class="card">กำลังตรวจสิทธิ์…</div>
+
+  <div id="app" hidden>
+    <div class="card">
+      <b>1. เลือกไฟล์ที่ดึงจาก bearplus</b>
+      <input id="file" type="file" accept=".json,application/json">
+      <div id="summary" class="muted">ไฟล์ชื่อแบบ bearplus-export-2026-11-05.json</div>
+    </div>
+    <div class="card">
+      <b>2. ตัวเลือก</b>
+      <label><input id="skipPending" type="checkbox" checked> <span>ข้ามออเดอร์ที่ยังไม่ส่งมอบ <span class="muted">(รอบแรก — ออเดอร์ที่ค้างจะมาในรอบสุดท้าย กันงานซ้ำสองระบบ)</span></span></label>
+      <label><input id="setBalance" type="checkbox"> <span>ตั้งยอดเครดิตคงเหลือของร้านตาม bearplus <span class="muted">(ติ๊กเฉพาะรอบสุดท้าย วันเลิกใช้ bearplus)</span></span></label>
+      <span class="muted warn">⚠️ ระหว่างนำเข้า ปิดหน้า admin / shop ที่เปิดค้างไว้ก่อน (ข้อมูลเข้าเยอะ หน้าอื่นจะหน่วง) · นำเข้าซ้ำได้ ไม่ซ้ำ ถ้าค้าง/หลุด กดเริ่มใหม่ได้เลย</span>
+    </div>
+    <div class="card">
+      <button id="go" disabled>3. เริ่มนำเข้า</button>
+      <progress id="bar" value="0" max="1"></progress>
+      <div id="step" class="muted"></div>
+      <div id="log"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: 'oa-admin' } }); // ล็อกอินเดียวกับ admin.html
+const $ = (id) => document.getElementById(id);
+let data = null;
+const log = (msg, bad) => {
+  const line = document.createElement('div');
+  line.textContent = new Date().toLocaleTimeString('th-TH') + '  ' + msg;
+  if (bad) line.className = 'bad';
+  $('log').append(line);
+  $('log').scrollTop = $('log').scrollHeight;
+};
+
+(async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) return ($('gate').innerHTML = '<div>ยังไม่ได้ล็อกอิน → <a href="admin.html" style="color: var(--green)">ล็อกอินหน้าแอดมิน</a> ด้วยบัญชี Superadmin แล้วกลับมาหน้านี้</div>');
+  const { data: sup, error } = await db.rpc('is_super');
+  if (error || !sup) return ($('gate').textContent = 'หน้านี้ใช้ได้เฉพาะ Superadmin');
+  $('gate').hidden = true;
+  $('app').hidden = false;
+})();
+
+$('file').onchange = async () => {
+  const f = $('file').files[0];
+  if (!f) return;
+  $('summary').textContent = 'กำลังอ่านไฟล์…';
+  try {
+    data = JSON.parse(await f.text());
+  } catch {
+    data = null;
+    return ($('summary').textContent = '❌ ไฟล์ไม่ถูกต้อง');
+  }
+  const n = (k) => (data[k] ?? []).length.toLocaleString('th-TH');
+  const pending = (data.orders ?? []).filter((o) => o.status === 'pending').length;
+  $('summary').innerHTML = `<table>
+    <tr><th>ข้อมูล</th><th style="text-align: right">จำนวน</th></tr>
+    <tr><td>ร้าน</td><td class="n">${n('shops')}</td></tr>
+    <tr><td>ออเดอร์ (ค้างอยู่ ${pending.toLocaleString('th-TH')})</td><td class="n">${n('orders')}</td></tr>
+    <tr><td>เครดิต</td><td class="n">${n('credits')}</td></tr>
+    <tr><td>ค่าใช้จ่ายรายวัน</td><td class="n">${n('expenses')}</td></tr>
+    <tr><td>เคลม</td><td class="n">${n('claims')}</td></tr>
+    <tr><td>ข้อความแชท</td><td class="n">${n('chats')}</td></tr>
+  </table><span class="muted">ดึงจาก bearplus เมื่อ ${new Date(data.exportedAt).toLocaleString('th-TH')}</span>`;
+  $('go').disabled = false;
+};
+
+// ส่งทีละชุด (ไม่ให้เกินเวลา 8 วิ ต่อครั้งของ Supabase) · ผิดพลาด = หยุด (กดเริ่มใหม่ได้ ไม่ซ้ำ)
+async function batches(label, fn, rows, size) {
+  let done = 0;
+  let added = 0;
+  for (let i = 0; i < rows.length; i += size) {
+    $('step').textContent = `${label} ${Math.min(i + size, rows.length).toLocaleString('th-TH')} / ${rows.length.toLocaleString('th-TH')}`;
+    const { data: n, error } = await db.rpc(fn, { p_rows: rows.slice(i, i + size) });
+    if (error) throw new Error(`${label}: ${error.message}`);
+    added += n ?? 0;
+    done = Math.min(i + size, rows.length);
+    $('bar').value = done / rows.length;
+  }
+  log(`✓ ${label}: เพิ่ม/อัปเดต ${added.toLocaleString('th-TH')} จาก ${rows.length.toLocaleString('th-TH')} รายการ`);
+}
+
+// โลโก้ร้าน (base64 จาก bearplus) → bucket avatars · เฉพาะร้านที่ยังไม่มีรูป
+async function uploadLogo(shopId, dataUrl) {
+  const blob = await (await fetch(dataUrl)).blob();
+  const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+  const path = `shop-${shopId}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await db.storage.from('avatars').upload(path, blob, { contentType: blob.type });
+  if (error) throw error;
+  const url = db.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+  const res = await db.from('shops').update({ avatar_url: url }).eq('id', shopId);
+  if (res.error) throw res.error;
+}
+
+$('go').onclick = async () => {
+  if (!data) return;
+  $('go').disabled = true;
+  $('file').disabled = true;
+  const t0 = Date.now();
+  try {
+    $('step').textContent = 'ร้าน…';
+    const { data: map, error } = await db.rpc('import_legacy_shops', { p_rows: data.shops.map(({ key, name }) => ({ key, name })) });
+    if (error) throw new Error('ร้าน: ' + error.message);
+    let logos = 0;
+    for (const s of map) {
+      const logo = data.shops.find((x) => x.key === s.key)?.logo;
+      if (!s.avatar_url && logo) {
+        try { await uploadLogo(s.id, logo); logos++; } catch (e) { log(`โลโก้ร้าน ${s.key}: ${e.message}`, true); }
+      }
+    }
+    log(`✓ ร้าน ${map.length} ร้าน (ใส่โลโก้ใหม่ ${logos} ร้าน)`);
+
+    const orders = $('skipPending').checked ? data.orders.filter((o) => o.status !== 'pending') : data.orders;
+    await batches('ออเดอร์', 'import_legacy_orders', orders, 500);
+    await batches('เครดิต', 'import_legacy_credits', data.credits, 1000);
+    for (const s of map) { // คงเหลือหลังแต่ละรายการ ทีละร้าน
+      $('step').textContent = `คำนวณยอดคงเหลือ ร้าน ${s.key}`;
+      const { error: e } = await db.rpc('import_legacy_rebalance', { p_shop: s.id });
+      if (e) throw new Error('คำนวณยอดคงเหลือ: ' + e.message);
+    }
+    log('✓ คำนวณยอดคงเหลือในประวัติเครดิตครบทุกร้าน');
+    await batches('ค่าใช้จ่ายรายวัน', 'import_legacy_expenses', data.expenses, 500);
+    await batches('เคลม', 'import_legacy_claims', data.claims, 500);
+    await batches('แชท', 'import_legacy_chats', data.chats, 800);
+    if ($('setBalance').checked) await batches('ยอดเครดิตคงเหลือ', 'import_legacy_balances', data.shops.filter((s) => s.credit != null).map((s) => ({ shop: s.key, credit: s.credit })), 100);
+    $('step').textContent = `✅ เสร็จ (${Math.round((Date.now() - t0) / 1000)} วินาที)`;
+    log('✅ นำเข้าเสร็จ');
+  } catch (e) {
+    $('step').textContent = '❌ หยุด: ' + e.message + ' — กดเริ่มนำเข้าอีกครั้งได้ (ของที่เข้าไปแล้วไม่ซ้ำ)';
+    log(e.message, true);
+  }
+  $('go').disabled = false;
+  $('file').disabled = false;
+};
+</script>
+</body>
+</html>
