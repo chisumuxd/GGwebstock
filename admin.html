@@ -458,7 +458,7 @@
       <input id="search" class="field" type="search" placeholder="ค้นหาชื่อ / แท็ก / ข้อความ">
       <div class="filters">
         <div class="tabs">
-          <button data-f="all" aria-pressed="true">ทั้งหมด</button>
+          <button data-f="all" aria-pressed="true">📦 เบิกสินค้า</button>
           <button data-f="unread" aria-pressed="false">ยังไม่อ่าน <span id="unreadCount"></span></button>
           <button data-f="claims" aria-pressed="false">🛠 เคลม<span class="cnt" id="claimRoomCount"></span></button>
         </div>
@@ -869,13 +869,14 @@ async function loadClaimRooms() {
 
 function renderClaimList(q, shopF) {
   const shown = claimRooms.filter((c) => (!shopF || c.shop_id === shopF)
-    && (!q || `#${c.id} ${shopName[c.shop_id] ?? ''} ${c.orders?.order_no ?? ''} ${c.orders?.product_name ?? ''} ${c.app_type ?? ''} ${c.reason}`.toLowerCase().includes(q)));
+    && (!q || `#${c.id} ${shopName[c.shop_id] ?? ''} ${nameOf(c.created_by)} ${c.orders?.order_no ?? ''} ${c.orders?.product_name ?? ''} ${c.app_type ?? ''} ${c.reason}`.toLowerCase().includes(q)));
   const row = (c) => {
     const el = h('div', 'item' + (c.admin_unread ? ' unread' : '') + (current?.key === 'claim:' + c.id ? ' active' : '') + (viewers['claim:' + c.id] ? ' watched' : ''));
     const body = h('div', 'body');
     const top = h('div', 'top');
     const bottom = h('div', 'bottom');
-    top.append(h('span', 'name', `เคลม #${c.id} · ${shopName[c.shop_id] ?? '#' + c.shop_id}`), pill(CLAIM[c.status]), viewerChip('claim:' + c.id), h('time', '', listTime(c.last_at ?? c.created_at)));
+    const title = c.status === 'chat' ? `${nameOf(c.created_by)} · เคลมเก่า` : `เคลม #${c.id}`;
+    top.append(h('span', 'name', `${title} · ${shopName[c.shop_id] ?? '#' + c.shop_id}`), pill(CLAIM[c.status]), viewerChip('claim:' + c.id), h('time', '', listTime(c.last_at ?? c.created_at)));
     bottom.append(h('span', 'preview', c.last_message || `${c.orders?.product_name ?? ''} · ${c.reason}`));
     if (c.admin_unread) bottom.append(h('span', 'badge', c.admin_unread));
     body.append(top, bottom);
@@ -886,9 +887,11 @@ function renderClaimList(q, shopF) {
     return el;
   };
   const pend = shown.filter((c) => c.status === 'pending');
-  const done = shown.filter((c) => c.status !== 'pending');
+  const done = shown.filter((c) => c.status !== 'pending' && c.status !== 'chat');
+  const old = shown.filter((c) => c.status === 'chat'); // ห้องเคลมเก่าจาก bearplus (บัญชี + ร้าน = 1 ห้อง · update-47)
   $('list').replaceChildren(...(pend.length ? [h('div', 'grp-h', `⏳ รอตรวจ (${pend.length})`), ...pend.map(row)] : []),
-    ...(done.length ? [h('div', 'grp-h', '✅ จบแล้ว'), ...done.map(row)] : []));
+    ...(done.length ? [h('div', 'grp-h', '✅ จบแล้ว'), ...done.map(row)] : []),
+    ...(old.length ? [h('div', 'grp-h', '🗂 แชทเคลมเก่า (bearplus)'), ...old.map(row)] : []));
   if (!shown.length) $('list').append(h('p', 'none', claimRooms.length ? 'ไม่พบเคลม' : 'ยังไม่มีเคลม'));
 }
 
@@ -897,7 +900,7 @@ function openClaimRoom(c) {
   const contact = c.created_by ?? c.orders?.ordered_by;
   const base = contacts.find((x) => x.id === contact) ?? { id: contact, name: nameOf(contact), tags: [], created_at: c.created_at };
   openChat({ ...base, id: contact, key: 'claim:' + c.id, shop_id: c.shop_id, claim: c, seen_at: c.shop_seen_at, unread: c.admin_unread,
-    cleared_at: null, name: `🛠 เคลม #${c.id} · ${shopName[c.shop_id] ?? ''}`, person: base.name ?? nameOf(contact) });
+    cleared_at: null, name: `${c.status === 'chat' ? '🗂 เคลมเก่า' : `🛠 เคลม #${c.id}`} · ${shopName[c.shop_id] ?? ''}`, person: base.name ?? nameOf(contact) });
 }
 function setFilter(f) {
   filter = f;
@@ -915,6 +918,7 @@ function renderClaimPin() {
 
 // การ์ดเคลม: สิ่งที่ร้านขอ · ร้าน · สถานะ · คนเคลม+แอป+ออเดอร์ · ปัญหา (คัดลอกได้) · รูป · ข้อมูลเดิม · ผลเคลม / ปุ่มตัดสิน
 function claimCardEl(c) {
+  if (c.status === 'chat') return h('div', 'cl-card', '🗂 แชทเคลมเก่าจาก bearplus — เคลมใหม่จะแยกห้องตามเคลม');
   const o = c.orders ?? {};
   const el = h('div', 'cl-card' + (c.status === 'pending' ? ' wait' : c.status === 'rejected' ? ' bad' : ''));
   const head = h('div', 'cl-head');
@@ -1524,7 +1528,7 @@ const when = (iso) => new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium
 const title = (o) => `${o.product_name}${o.option_name ? ` (${o.option_name})` : ''} x${o.qty}`;
 const TITLES = { orders: '🧾 ออเดอร์', topups: '💰 แจ้งเติมเครดิต', claims: '🛠 เคลมสินค้า', shops: '🏪 ร้านค้า', users: '👤 ผู้ใช้', promos: '✨ โปรโมชั่น', services: '🛡️ บริการแอดมิน' };
 const ORDER = { pending: '🆕 ออเดอร์ใหม่', waiting: '⏳ รอส่งลูกค้า', done: '✅ ส่งมอบแล้ว', cancelled: '❌ ยกเลิก' };
-const CLAIM = { pending: ['รอตรวจสอบ', 'pending'], refunded: ['คืนเครดิตแล้ว', ''], replaced: ['เปลี่ยนสินค้าแล้ว', ''], rejected: ['ไม่อนุมัติ', 'bad'] };
+const CLAIM = { pending: ['รอตรวจสอบ', 'pending'], refunded: ['คืนเครดิตแล้ว', ''], replaced: ['เปลี่ยนสินค้าแล้ว', ''], rejected: ['ไม่อนุมัติ', 'bad'], chat: ['แชทเก่า', ''] };
 const TOPUP = { pending: ['รอตรวจสอบ', 'pending'], approved: ['อนุมัติแล้ว', ''], rejected: ['ไม่อนุมัติ', 'bad'] };
 const KIND = { topup: 'เติม', order: 'ซื้อ', refund: 'คืน', adjust: 'ปรับ', service: 'บริการ' };
 
@@ -1996,7 +2000,7 @@ const openClaims = new Set(); // เคลมที่ตัดสินแล�
 async function loadClaims() {
   const st = $('claimFilter').value;
   let qb = db.from('claims').select('*, orders(order_no, product_name, option_name, qty, total, customer, delivery)')
-    .order('created_at', { ascending: st === 'pending' }).limit(300);
+    .neq('status', 'chat').order('created_at', { ascending: st === 'pending' }).limit(300); // chat = ห้องแชทเคลมเก่า ไม่ใช่เคลม
   if (st) qb = qb.eq('status', st);
   claimRows = (await q(qb)) ?? [];
   claimUrls = await signed(claimRows.map((c) => c.image_path));

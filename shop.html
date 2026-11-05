@@ -611,7 +611,7 @@
   <section id="chatPop" hidden aria-label="แชทกับแอดมิน">
     <div id="popHead"><b>💬 แชทกับแอดมิน</b><button id="popClose" type="button" aria-label="ปิดแชท"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
       <div id="chatBox">
-        <aside id="threads"><div id="tTabs" class="t-tabs"><button type="button" data-t="chat" aria-pressed="true">💬 แชท</button><button type="button" data-t="claims" aria-pressed="false">🛠 ห้องเคลม<i id="nClaimRooms"></i></button></div><div id="tList"></div></aside>
+        <aside id="threads"><div id="tTabs" class="t-tabs"><button type="button" data-t="chat" aria-pressed="true">📦 เบิกสินค้า</button><button type="button" data-t="claims" aria-pressed="false">🛠 ห้องเคลม<i id="nClaimRooms"></i></button></div><div id="tList"></div></aside>
         <div id="conv">
           <div id="convHead"><button id="convBack" type="button" aria-label="กลับไปรายการแชท">‹</button><span id="convName"></span>
             <button id="convSearchBtn" type="button" aria-label="ค้นหาในแชท" title="ค้นหาข้อความ / เลขออเดอร์"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button></div>
@@ -721,7 +721,7 @@ const when = (iso) => new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium
 const title = (o) => `${o.product_name}${o.option_name ? ` (${o.option_name})` : ''} x${o.qty}`;
 const ORDER = { pending: ['🕐 รอดำเนินการ', 'st-pending'], waiting: ['⏳ รอส่งมอบ', 'st-waiting'], done: ['✅ ส่งมอบแล้ว', 'st-done'], cancelled: ['✖ ยกเลิก', 'st-cancel'] };
 const WISH = { replace: '🔁 เปลี่ยนห้องใหม่', refund: '↩ ขอคืนเครดิต' }; // สิ่งที่ร้านขอตอนแจ้งเคลม
-const CLAIM = { pending: ['รอตรวจสอบ', 'cl-pending'], refunded: ['คืนเครดิตแล้ว', 'cl-refunded'], replaced: ['เปลี่ยนสินค้าแล้ว', 'cl-replaced'], rejected: ['ไม่อนุมัติ', 'cl-rejected'] };
+const CLAIM = { pending: ['รอตรวจสอบ', 'cl-pending'], refunded: ['คืนเครดิตแล้ว', 'cl-refunded'], replaced: ['เปลี่ยนสินค้าแล้ว', 'cl-replaced'], rejected: ['ไม่อนุมัติ', 'cl-rejected'], chat: ['แชทเก่า', ''] };
 const TOPUP = { pending: ['รอตรวจสอบ', 'pending'], approved: ['อนุมัติแล้ว', ''], rejected: ['ไม่อนุมัติ', 'bad'] };
 const KIND = { topup: 'เติมเครดิต', order: 'ซื้อสินค้า', refund: 'คืนเครดิต', adjust: 'ปรับโดยแอดมิน', service: 'บริการแอดมิน' };
 const ORDER_KIND = { new: '🆕 เบิกใหม่', renew: '🔁 ต่ออายุ' };
@@ -1073,7 +1073,7 @@ async function refresh() {
   const [s, orders, claims, topups, logs] = await Promise.all([
     q(db.from('shops').select('id, credit')), // ทุกร้านที่ดูแล (ใช้ตอนเลือกร้านในหน้าต่างซื้อ)
     q(db.from('orders').select('*, products(image_url)').eq('shop_id', id).order('created_at', { ascending: false }).limit(200)),
-    q(db.from('claims').select('*').eq('shop_id', id).order('created_at', { ascending: false }).limit(200)),
+    q(db.from('claims').select('*').eq('shop_id', id).neq('status', 'chat').order('created_at', { ascending: false }).limit(200)), // chat = ห้องแชทเคลมเก่า
     q(db.from('topups').select().eq('shop_id', id).order('created_at', { ascending: false }).limit(50)),
     q(db.from('credit_logs').select().eq('shop_id', id).order('created_at', { ascending: false }).limit(200)),
   ]);
@@ -1658,16 +1658,19 @@ function renderClaimThreads() {
   const row = (c) => {
     const el = h('div', 'thread' + (claimOpen?.id === c.id ? ' active' : ''));
     const body = h('div', 't-body');
-    body.append(h('b', '', `🛠 เคลม #${c.id}${c.orders?.product_name ? ' · ' + c.orders.product_name : ''}`), h('small', '', c.last_message || c.reason));
+    body.append(h('b', '', c.status === 'chat' ? `🗂 เคลมเก่า · ${c.created_by === me ? 'ของฉัน' : shortName(c.created_by)}`
+      : `🛠 เคลม #${c.id}${c.orders?.product_name ? ' · ' + c.orders.product_name : ''}`), h('small', '', c.last_message || c.reason));
     el.append(body, pill(CLAIM[c.status]));
     if (c.shop_unread > 0) el.append(h('span', 'new'));
     el.onclick = () => openClaimThread(c);
     return el;
   };
   const pend = claimThreads.filter((c) => c.status === 'pending');
-  const done = claimThreads.filter((c) => c.status !== 'pending');
+  const done = claimThreads.filter((c) => c.status !== 'pending' && c.status !== 'chat');
+  const old = claimThreads.filter((c) => c.status === 'chat'); // แชทเคลมเก่าจาก bearplus (update-47)
   $('tList').replaceChildren(...(pend.length ? [h('div', 't-grp', `⏳ รอตรวจ (${pend.length})`), ...pend.map(row)] : []),
-    ...(done.length ? [h('div', 't-grp', '✅ จบแล้ว'), ...done.map(row)] : []));
+    ...(done.length ? [h('div', 't-grp', '✅ จบแล้ว'), ...done.map(row)] : []),
+    ...(old.length ? [h('div', 't-grp', '🗂 แชทเคลมเก่า'), ...old.map(row)] : []));
   if (!claimThreads.length) $('tList').append(h('p', 'empty', 'ยังไม่มีเคลม — แจ้งเคลมได้ที่ 📜 ประวัติการซื้อ'));
 }
 $('tTabs').onclick = (e) => {
@@ -1682,7 +1685,7 @@ async function openClaimThread(c) {
   claimOpen = c;
   thread = c.created_by ?? me; // ห้องเคลมผูกกับคนแจ้งเคลม · คนในร้านพิมพ์ได้ทุกคน
   $('chatBox').classList.add('open');
-  $('convName').textContent = `🛠 เคลม #${c.id} · 🏪 ${shop.name}`;
+  $('convName').textContent = `${c.status === 'chat' ? '🗂 เคลมเก่า' : `🛠 เคลม #${c.id}`} · 🏪 ${shop.name}`;
   $('chatText').placeholder = 'พิมพ์ข้อความในห้องเคลมนี้';
   renderThreads();
   const { data: rows } = await db.from('messages').select().eq('claim_id', c.id).order('created_at', { ascending: false }).limit(200);
@@ -1723,6 +1726,7 @@ function renderClaimPin() {
 
 // การ์ดเคลม: สิ่งที่ขอ · สถานะ · คนเคลม+แอป+ออเดอร์ · ปัญหา (คัดลอกได้) · รูป · ผลเคลม
 function claimCardEl(c) {
+  if (c.status === 'chat') return h('div', 'cl-card', '🗂 แชทเคลมเก่าจาก bearplus — แจ้งเคลมใหม่ได้ที่ 📜 ประวัติการซื้อ');
   const o = c.orders ?? {};
   const el = h('div', 'cl-card' + (c.status === 'pending' ? ' wait' : c.status === 'rejected' ? ' bad' : ''));
   const head = h('div', 'cl-head');
