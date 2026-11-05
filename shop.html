@@ -1745,7 +1745,7 @@ function claimCardEl(c) {
   const who = h('div', 'cl-who');
   who.append('👤 คนเคลม: ', h('b', '', c.created_by ? shortName(c.created_by) : '-'));
   if (c.app_type) who.append(' · 📱 แอป: ', h('b', '', c.app_type));
-  who.append(' · 🧾 ', h('b', '', o.order_no ?? '#' + c.order_id), o.product_name ? ` ${o.product_name}${o.option_name ? ` (${o.option_name})` : ''}` : '');
+  if (c.order_id) who.append(' · 🧾 ', h('b', '', o.order_no ?? '#' + c.order_id), o.product_name ? ` ${o.product_name}${o.option_name ? ` (${o.option_name})` : ''}` : ''); // เคลมจาก bearplus ไม่มีออเดอร์
   const note = h('div', 'cl-note');
   const nh = h('small', '', '📝 ปัญหา / หมายเหตุ');
   nh.append(chatCopy(c.reason));

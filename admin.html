@@ -313,6 +313,7 @@
   .grp-h { padding: 10px 16px 2px; font-size: 11px; font-weight: 700; color: var(--muted); }
   .grp-h.fold { cursor: pointer; padding-bottom: 10px; }
   .grp-h.fold:hover { color: var(--txt); }
+  .grp-h.back { font-size: 14px; color: var(--txt); padding: 12px 16px; border-bottom: 1px solid var(--line); }
   .cl-pic .spic { width: 44px; height: 44px; border-radius: 12px; font-size: 16px; }
   .cl-card { width: 100%; max-width: 640px; margin: 0 auto 8px; border: 1px solid var(--ok-border); background: var(--bg); border-radius: 16px; padding: 12px;
     display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 24px rgba(6, 199, 85, .1); }
@@ -854,6 +855,7 @@ function renderViewers() {
 const CLAIM_SEL = '*, orders(order_no, product_name, option_name, qty, total, customer, delivery, ordered_by)';
 let claimDoneTotal = 0;  // เคลมที่จบแล้วทั้งหมด (โหลดมาแค่ 300 ล่าสุด)
 let claimDoneOpen = false; // กลุ่ม ✅ จบแล้ว กางอยู่
+let claimPerson = null;    // แท็บ ⏳ รอตรวจ: คนที่กดดูเคลมทีละใบอยู่ (null = รายชื่อคน)
 async function loadClaimRooms() {
   // รอตรวจ + แชทเคลมเก่า = โหลดครบเสมอ · จบแล้ว = 300 ล่าสุด (มีเป็นพันจาก bearplus — ไม่ให้ดันห้องอื่นตกรายการ)
   const by = (qb) => qb.order('last_at', { ascending: false, nullsFirst: false });
@@ -888,7 +890,7 @@ function renderClaimList(q, shopF) {
     const body = h('div', 'body');
     const top = h('div', 'top');
     const bottom = h('div', 'bottom');
-    const title = c.status === 'chat' ? `${nameOf(c.created_by)} · เคลมเก่า` : `เคลม #${c.id}`;
+    const title = c.status === 'chat' ? `${nameOf(c.created_by)} · เคลมเก่า` : `เคลม #${c.id}${c.app_type ? ' · ' + c.app_type : ''}`;
     top.append(h('span', 'name', `${title} · ${shopName[c.shop_id] ?? '#' + c.shop_id}`), pill(CLAIM[c.status]), viewerChip('claim:' + c.id), h('time', '', listTime(c.last_at ?? c.created_at)));
     bottom.append(h('span', 'preview', c.last_message || `${c.orders?.product_name ?? ''} · ${c.reason}`));
     if (c.admin_unread) bottom.append(h('span', 'badge', c.admin_unread));
@@ -900,8 +902,29 @@ function renderClaimList(q, shopF) {
     return el;
   };
   const pend = shown.filter((c) => c.status === 'pending');
-  if (filter === 'pending') { // แท็บ ⏳ รอตรวจ = เฉพาะเคลมที่ยังไม่ตัดสิน
-    $('list').replaceChildren(...pend.map(row));
+  if (filter === 'pending') { // แท็บ ⏳ รอตรวจ: รวมตามคนเคลม (แบบ bearplus) · กดคน = เคลมทีละใบของคนนั้น · มีใบเดียว = เปิดห้องเลย
+    const groups = new Map();
+    for (const c of pend) (groups.get(c.created_by) ?? groups.set(c.created_by, []).get(c.created_by)).push(c);
+    const mine = claimPerson !== null && groups.get(claimPerson);
+    if (mine) {
+      const back = h('div', 'grp-h fold back', `← ${nameOf(claimPerson)} · เคลม ${mine.length} ห้อง`);
+      back.onclick = () => { claimPerson = null; renderList(); };
+      return void $('list').replaceChildren(back, ...mine.map(row));
+    }
+    claimPerson = null;
+    $('list').replaceChildren(...[...groups].map(([uid, list]) => { // pend เรียงล่าสุดก่อนอยู่แล้ว → คนที่เคลมล่าสุดอยู่บน
+      const el = h('div', 'item' + (list.some((c) => c.admin_unread) ? ' unread' : '') + (list.some((c) => current?.key === 'claim:' + c.id) ? ' active' : ''));
+      const body = h('div', 'body');
+      const top = h('div', 'top');
+      const bottom = h('div', 'bottom');
+      top.append(h('span', 'name', nameOf(uid)), h('time', '', listTime(list[0].last_at ?? list[0].created_at)));
+      bottom.append(pill([`🧾 เคลม ${list.length} ห้อง`, 'pending']), pill([`ค้าง ${list.length}`, 'bad']),
+        h('span', 'preview', [...new Set(list.map((c) => shopName[c.shop_id] ?? '#' + c.shop_id))].join(', ')));
+      body.append(top, bottom);
+      el.append(avatar({ id: uid ?? '?', name: nameOf(uid) }), body);
+      el.onclick = () => { if (list.length === 1) return openClaimRoom(list[0]); claimPerson = uid; renderList(); };
+      return el;
+    }));
     if (!pend.length) $('list').append(h('p', 'none', q || shopF ? 'ไม่พบเคลมรอตรวจ' : 'ไม่มีเคลมรอตรวจ 🎉'));
     return;
   }
@@ -927,6 +950,7 @@ function openClaimRoom(c) {
 }
 function setFilter(f) {
   filter = f;
+  claimPerson = null; // กดแท็บ = กลับรายชื่อคน
   for (const x of document.querySelectorAll('.tabs button')) x.setAttribute('aria-pressed', x.dataset.f === f);
   renderList();
 }
@@ -951,7 +975,7 @@ function claimCardEl(c) {
   const who = h('div', 'cl-who');
   who.append('👤 คนเคลม: ', h('b', '', c.created_by ? nameOf(c.created_by) : '-'));
   if (c.app_type) who.append(' · 📱 แอป: ', h('b', '', c.app_type));
-  who.append(' · 🧾 ', h('b', '', o.order_no ?? '#' + c.order_id), o.product_name ? ' ' + title(o) : '');
+  if (c.order_id) who.append(' · 🧾 ', h('b', '', o.order_no ?? '#' + c.order_id), o.product_name ? ' ' + title(o) : ''); // เคลมจาก bearplus ไม่มีออเดอร์
   const note = h('div', 'cl-note');
   const nh = h('small', '', '📝 ปัญหา / หมายเหตุจากร้าน');
   nh.append(copyButton(c.reason));
@@ -2065,7 +2089,7 @@ function renderClaims() {
     end.append(pill(CLAIM[c.status]));
     if (done) end.append(h('span', 'caret', '▼'));
     head.append(line(tags, end));
-    head.append(h('span', 'muted', `เคลม #${c.id} · ออเดอร์ ${c.orders?.order_no ?? '#' + c.order_id} · ${when(c.created_at)}${done ? ' · ' + title(o) : ''}`));
+    head.append(h('span', 'muted', `เคลม #${c.id}${c.order_id ? ` · ออเดอร์ ${c.orders?.order_no ?? '#' + c.order_id}` : ''} · ${when(c.created_at)}${done && c.order_id ? ' · ' + title(o) : ''}`));
     body.append(claimMeta(c, false));
     body.append(button('💬 เปิดห้องเคลม', 'gray', () => { setView('chat'); setFilter(c.status === 'pending' ? 'pending' : 'claims'); openClaimRoom(claimRooms.find((x) => x.id === c.id) ?? c); }));
     body.append(line(h('b', '', title(o)), h('span', 'muted', `ยอด ${num(o.total)} เครดิต${o.customer ? ' · ลูกค้า: ' + o.customer : ''}`)));
