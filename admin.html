@@ -84,6 +84,8 @@
   .viewers { flex: none; display: inline-flex; align-items: center; gap: 3px; max-width: 120px; background: var(--txt); color: var(--bg); border-radius: 999px;
     padding: 1px 8px; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .item.watched { box-shadow: inset 3px 0 var(--txt); }
+  #online { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: -6px; }
+  #online.bad { color: var(--warn); white-space: normal; }
   .shop-chip { background: var(--gtint); color: var(--gtext); border-radius: 6px; padding: 0 6px; font-size: 11px; font-weight: 600; white-space: nowrap; }
   .shop-chip img { width: 14px; height: 14px; border-radius: 4px; object-fit: cover; vertical-align: -2px; margin-right: 4px; }
   /* รูปร้าน (การ์ดร้านค้า) — กดเพื่อเปลี่ยน */
@@ -452,6 +454,7 @@
     <div class="side-top">
       <div class="account"><span class="acc-brand"><img src="logo.png" alt="" onerror="this.remove()"><span>GGplus Stock-chat</span></span>
         <button id="newChat" class="btn gray" type="button" title="เริ่มคุยกับร้านได้เลย ไม่ต้องรอร้านทัก">✏️ แชทใหม่</button></div>
+      <div id="online">👁 กำลังเชื่อมต่อสถานะแอดมิน…</div>
       <input id="search" class="field" type="search" placeholder="ค้นหาชื่อ / แท็ก / ข้อความ">
       <div class="filters">
         <div class="tabs">
@@ -801,7 +804,13 @@ function joinPresence() {
   presenceCh = db.channel('admin-presence', { config: { private: true, presence: { key: me } } })
     .on('presence', { event: 'sync' }, () => {
       viewers = {};
-      for (const [key, metas] of Object.entries(presenceCh.presenceState())) {
+      const state = presenceCh.presenceState();
+      // แอดมินที่เปิดหน้านี้อยู่ตอนนี้ (รวมตัวเอง) — เห็นบรรทัดนี้ = สถานะ 👁 ทำงาน
+      const online = [...new Map(Object.entries(state).map(([key, metas]) => [key.split(':')[0], metas[0].name])).values()];
+      $('online').className = '';
+      $('online').textContent = `🟢 แอดมินออนไลน์ ${online.length} คน: ${online.join(', ')}`;
+      $('online').title = `เปิดหน้าแอดมินอยู่ ${Object.keys(state).length} แท็บ`;
+      for (const [key, metas] of Object.entries(state)) {
         if (key === me) continue;
         const uid = key.split(':')[0];
         for (const room of new Set(metas.map((m) => m.room).filter(Boolean))) {
@@ -814,9 +823,10 @@ function joinPresence() {
     })
     .subscribe((st, err) => {
       if (st === 'SUBSCRIBED') trackRoom();
-      else if (st === 'CHANNEL_ERROR') { // ส่วนใหญ่ = ยังไม่ได้รัน update-44
+      else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { // ส่วนใหญ่ = ยังไม่ได้รัน update-44
         console.warn('admin-presence:', err?.message ?? st);
-        toast('สถานะ 👁 ใครเปิดแชทอยู่ ใช้ไม่ได้ — รัน update-44.sql แล้วหรือยัง');
+        $('online').className = 'bad';
+        $('online').textContent = `⚠️ สถานะ 👁 ใช้ไม่ได้ (${err?.message ?? st}) — รัน update-44.sql แล้วหรือยัง`;
       }
     });
 }
