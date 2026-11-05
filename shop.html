@@ -330,6 +330,7 @@
   .t-tabs i { font-style: normal; background: var(--warn); color: #241400; border-radius: 999px; padding: 0 6px; font-size: 11px; margin-left: 4px; }
   .t-tabs i:empty { display: none; }
   .t-grp { padding: 8px 12px 2px; font-size: 11px; color: var(--muted); font-weight: 700; }
+  .t-grp.fold { cursor: pointer; padding-bottom: 8px; }
   .thread .pill { font-size: 10px; padding: 1px 7px; flex: none; }
   /* การ์ดเคลมหัวห้องเคลม */
   .cl-card { width: 100%; max-width: 620px; align-self: center; border: 1px solid rgba(var(--ac-rgb), .45); background: var(--card); border-radius: 16px; padding: 12px;
@@ -1528,6 +1529,7 @@ let adminUnread = null;   // ข้อความฝั่งร้านใน
 let chatReady = false;
 let threadTab = 'chat';      // รายการในแชท: 💬 แชท / 🛠 ห้องเคลม
 let claimThreads = [];       // เคลมของร้านที่เลือก (1 เคลม = 1 ห้อง · update-43)
+let claimDoneOpen = false;   // กลุ่ม ✅ จบแล้ว กางอยู่
 let claimOpen = null;        // ห้องเคลมที่เปิดอยู่ (null = ห้องคุยปกติ)
 let hasClaimRooms = false;   // รัน update-43 แล้ว → ห้องปกติไม่แสดงข้อความห้องเคลม
 let claimPinEl = null;       // การ์ดเคลมหัวห้อง
@@ -1637,11 +1639,16 @@ async function loadThreads() {
 // ---------- 🛠 ห้องเคลม: 1 เคลม = 1 ห้อง · รอตรวจอยู่บน · จบแล้วอยู่ล่าง ----------
 async function loadClaimThreads() {
   const forShop = shop.id;
-  const { data, error } = await db.from('claims').select('*, orders(order_no, product_name, option_name, qty, total)').eq('shop_id', forShop)
-    .order('last_at', { ascending: false, nullsFirst: false }).limit(100);
-  if (error || shop.id !== forShop) return; // ยังไม่ได้รัน update-43 / เปลี่ยนร้านระหว่างโหลด
+  // รอตรวจ + แชทเคลมเก่า = ครบเสมอ · จบแล้ว = 100 ล่าสุด (ไม่ให้เคลมเก่าจาก bearplus ดันห้องอื่นตกรายการ)
+  const by = (qb) => qb.eq('shop_id', forShop).order('last_at', { ascending: false, nullsFirst: false });
+  const sel = '*, orders(order_no, product_name, option_name, qty, total)';
+  const [open, done] = await Promise.all([
+    by(db.from('claims').select(sel).in('status', ['pending', 'chat'])).limit(500),
+    by(db.from('claims').select(sel).not('status', 'in', '(pending,chat)')).limit(100),
+  ]);
+  if (open.error || done.error || shop.id !== forShop) return; // ยังไม่ได้รัน update-43 / เปลี่ยนร้านระหว่างโหลด
   hasClaimRooms = true;
-  claimThreads = data;
+  claimThreads = [...open.data, ...done.data];
   $('nClaimRooms').textContent = claimThreads.filter((c) => c.shop_unread > 0).length || '';
   const fresh = claimOpen && claimThreads.find((c) => c.id === claimOpen.id);
   if (fresh) { // ห้องที่เปิดอยู่: ผลเคลมเปลี่ยน → วาดการ์ดใหม่
@@ -1665,12 +1672,16 @@ function renderClaimThreads() {
     el.onclick = () => openClaimThread(c);
     return el;
   };
+  // ⏳ รอตรวจ → 🗂 แชทเคลมเก่า → ✅ จบแล้ว (พับไว้ กดเปิด)
   const pend = claimThreads.filter((c) => c.status === 'pending');
-  const done = claimThreads.filter((c) => c.status !== 'pending' && c.status !== 'chat');
   const old = claimThreads.filter((c) => c.status === 'chat'); // แชทเคลมเก่าจาก bearplus (update-47)
+  const done = claimThreads.filter((c) => c.status !== 'pending' && c.status !== 'chat');
+  const openDone = claimDoneOpen || done.some((c) => c.id === claimOpen?.id); // เปิดห้องที่จบแล้วอยู่ = กางให้เห็น
+  const doneH = h('div', 't-grp fold', `✅ จบแล้ว (${done.length}) ${openDone ? '▾' : '▸ กดเพื่อเปิด'}`);
+  doneH.onclick = () => { claimDoneOpen = !openDone; renderThreads(); };
   $('tList').replaceChildren(...(pend.length ? [h('div', 't-grp', `⏳ รอตรวจ (${pend.length})`), ...pend.map(row)] : []),
-    ...(done.length ? [h('div', 't-grp', '✅ จบแล้ว'), ...done.map(row)] : []),
-    ...(old.length ? [h('div', 't-grp', '🗂 แชทเคลมเก่า'), ...old.map(row)] : []));
+    ...(old.length ? [h('div', 't-grp', '🗂 แชทเคลมเก่า'), ...old.map(row)] : []),
+    ...(done.length ? [doneH, ...(openDone ? done.map(row) : [])] : []));
   if (!claimThreads.length) $('tList').append(h('p', 'empty', 'ยังไม่มีเคลม — แจ้งเคลมได้ที่ 📜 ประวัติการซื้อ'));
 }
 $('tTabs').onclick = (e) => {

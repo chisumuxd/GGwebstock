@@ -60,9 +60,10 @@
   .acc-logo { width: 34px; height: 34px; border-radius: 9px; object-fit: contain; flex: none; } /* โลโก้ GG-PLUS หน้าล็อกอิน (favicon.png สี่เหลี่ยมจัตุรัส) */
   #search { background: var(--hover); border-color: transparent; }
   /* แถวตัวกรอง: [ทั้งหมด ยังไม่อ่าน] ซ้าย · [ร้าน ▾ แท็ก ▾] ขวา — บรรทัดเดียวเสมอ ชื่อร้านยาวตัด … แทนการตกบรรทัด */
-  .filters { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); }
-  .tabs { display: flex; gap: 14px; flex: none; }
-  .f-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  /* แถวแท็บเต็มบรรทัด · ตัวเลือกร้าน + แท็กอยู่บรรทัดล่าง ชิดขวา (แท็บ 4 อันไม่พอที่วางในรายการแชท 340px / มือถือ) */
+  .filters { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0 8px; border-bottom: 1px solid var(--line); }
+  .tabs { display: flex; gap: 14px; flex: 1 0 100%; border-bottom: 1px solid var(--line); }
+  .f-right { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 5px 0; }
   /* ตัวกรองร้าน: ปุ่ม → รายการร้านพร้อมรูป (แบบเดียวกับหน้า sales) */
   .shop-pick { position: relative; display: flex; min-width: 0; }
   #shopBtn { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); max-width: 140px; min-width: 0; padding: 2px 6px; border-radius: 6px; }
@@ -310,6 +311,8 @@
   .tabs .cnt { background: var(--orange); color: #fff; border-radius: 999px; padding: 0 6px; font-size: 11px; margin-left: 3px; }
   .tabs .cnt:empty { display: none; }
   .grp-h { padding: 10px 16px 2px; font-size: 11px; font-weight: 700; color: var(--muted); }
+  .grp-h.fold { cursor: pointer; padding-bottom: 10px; }
+  .grp-h.fold:hover { color: var(--txt); }
   .cl-pic .spic { width: 44px; height: 44px; border-radius: 12px; font-size: 16px; }
   .cl-card { width: 100%; max-width: 640px; margin: 0 auto 8px; border: 1px solid var(--ok-border); background: var(--bg); border-radius: 16px; padding: 12px;
     display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 24px rgba(6, 199, 85, .1); }
@@ -460,6 +463,7 @@
         <div class="tabs">
           <button data-f="all" aria-pressed="true">📦 เบิกสินค้า</button>
           <button data-f="unread" aria-pressed="false">ยังไม่อ่าน <span id="unreadCount"></span></button>
+          <button data-f="pending" aria-pressed="false">⏳ รอตรวจ<span class="cnt" id="pendRoomCount"></span></button>
           <button data-f="claims" aria-pressed="false">🛠 เคลม<span class="cnt" id="claimRoomCount"></span></button>
         </div>
         <span class="f-right"><span class="shop-pick"><button id="shopBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="กรองตามร้าน"></button><div id="shopList" class="shop-list" role="listbox" hidden></div></span><select id="shopFilter" aria-label="กรองตามร้าน" hidden><option value="">ทุกร้าน</option></select><select id="tagFilter" aria-label="กรองตามแท็ก"></select></span>
@@ -772,7 +776,7 @@ function renderList() {
   const q = $('search').value.trim().toLowerCase();
   const tag = $('tagFilter').value;
   const shopF = Number($('shopFilter').value);
-  if (filter === 'claims') return renderClaimList(q, shopF);
+  if (filter === 'claims' || filter === 'pending') return renderClaimList(q, shopF);
   const shown = contacts.filter((c) => (filter === 'all' || c.unread)
     && (!tag || c.tags.includes(tag))
     && (!shopF || c.shop_id === shopF)
@@ -848,13 +852,22 @@ function renderViewers() {
 
 // ---------- 🛠 ห้องเคลม: 1 เคลม = 1 ห้อง · รอตรวจอยู่บน · จบแล้วอยู่ล่าง ----------
 const CLAIM_SEL = '*, orders(order_no, product_name, option_name, qty, total, customer, delivery, ordered_by)';
+let claimDoneTotal = 0;  // เคลมที่จบแล้วทั้งหมด (โหลดมาแค่ 300 ล่าสุด)
+let claimDoneOpen = false; // กลุ่ม ✅ จบแล้ว กางอยู่
 async function loadClaimRooms() {
-  const { data, error } = await db.from('claims').select(CLAIM_SEL).order('last_at', { ascending: false, nullsFirst: false }).limit(300);
-  if (error) return; // ยังไม่ได้รัน update-43
+  // รอตรวจ + แชทเคลมเก่า = โหลดครบเสมอ · จบแล้ว = 300 ล่าสุด (มีเป็นพันจาก bearplus — ไม่ให้ดันห้องอื่นตกรายการ)
+  const by = (qb) => qb.order('last_at', { ascending: false, nullsFirst: false });
+  const [open, done] = await Promise.all([
+    by(db.from('claims').select(CLAIM_SEL).in('status', ['pending', 'chat'])).limit(1000),
+    by(db.from('claims').select(CLAIM_SEL, { count: 'exact' }).not('status', 'in', '(pending,chat)')).limit(300),
+  ]);
+  if (open.error || done.error) return; // ยังไม่ได้รัน update-43
   hasClaimRooms = true;
-  claimRooms = data;
+  claimRooms = [...open.data, ...done.data];
+  claimDoneTotal = done.count ?? done.data.length;
   claimUnread = claimRooms.filter((c) => c.admin_unread > 0).length;
-  $('claimRoomCount').textContent = claimUnread || '';
+  $('pendRoomCount').textContent = claimRooms.filter((c) => c.status === 'pending').length || ''; // ⏳ = งานที่ต้องตรวจ
+  $('claimRoomCount').textContent = claimRooms.filter((c) => c.status !== 'pending' && c.admin_unread > 0).length || '';
   $('n-chat').textContent = unreadChats + claimUnread || '';
   const fresh = current?.claim && claimRooms.find((c) => c.id === current.claim.id);
   if (fresh) { // ห้องที่เปิดอยู่: ผลเคลมเปลี่ยน → วาดการ์ดใหม่ (ข้อความใหม่เฉยๆ ไม่วาด — กันช่องที่แอดมินกำลังพิมพ์หาย)
@@ -864,7 +877,7 @@ async function loadClaimRooms() {
     renderSeen();
     if (changed) renderClaimPin();
   }
-  if (filter === 'claims') renderList();
+  if (filter === 'claims' || filter === 'pending') renderList();
 }
 
 function renderClaimList(q, shopF) {
@@ -887,11 +900,21 @@ function renderClaimList(q, shopF) {
     return el;
   };
   const pend = shown.filter((c) => c.status === 'pending');
-  const done = shown.filter((c) => c.status !== 'pending' && c.status !== 'chat');
+  if (filter === 'pending') { // แท็บ ⏳ รอตรวจ = เฉพาะเคลมที่ยังไม่ตัดสิน
+    $('list').replaceChildren(...pend.map(row));
+    if (!pend.length) $('list').append(h('p', 'none', q || shopF ? 'ไม่พบเคลมรอตรวจ' : 'ไม่มีเคลมรอตรวจ 🎉'));
+    return;
+  }
+  // แท็บ 🛠 เคลม: 🗂 แชทเคลมเก่า → ✅ จบแล้ว (พับไว้ · กดเปิด · ค้นหา/เลือกร้านอยู่ = กางเอง)
   const old = shown.filter((c) => c.status === 'chat'); // ห้องเคลมเก่าจาก bearplus (บัญชี + ร้าน = 1 ห้อง · update-47)
-  $('list').replaceChildren(...(pend.length ? [h('div', 'grp-h', `⏳ รอตรวจ (${pend.length})`), ...pend.map(row)] : []),
-    ...(done.length ? [h('div', 'grp-h', '✅ จบแล้ว'), ...done.map(row)] : []),
-    ...(old.length ? [h('div', 'grp-h', '🗂 แชทเคลมเก่า (bearplus)'), ...old.map(row)] : []));
+  const done = shown.filter((c) => c.status !== 'pending' && c.status !== 'chat');
+  const filtered = q || shopF;
+  const openDone = claimDoneOpen || filtered || done.some((c) => current?.key === 'claim:' + c.id); // เปิดห้องที่จบแล้วอยู่ = กางให้เห็น
+  const doneH = h('div', 'grp-h fold', `✅ จบแล้ว (${num(filtered ? done.length : claimDoneTotal)}) ${openDone ? '▾' : '▸ กดเพื่อเปิด'}`);
+  doneH.onclick = () => { claimDoneOpen = !openDone; renderList(); };
+  $('list').replaceChildren(...(old.length ? [h('div', 'grp-h', `🗂 แชทเคลมเก่า (bearplus) (${old.length})`), ...old.map(row)] : []),
+    ...(done.length ? [doneH, ...(openDone ? done.map(row) : [])] : []));
+  if (openDone && !filtered && claimDoneTotal > done.length) $('list').append(h('p', 'none', `แสดง ${done.length} รายการล่าสุด — ดูทั้งหมดที่เมนู 🛠 เคลม`));
   if (!shown.length) $('list').append(h('p', 'none', claimRooms.length ? 'ไม่พบเคลม' : 'ยังไม่มีเคลม'));
 }
 
@@ -2044,7 +2067,7 @@ function renderClaims() {
     head.append(line(tags, end));
     head.append(h('span', 'muted', `เคลม #${c.id} · ออเดอร์ ${c.orders?.order_no ?? '#' + c.order_id} · ${when(c.created_at)}${done ? ' · ' + title(o) : ''}`));
     body.append(claimMeta(c, false));
-    body.append(button('💬 เปิดห้องเคลม', 'gray', () => { setView('chat'); setFilter('claims'); openClaimRoom(claimRooms.find((x) => x.id === c.id) ?? c); }));
+    body.append(button('💬 เปิดห้องเคลม', 'gray', () => { setView('chat'); setFilter(c.status === 'pending' ? 'pending' : 'claims'); openClaimRoom(claimRooms.find((x) => x.id === c.id) ?? c); }));
     body.append(line(h('b', '', title(o)), h('span', 'muted', `ยอด ${num(o.total)} เครดิต${o.customer ? ' · ลูกค้า: ' + o.customer : ''}`)));
     body.append(h('div', '', 'ปัญหา: ' + c.reason));
     if (claimUrls[c.image_path]) body.append(thumb(claimUrls[c.image_path]));
