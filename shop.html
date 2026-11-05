@@ -321,6 +321,38 @@
   .thread b, .thread small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .thread small { color: var(--muted); font-size: 12px; }
   .thread .new { width: 9px; height: 9px; border-radius: 50%; background: var(--warn); flex: none; }
+  /* รายการในแชท: 💬 แชท / 🛠 ห้องเคลม (1 เคลม = 1 ห้อง) */
+  .t-tabs { display: flex; position: sticky; top: 0; z-index: 1; background: var(--card); border-bottom: 1px solid var(--line); }
+  .t-tabs button { flex: 1; background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 6px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .t-tabs button[aria-pressed="true"] { color: var(--txt); border-color: var(--ac); }
+  .t-tabs i { font-style: normal; background: var(--warn); color: #241400; border-radius: 999px; padding: 0 6px; font-size: 11px; margin-left: 4px; }
+  .t-tabs i:empty { display: none; }
+  .t-grp { padding: 8px 12px 2px; font-size: 11px; color: var(--muted); font-weight: 700; }
+  .thread .pill { font-size: 10px; padding: 1px 7px; flex: none; }
+  /* การ์ดเคลมหัวห้องเคลม */
+  .cl-card { width: 100%; max-width: 620px; align-self: center; border: 1px solid rgba(var(--ac-rgb), .45); background: var(--card); border-radius: 16px; padding: 12px;
+    display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 22px rgba(var(--ac-rgb), .12); margin-bottom: 6px; }
+  .cl-card.wait { border-color: rgba(245, 158, 11, .55); box-shadow: 0 0 22px rgba(245, 158, 11, .1); }
+  .cl-card.bad { border-color: rgba(244, 63, 94, .5); box-shadow: none; }
+  .cl-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cl-head .sp { flex: 1; }
+  .cl-head time { color: var(--muted); font-size: 12px; }
+  .cl-wish { border-radius: 8px; padding: 3px 10px; font-size: 12px; font-weight: 700; color: #fff; background: linear-gradient(90deg, #f97316, #ea580c); }
+  .cl-wish.refund { background: linear-gradient(90deg, #a855f7, #7c3aed); }
+  .cl-wish.none { background: var(--card2); color: var(--muted); }
+  .cl-who { background: var(--card2); border-radius: 8px; padding: 7px 10px; font-size: 13px; color: var(--muted); }
+  .cl-who b { color: var(--txt); }
+  .cl-card small { display: flex; align-items: center; gap: 6px; font-weight: 700; margin-bottom: 4px; font-size: 12px; }
+  .cl-note { border: 1px solid rgba(245, 158, 11, .55); border-left: 4px solid var(--warn); background: rgba(245, 158, 11, .08); border-radius: 10px; padding: 8px 10px; }
+  .cl-note small { color: #fbbf24; }
+  .cl-note div { font-weight: 600; white-space: pre-wrap; word-break: break-word; }
+  .cl-done { border: 1px solid rgba(var(--ac-rgb), .45); background: rgba(var(--ac-rgb), .08); border-radius: 10px; padding: 8px 10px; }
+  .cl-done small { color: #4ade80; }
+  .cl-done.wait { border-color: rgba(245, 158, 11, .5); background: rgba(245, 158, 11, .08); }
+  .cl-done.wait small { color: #fbbf24; }
+  .cl-done.bad { border-color: rgba(244, 63, 94, .5); background: rgba(244, 63, 94, .08); }
+  .cl-done.bad small { color: #fb7185; }
+  .cl-card pre { white-space: pre-wrap; word-break: break-word; font: 13px/1.6 ui-monospace, monospace; }
   #conv { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   #convHead { padding: 10px 14px; border-bottom: 1px solid var(--line); font-weight: 600; display: flex; gap: 8px; align-items: center; }
   /* ค้นหาในแชท (ข้อความ + เลขออเดอร์ในการ์ด) */
@@ -576,7 +608,7 @@
   <section id="chatPop" hidden aria-label="แชทกับแอดมิน">
     <div id="popHead"><b>💬 แชทกับแอดมิน</b><button id="popClose" type="button" aria-label="ปิดแชท"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
       <div id="chatBox">
-        <aside id="threads"></aside>
+        <aside id="threads"><div id="tTabs" class="t-tabs"><button type="button" data-t="chat" aria-pressed="true">💬 แชท</button><button type="button" data-t="claims" aria-pressed="false">🛠 ห้องเคลม<i id="nClaimRooms"></i></button></div><div id="tList"></div></aside>
         <div id="conv">
           <div id="convHead"><button id="convBack" type="button" aria-label="กลับไปรายการแชท">‹</button><span id="convName"></span>
             <button id="convSearchBtn" type="button" aria-label="ค้นหาในแชท" title="ค้นหาข้อความ / เลขออเดอร์"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button></div>
@@ -763,6 +795,7 @@ async function start() {
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, ({ new: c }) => {
       refresh();
+      loadClaimThreads(); // ห้องเคลม: ข้อความล่าสุด / ยังไม่อ่าน / ผลเคลม
       if (slots[c?.order_id]) fillCards([c.order_id]); // สถานะเคลมขึ้นที่การ์ดในแชท
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'topups' }, refresh)
@@ -1386,11 +1419,12 @@ $('claimForm').onsubmit = async (e) => {
     const f = $('claimForm').elements;
     const rowData = { order_id: claimOrder.id, shop_id: shop.id, reason: $('cReason').value.trim(), app_type: f.cApp.value, wish: f.cWish.value };
     if ($('cImage').files[0]) rowData.image_path = await upload($('cImage').files[0]);
-    const { error } = await db.from('claims').insert(rowData);
+    const { data: added, error } = await db.from('claims').insert(rowData).select('id').single();
     if (error) throw error;
     $('claimDlg').close();
-    toast('ส่งเคลมแล้ว — ดูผลได้ที่ออเดอร์นี้');
+    toast('ส่งเคลมแล้ว — คุยกับแอดมินต่อได้ในห้องเคลม');
     refresh();
+    if (chatReady && hasClaimRooms) openClaimById(added.id);
   } catch (err) {
     alert('ส่งเคลมไม่สำเร็จ: ' + (err.message.includes('one_open_claim') ? 'ออเดอร์นี้มีเคลมรอตรวจสอบอยู่แล้ว' : err.message));
   } finally {
@@ -1478,6 +1512,11 @@ let lastWho = '';
 let unseen = 0;           // ข้อความใหม่จากคนอื่นตอนไม่ได้เปิดหน้าต่างแชท
 let adminUnread = null;   // ข้อความฝั่งร้านในห้องนี้ที่แอดมินยังไม่อ่าน (null = ไม่รู้ → ไม่โชว์ "อ่านแล้ว")
 let chatReady = false;
+let threadTab = 'chat';      // รายการในแชท: 💬 แชท / 🛠 ห้องเคลม
+let claimThreads = [];       // เคลมของร้านที่เลือก (1 เคลม = 1 ห้อง · update-43)
+let claimOpen = null;        // ห้องเคลมที่เปิดอยู่ (null = ห้องคุยปกติ)
+let hasClaimRooms = false;   // รัน update-43 แล้ว → ห้องปกติไม่แสดงข้อความห้องเคลม
+let claimPinEl = null;       // การ์ดเคลมหัวห้อง
 let slots = {};           // order_id → ที่วางการ์ดในแชท (อัปเดตเมื่อสถานะออเดอร์เปลี่ยน)
 const shownIds = new Set(); // ข้อความที่แสดงแล้ว — realtime มาชนกับตอนโหลดห้องใหม่จะไม่ขึ้นซ้ำ
 const msgById = new Map();  // ข้อความในห้องที่เปิดอยู่ → แสดงข้อความที่ถูกตอบกลับ
@@ -1491,7 +1530,9 @@ const unread = new Set(); // ห้องที่มีข้อความใ
 
 const chatOpen = () => !$('chatPop').hidden && document.visibilityState === 'visible';
 async function markSeen() {
-  if (chatReady && chatOpen() && thread) await db.rpc('mark_seen', { p_contact: thread, p_shop: shop.id }); // ฝั่งแอดมินขึ้น "อ่านแล้ว"
+  if (!chatReady || !chatOpen()) return;
+  if (claimOpen) return void await db.rpc('claim_seen', { p_id: claimOpen.id }); // ห้องเคลม → ล้างยังไม่อ่านฝั่งร้าน
+  if (thread) await db.rpc('mark_seen', { p_contact: thread, p_shop: shop.id }); // ฝั่งแอดมินขึ้น "อ่านแล้ว"
 }
 document.addEventListener('visibilitychange', markSeen);
 
@@ -1565,13 +1606,130 @@ async function loadThreads() {
   threads = rows ?? [];
   if (!threads.some((t) => t.id === me)) threads.push({ id: me, name: shortName(me), last_message: '', last_at: null });
   renderThreads();
+  loadClaimThreads();
+}
+
+// ---------- 🛠 ห้องเคลม: 1 เคลม = 1 ห้อง · รอตรวจอยู่บน · จบแล้วอยู่ล่าง ----------
+async function loadClaimThreads() {
+  const forShop = shop.id;
+  const { data, error } = await db.from('claims').select('*, orders(order_no, product_name, option_name, qty, total)').eq('shop_id', forShop)
+    .order('last_at', { ascending: false, nullsFirst: false }).limit(100);
+  if (error || shop.id !== forShop) return; // ยังไม่ได้รัน update-43 / เปลี่ยนร้านระหว่างโหลด
+  hasClaimRooms = true;
+  claimThreads = data;
+  $('nClaimRooms').textContent = claimThreads.filter((c) => c.shop_unread > 0).length || '';
+  const fresh = claimOpen && claimThreads.find((c) => c.id === claimOpen.id);
+  if (fresh) { // ห้องที่เปิดอยู่: ผลเคลมเปลี่ยน → วาดการ์ดใหม่
+    const changed = fresh.status !== claimOpen.status;
+    claimOpen = fresh;
+    adminUnread = fresh.admin_unread;
+    renderRead();
+    if (changed) renderClaimPin();
+  }
+  if (threadTab === 'claims') renderThreads();
+}
+
+function renderClaimThreads() {
+  const row = (c) => {
+    const el = h('div', 'thread' + (claimOpen?.id === c.id ? ' active' : ''));
+    const body = h('div', 't-body');
+    body.append(h('b', '', `🛠 เคลม #${c.id}${c.orders?.product_name ? ' · ' + c.orders.product_name : ''}`), h('small', '', c.last_message || c.reason));
+    el.append(body, pill(CLAIM[c.status]));
+    if (c.shop_unread > 0) el.append(h('span', 'new'));
+    el.onclick = () => openClaimThread(c);
+    return el;
+  };
+  const pend = claimThreads.filter((c) => c.status === 'pending');
+  const done = claimThreads.filter((c) => c.status !== 'pending');
+  $('tList').replaceChildren(...(pend.length ? [h('div', 't-grp', `⏳ รอตรวจ (${pend.length})`), ...pend.map(row)] : []),
+    ...(done.length ? [h('div', 't-grp', '✅ จบแล้ว'), ...done.map(row)] : []));
+  if (!claimThreads.length) $('tList').append(h('p', 'empty', 'ยังไม่มีเคลม — แจ้งเคลมได้ที่ 📜 ประวัติการซื้อ'));
+}
+$('tTabs').onclick = (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  threadTab = b.dataset.t;
+  renderThreads();
+};
+
+// เปิดห้องเคลม = ช่องแชทเดิม (ข้อความ / รูป) แต่เฉพาะข้อความของเคลมนี้ + การ์ดเคลมหัวห้อง
+async function openClaimThread(c) {
+  claimOpen = c;
+  thread = c.created_by ?? me; // ห้องเคลมผูกกับคนแจ้งเคลม · คนในร้านพิมพ์ได้ทุกคน
+  $('chatBox').classList.add('open');
+  $('convName').textContent = `🛠 เคลม #${c.id} · 🏪 ${shop.name}`;
+  $('chatText').placeholder = 'พิมพ์ข้อความในห้องเคลมนี้';
+  renderThreads();
+  const { data: rows } = await db.from('messages').select().eq('claim_id', c.id).order('created_at', { ascending: false }).limit(200);
+  const urls = await signedUrls([...(rows ?? []).map((m) => m.image_path), c.image_path]);
+  if (claimOpen !== c) return; // กดเปลี่ยนห้องระหว่างโหลด
+  imgUrls = urls;
+  lastDay = lastWho = '';
+  slots = {};
+  shownIds.clear();
+  msgById.clear();
+  $('msgs').replaceChildren();
+  claimPinEl = null;
+  renderClaimPin();
+  (rows ?? []).reverse().forEach(addMsg);
+  adminUnread = c.admin_unread;
+  renderRead();
+  c.shop_unread = 0;
+  $('nClaimRooms').textContent = claimThreads.filter((x) => x.shop_unread > 0).length || '';
+  markSeen();
+}
+// จากการ์ดออเดอร์ / หลังแจ้งเคลม → เปิดแชทที่ห้องเคลมนั้น
+async function openClaimById(id) {
+  threadTab = 'claims';
+  setChat(true);
+  if (!claimThreads.some((c) => c.id === id)) await loadClaimThreads();
+  const c = claimThreads.find((x) => x.id === id);
+  if (c) openClaimThread(c);
+  else renderThreads();
+}
+
+function renderClaimPin() {
+  if (!claimOpen) return;
+  const el = claimCardEl(claimOpen);
+  if (claimPinEl?.isConnected) claimPinEl.replaceWith(el);
+  else $('msgs').prepend(el);
+  claimPinEl = el;
+}
+
+// การ์ดเคลม: สิ่งที่ขอ · สถานะ · คนเคลม+แอป+ออเดอร์ · ปัญหา (คัดลอกได้) · รูป · ผลเคลม
+function claimCardEl(c) {
+  const o = c.orders ?? {};
+  const el = h('div', 'cl-card' + (c.status === 'pending' ? ' wait' : c.status === 'rejected' ? ' bad' : ''));
+  const head = h('div', 'cl-head');
+  head.append(h('span', 'cl-wish ' + (c.wish || 'none'), `${c.wish ? WISH[c.wish] : '🛠 เคลม'} · #${c.id}`), h('span', 'sp'), pill(CLAIM[c.status]), h('time', '', when(c.created_at)));
+  const who = h('div', 'cl-who');
+  who.append('👤 คนเคลม: ', h('b', '', c.created_by ? shortName(c.created_by) : '-'));
+  if (c.app_type) who.append(' · 📱 แอป: ', h('b', '', c.app_type));
+  who.append(' · 🧾 ', h('b', '', o.order_no ?? '#' + c.order_id), o.product_name ? ` ${o.product_name}${o.option_name ? ` (${o.option_name})` : ''}` : '');
+  const note = h('div', 'cl-note');
+  const nh = h('small', '', '📝 ปัญหา / หมายเหตุ');
+  nh.append(chatCopy(c.reason));
+  note.append(nh, h('div', '', c.reason));
+  el.append(head, who, note);
+  if (c.image_path) el.append(chatImg(c.image_path));
+  const box = h('div', 'cl-done' + (c.status === 'pending' ? ' wait' : c.status === 'rejected' ? ' bad' : ''));
+  const by = c.decided_by ? ` · ${dnames[c.decided_by] || 'แอดมิน'}` : '';
+  const label = { pending: '⏳ รอแอดมินตรวจสอบ', refunded: `↩ คืนเครดิตแล้ว ${num(c.refund)} เครดิต`, replaced: '✅ ส่งข้อมูลใหม่ให้แล้ว', rejected: '❌ ไม่อนุมัติ' }[c.status];
+  const bh = h('small', '', label + by + (c.decided_at ? ' · ' + when(c.decided_at) : ''));
+  if (c.reply) bh.append(chatCopy(c.reply, '📋 คัดลอก'));
+  box.append(bh);
+  if (c.reply) box.append(h('pre', '', c.reply));
+  el.append(box);
+  return el;
 }
 
 function renderThreads() {
+  for (const b of $('tTabs').children) b.setAttribute('aria-pressed', b.dataset.t === threadTab);
+  if (threadTab === 'claims') return renderClaimThreads();
   // ห้องของฉันอยู่บนสุด ที่เหลือเรียงตามข้อความล่าสุด
   const sorted = [...threads].sort((a, b) => (b.id === me) - (a.id === me) || (b.last_at ?? '').localeCompare(a.last_at ?? ''));
-  $('threads').replaceChildren(...sorted.map((t) => {
-    const el = h('div', 'thread' + (t.id === thread ? ' active' : ''));
+  $('tList').replaceChildren(...sorted.map((t) => {
+    const el = h('div', 'thread' + (t.id === thread && !claimOpen ? ' active' : ''));
     const body = h('div', 't-body');
     const typing = typingText(t.id);
     body.append(h('b', '', t.id === me ? 'แชทของฉันกับแอดมิน' : t.name), h('small', typing ? 'typing-now' : '', typing || t.last_message || ''));
@@ -1584,6 +1742,7 @@ function renderThreads() {
 
 async function openThread(id) {
   thread = id;
+  claimOpen = null;
   unread.delete(id);
   $('chatBox').classList.add('open');
   $('convName').textContent = `${id === me ? 'แชทของฉันกับแอดมิน' : threads.find((t) => t.id === id)?.name ?? ''} · 🏪 ${shop.name}`;
@@ -1595,11 +1754,12 @@ async function openThread(id) {
   // ponytail: 200 ข้อความล่าสุด
   const forShop = shop.id;
   const [{ data: rows }, { data: room }] = await Promise.all([
-    db.from('messages').select().eq('contact_id', id).eq('shop_id', forShop).order('created_at', { ascending: false }).limit(200),
+    (hasClaimRooms ? db.from('messages').select().is('claim_id', null) : db.from('messages').select()) // ข้อความห้องเคลมไม่ปนห้องคุยปกติ
+      .eq('contact_id', id).eq('shop_id', forShop).order('created_at', { ascending: false }).limit(200),
     db.from('threads').select('unread').eq('contact_id', id).eq('shop_id', forShop).maybeSingle(),
   ]);
   const urls = await signedUrls((rows ?? []).map((m) => m.image_path)); // ขอลิงก์รูปทั้งห้องทีเดียว
-  if (thread !== id || shop.id !== forShop) return; // กดเปลี่ยนห้อง/ร้านระหว่างโหลด
+  if (thread !== id || claimOpen || shop.id !== forShop) return; // กดเปลี่ยนห้อง/ร้านระหว่างโหลด
   imgUrls = urls;
   lastDay = lastWho = '';
   slots = {};
@@ -1670,11 +1830,20 @@ function onMessage(m) {
     if (fromOther) $('nChat').textContent = ++unseen;
     return;
   }
+  if (m.claim_id) { // ห้องเคลม · รายการห้องเคลมอัปเดตเองจาก realtime ของตารางเคลม
+    if (claimOpen?.id === m.claim_id) {
+      addMsg(m);
+      renderRead();
+      if (fromOther && chatOpen()) markSeen();
+    }
+    if (fromOther && !chatOpen()) $('nChat').textContent = ++unseen;
+    return;
+  }
   const t = threads.find((x) => x.id === m.contact_id);
   if (t) Object.assign(t, { last_message: m.text, last_at: m.created_at });
   else loadThreads(); // ห้องใหม่ของเพื่อนร่วมร้าน
   dropTyper(m.contact_id, m.sender ?? m.contact_id); // ส่งข้อความแล้ว = เลิกพิมพ์
-  if (m.contact_id === thread) {
+  if (m.contact_id === thread && !claimOpen) { // เปิดห้องเคลมอยู่ = ข้อความห้องปกติไม่ขึ้นในห้องเคลม (ขึ้นจุดใหม่ที่รายการแทน)
     addMsg(m);
     renderRead();
     if (m.order_id) fillCards([m.order_id]);
@@ -1757,9 +1926,11 @@ function quoteEl(id) {
 // รูปในแชท (bucket ส่วนตัว → ลิงก์ชั่วคราว 1 ชม.) · กดดูรูปเต็ม
 async function signedUrls(paths) {
   paths = [...new Set(paths.filter(Boolean))];
-  if (!paths.length) return {};
+  const direct = Object.fromEntries(paths.filter((p) => /^https?:\/\//.test(p)).map((p) => [p, p])); // รูปแชทเก่าจาก bearplus = ลิงก์ Firebase ตรง
+  paths = paths.filter((p) => !direct[p]);
+  if (!paths.length) return direct;
   const { data } = await db.storage.from('shop-files').createSignedUrls(paths, 3600);
-  return Object.fromEntries((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
+  return { ...direct, ...Object.fromEntries((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl])) };
 }
 function chatImg(path) {
   const img = h('img', 'chat-img');
@@ -1828,6 +1999,12 @@ function claimBox(c) {
   const box = h('div', 'oc-box claim-box' + ({ pending: ' oc-wait', rejected: ' oc-cancel' }[c.status] ?? ''));
   const top = row(h('b', c.status === 'refunded' || c.status === 'replaced' ? 'oc-green' : '', `${CLAIM_ICON[c.status]} เคลม #${c.id} · ${CLAIM[c.status][0]}`));
   if (c.reply) top.append(chatCopy(c.reply, '📋 คัดลอก'));
+  if (hasClaimRooms && chatReady) {
+    const go = h('button', 'oc-copy', '💬 ห้องเคลม');
+    go.type = 'button';
+    go.onclick = () => openClaimById(c.id);
+    top.append(go);
+  }
   // ทีละบรรทัด: ปัญหา → ผู้แจ้งเคลม (คนในร้าน) → ผู้อนุมัติเคลม (แอดมิน)
   box.append(top, metaRows([
     ['ปัญหา', h('b', '', c.reason)],
@@ -1975,7 +2152,8 @@ $('chatSend').onsubmit = async (e) => {
     try { image_path = await upload(file); } catch (err) { return undo('อัปโหลดรูปไม่สำเร็จ: ' + err.message); }
   }
   // ข้อความจะโผล่เองผ่าน realtime · คนพิมพ์ (sender) ฐานข้อมูลใส่ให้เอง · ร้าน = ร้านที่เลือกอยู่บนหัวเว็บ
-  const { error } = await db.from('messages').insert({ contact_id: thread, direction: 'in', text: text || IMG_TEXT, shop_id: shop.id, ...(image_path && { image_path }) });
+  const { error } = await db.from('messages').insert({ contact_id: thread, direction: 'in', text: text || IMG_TEXT, shop_id: shop.id, ...(image_path && { image_path }),
+    ...(claimOpen && { claim_id: claimOpen.id }) });
   if (error) undo('ส่งไม่สำเร็จ: ' + error.message);
 };
 $('imgX').onclick = () => setImgDraft(null);
