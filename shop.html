@@ -363,6 +363,11 @@
   #convSearchBtn:hover { color: var(--txt); }
   #chatSearch { flex: none; display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--card2); }
   #chatSearch[hidden] { display: none; }
+  /* ค้นเจอในห้องอื่นของร้าน (ห้องเคลม / ห้องคุยของเพื่อนร่วมร้าน) → กดเปิดห้องนั้น */
+  #chatElse { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 14px; border-bottom: 1px solid var(--line); background: var(--card2); font-size: 12px; }
+  #chatElse[hidden] { display: none; }
+  #chatElse button { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; background: var(--card); color: var(--txt); font-size: 12px; cursor: pointer; }
+  #chatElse button:hover { border-color: var(--ac); }
   #chatCount { color: var(--muted); font-size: 12px; min-width: 40px; text-align: center; }
   #chatSearch button { background: none; border: 0; color: var(--muted); font-size: 16px; padding: 4px 8px; }
   ::highlight(hit) { background-color: #fde68a; color: #111; }
@@ -627,6 +632,7 @@
             <button type="button" id="hitDown" aria-label="ผลถัดไป">↓</button>
             <button type="button" id="chatSearchClose" aria-label="ปิดการค้นหา">✕</button>
           </form>
+          <div id="chatElse" hidden></div>
           <div id="msgs"></div>
           <div id="typing" class="typing" hidden><span class="dots"><i></i><i></i><i></i></span><span id="typingWho"></span></div>
           <form id="chatSend">
@@ -1731,7 +1737,11 @@ async function openClaimById(id) {
   threadTab = 'claims';
   setChat(true);
   if (!claimThreads.some((c) => c.id === id)) await loadClaimThreads();
-  const c = claimThreads.find((x) => x.id === id);
+  let c = claimThreads.find((x) => x.id === id);
+  if (!c) { // เคลมเก่าที่ไม่ได้โหลดไว้ (จบแล้วโหลดแค่ 100 ล่าสุด) → ดึงใบนั้นมาเปิด
+    const { data } = await db.from('claims').select('*, orders(order_no, product_name, option_name, qty, total)').eq('id', id).eq('shop_id', shop.id).maybeSingle();
+    if (data) claimThreads.push((c = data));
+  }
   if (c) await openClaimThread(c); // รอให้การ์ดหัวห้องขึ้นก่อน (กดข้อความ → เด้งไปการ์ด)
   else renderThreads();
 }
@@ -1863,8 +1873,55 @@ function showHit() {
 }
 function closeChatSearch() {
   $('chatSearch').hidden = true;
+  $('chatElse').hidden = true;
   $('chatQ').value = '';
   searchChat();
+}
+// ค้นทั้งร้าน (ห้องอื่น): เลขออเดอร์ / เมล / สินค้า / ข้อมูลเคลม / ข้อความ → ปุ่มเปิดห้องนั้นแล้วไฮไลต์ให้
+let elseTimer;
+async function searchElsewhere() {
+  const q = $('chatQ').value.trim();
+  const box = $('chatElse');
+  if (q.length < 3) return void (box.hidden = true);
+  const v = q.replace(/["\\]/g, ''); // ค่าในเครื่องหมายคำพูด ใส่ , ( ) ได้
+  const forShop = shop.id;
+  const like = (cols) => cols.map((c) => `${c}.ilike."%${v}%"`).join(',');
+  const [ords, cls, msgs] = await Promise.all([
+    db.from('orders').select('id').eq('shop_id', forShop).or(like(['order_no', 'email', 'product_name', 'customer', 'delivery', 'note'])).order('created_at', { ascending: false }).limit(50),
+    db.from('claims').select('id, app_type').eq('shop_id', forShop).neq('status', 'chat').or(like(['reason', 'reply', 'app_type'])).order('created_at', { ascending: false }).limit(20),
+    db.from('messages').select('contact_id, claim_id, created_at').eq('shop_id', forShop).ilike('text', `%${q}%`).order('created_at', { ascending: false }).limit(100),
+  ]);
+  const ids = (ords.data ?? []).map((o) => o.id);
+  const [oc, cards] = ids.length ? await Promise.all([ // เคลมของออเดอร์ที่ตรง + การ์ดออเดอร์ในห้องคุย
+    db.from('claims').select('id, app_type').in('order_id', ids),
+    db.from('messages').select('contact_id, created_at').in('order_id', ids).is('claim_id', null).order('created_at', { ascending: false }),
+  ]) : [{ data: [] }, { data: [] }];
+  if (q !== $('chatQ').value.trim() || forShop !== shop.id) return; // พิมพ์ต่อ / เปลี่ยนร้านระหว่างรอ
+  const claims = new Map(); // เคลม id → ป้าย
+  for (const c of [...(oc.data ?? []), ...(cls.data ?? [])]) claims.set(c.id, `🛠 เคลม #${c.id}${c.app_type ? ' · ' + c.app_type : ''}`);
+  const rooms = new Map(); // ห้องคุย (คน) → เวลาที่เจอ (การ์ดเก่า = โหลดย้อนถึงตรงนั้น)
+  for (const m of [...(cards.data ?? []), ...(msgs.data ?? [])]) {
+    if (m.claim_id) { if (!claims.has(m.claim_id)) claims.set(m.claim_id, `🛠 เคลม #${m.claim_id}`); continue; }
+    if (!rooms.has(m.contact_id)) rooms.set(m.contact_id, m.created_at);
+  }
+  if (claimOpen) claims.delete(claimOpen.id); // ห้องที่เปิดอยู่ ค้นในจอแล้ว
+  else rooms.delete(thread);
+  const go = (label, open) => {
+    const b = h('button', '', label);
+    b.type = 'button';
+    b.onclick = async () => {
+      await open();
+      $('chatSearch').hidden = false;
+      $('chatQ').value = q;
+      searchChat();
+      searchElsewhere();
+    };
+    return b;
+  };
+  const btns = [...[...claims].slice(0, 6).map(([id, label]) => go(label, () => openClaimById(id))),
+    ...[...rooms].slice(0, 4).map(([cid, at]) => go(`💬 ${threads.find((t) => t.id === cid)?.name ?? shortName(cid)}`, () => openThread(cid, at)))];
+  box.replaceChildren(...(btns.length ? [h('span', 'muted', '🔎 เจอในห้องอื่น:'), ...btns] : []));
+  box.hidden = !btns.length;
 }
 $('convSearchBtn').onclick = () => {
   if (!$('chatSearch').hidden) return closeChatSearch();
@@ -1872,7 +1929,11 @@ $('convSearchBtn').onclick = () => {
   $('chatQ').focus();
 };
 $('chatSearchClose').onclick = closeChatSearch;
-$('chatQ').oninput = searchChat;
+$('chatQ').oninput = () => {
+  searchChat();
+  clearTimeout(elseTimer);
+  elseTimer = setTimeout(searchElsewhere, 350); // รอพิมพ์เสร็จค่อยค้นทั้งร้าน
+};
 $('chatQ').onkeydown = (e) => { if (e.key === 'Escape') { e.stopPropagation(); closeChatSearch(); } }; // Esc ปิดแค่ช่องค้นหา ไม่ปิดหน้าต่างแชท
 $('hitUp').onclick = () => { if (hitIdx > 0) { hitIdx--; showHit(); } };
 $('hitDown').onclick = () => { if (hitIdx < hits.length - 1) { hitIdx++; showHit(); } };
