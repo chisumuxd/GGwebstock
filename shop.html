@@ -363,11 +363,6 @@
   #convSearchBtn:hover { color: var(--txt); }
   #chatSearch { flex: none; display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--card2); }
   #chatSearch[hidden] { display: none; }
-  /* ค้นเจอในห้องอื่นของร้าน (ห้องเคลม / ห้องคุยของเพื่อนร่วมร้าน) → กดเปิดห้องนั้น */
-  #chatElse { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 14px; border-bottom: 1px solid var(--line); background: var(--card2); font-size: 12px; }
-  #chatElse[hidden] { display: none; }
-  #chatElse button { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; background: var(--card); color: var(--txt); font-size: 12px; cursor: pointer; }
-  #chatElse button:hover { border-color: var(--ac); }
   #chatCount { color: var(--muted); font-size: 12px; min-width: 40px; text-align: center; }
   #chatSearch button { background: none; border: 0; color: var(--muted); font-size: 16px; padding: 4px 8px; }
   ::highlight(hit) { background-color: #fde68a; color: #111; }
@@ -632,7 +627,6 @@
             <button type="button" id="hitDown" aria-label="ผลถัดไป">↓</button>
             <button type="button" id="chatSearchClose" aria-label="ปิดการค้นหา">✕</button>
           </form>
-          <div id="chatElse" hidden></div>
           <div id="msgs"></div>
           <div id="typing" class="typing" hidden><span class="dots"><i></i><i></i><i></i></span><span id="typingWho"></span></div>
           <form id="chatSend">
@@ -1544,6 +1538,7 @@ let adminUnread = null;   // ข้อความฝั่งร้านใน
 let chatReady = false;
 let threadTab = 'chat';      // รายการในแชท: 💬 แชท / 🛠 ห้องเคลม
 let claimThreads = [];       // เคลมของร้านที่เลือก (1 เคลม = 1 ห้อง · update-43)
+let found = null;            // 🔎 ค้นหาในแชทอยู่: { q, claims: [เคลม], rooms: [{ id, at }] } → รายการซ้าย = ห้องที่เจอ
 let claimDoneOpen = false;   // กลุ่ม ✅ จบแล้ว กางอยู่
 let claimOpen = null;        // ห้องเคลมที่เปิดอยู่ (null = ห้องคุยปกติ)
 let hasClaimRooms = false;   // รัน update-43 แล้ว → ห้องปกติไม่แสดงข้อความห้องเคลม
@@ -1676,17 +1671,30 @@ async function loadClaimThreads() {
   if (threadTab === 'claims') renderThreads();
 }
 
+// แถวห้องเคลม / ห้องคุย (ใช้ทั้งรายการปกติ และผลค้นหา)
+function claimRow(c, open = () => openClaimThread(c)) {
+  const el = h('div', 'thread' + (claimOpen?.id === c.id ? ' active' : ''));
+  const body = h('div', 't-body');
+  body.append(h('b', '', c.status === 'chat' ? `🗂 เคลมเก่า · ${c.created_by === me ? 'ของฉัน' : shortName(c.created_by)}`
+    : `🛠 เคลม #${c.id}${c.orders?.product_name ? ' · ' + c.orders.product_name : ''}`), h('small', '', c.last_message || c.reason));
+  el.append(body, pill(CLAIM[c.status] ?? ['', '']));
+  if (c.shop_unread > 0) el.append(h('span', 'new'));
+  el.onclick = open;
+  return el;
+}
+function chatRow(t, open = () => openThread(t.id)) {
+  const el = h('div', 'thread' + (t.id === thread && !claimOpen ? ' active' : ''));
+  const body = h('div', 't-body');
+  const typing = typingText(t.id);
+  body.append(h('b', '', t.id === me ? 'แชทของฉันกับแอดมิน' : t.name), h('small', typing ? 'typing-now' : '', typing || t.last_message || ''));
+  el.append(av(t.id, t.name), body);
+  if (unread.has(t.id)) el.append(h('span', 'new'));
+  el.onclick = open;
+  return el;
+}
+
 function renderClaimThreads() {
-  const row = (c) => {
-    const el = h('div', 'thread' + (claimOpen?.id === c.id ? ' active' : ''));
-    const body = h('div', 't-body');
-    body.append(h('b', '', c.status === 'chat' ? `🗂 เคลมเก่า · ${c.created_by === me ? 'ของฉัน' : shortName(c.created_by)}`
-      : `🛠 เคลม #${c.id}${c.orders?.product_name ? ' · ' + c.orders.product_name : ''}`), h('small', '', c.last_message || c.reason));
-    el.append(body, pill(CLAIM[c.status]));
-    if (c.shop_unread > 0) el.append(h('span', 'new'));
-    el.onclick = () => openClaimThread(c);
-    return el;
-  };
+  const row = (c) => claimRow(c);
   // ⏳ รอตรวจ → 🗂 แชทเคลมเก่า → ✅ จบแล้ว (พับไว้ กดเปิด)
   const pend = claimThreads.filter((c) => c.status === 'pending');
   const old = claimThreads.filter((c) => c.status === 'chat'); // แชทเคลมเก่าจาก bearplus (update-47)
@@ -1703,6 +1711,7 @@ $('tTabs').onclick = (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   threadTab = b.dataset.t;
+  if (found) closeChatSearch(); // กดแท็บระหว่างค้นหา = เลิกค้น กลับรายการปกติ
   renderThreads();
 };
 
@@ -1783,20 +1792,23 @@ function claimCardEl(c) {
 }
 
 function renderThreads() {
-  for (const b of $('tTabs').children) b.setAttribute('aria-pressed', b.dataset.t === threadTab);
+  for (const b of $('tTabs').children) b.setAttribute('aria-pressed', !found && b.dataset.t === threadTab);
+  if (found) return renderFound();
   if (threadTab === 'claims') return renderClaimThreads();
   // ห้องของฉันอยู่บนสุด ที่เหลือเรียงตามข้อความล่าสุด
   const sorted = [...threads].sort((a, b) => (b.id === me) - (a.id === me) || (b.last_at ?? '').localeCompare(a.last_at ?? ''));
-  $('tList').replaceChildren(...sorted.map((t) => {
-    const el = h('div', 'thread' + (t.id === thread && !claimOpen ? ' active' : ''));
-    const body = h('div', 't-body');
-    const typing = typingText(t.id);
-    body.append(h('b', '', t.id === me ? 'แชทของฉันกับแอดมิน' : t.name), h('small', typing ? 'typing-now' : '', typing || t.last_message || ''));
-    el.append(av(t.id, t.name), body);
-    if (unread.has(t.id)) el.append(h('span', 'new'));
-    el.onclick = () => openThread(t.id);
-    return el;
-  }));
+  $('tList').replaceChildren(...sorted.map((t) => chatRow(t)));
+}
+
+// 🔎 กำลังค้นหา → รายการซ้าย = ห้องที่เจอ (ห้องเคลม + ห้องคุย) · กดแล้วเปิดห้องนั้นพร้อมไฮไลต์ · ปิดค้นหา = รายการปกติ
+function renderFound() {
+  const { q, claims, rooms } = found;
+  const keep = async (open) => { await open(); $('chatSearch').hidden = false; $('chatQ').value = q; searchChat(); renderThreads(); };
+  const n = claims.length + rooms.length;
+  $('tList').replaceChildren(h('div', 't-grp', `🔎 ผลค้นหา "${q}" · ${n ? n + ' ห้อง' : 'ไม่พบ'}`),
+    ...claims.map((c) => claimRow(c, () => keep(() => openClaimThread(c)))),
+    ...rooms.map(({ id, at }) => chatRow(threads.find((t) => t.id === id) ?? { id, name: shortName(id) }, () => keep(() => openThread(id, at)))));
+  if (!n) $('tList').append(h('p', 'empty', 'ลองเลขออเดอร์ / เมล / ชื่อสินค้า / ข้อความในแชท'));
 }
 
 async function openThread(id, since = null) { // since = โหลดย้อนถึงเวลานี้ด้วย (กดข้อความแล้วเด้งไปการ์ดเก่า)
@@ -1873,16 +1885,15 @@ function showHit() {
 }
 function closeChatSearch() {
   $('chatSearch').hidden = true;
-  $('chatElse').hidden = true;
   $('chatQ').value = '';
   searchChat();
+  if (found) { found = null; renderThreads(); } // กลับเป็นรายการห้องปกติ
 }
-// ค้นทั้งร้าน (ห้องอื่น): เลขออเดอร์ / เมล / สินค้า / ข้อมูลเคลม / ข้อความ → ปุ่มเปิดห้องนั้นแล้วไฮไลต์ให้
+// ค้นทั้งร้าน: เลขออเดอร์ / เมล / สินค้า / ข้อมูลเคลม / ข้อความ → รายการซ้ายแสดงห้องที่เจอ (renderFound)
 let elseTimer;
 async function searchElsewhere() {
   const q = $('chatQ').value.trim();
-  const box = $('chatElse');
-  if (q.length < 3) return void (box.hidden = true);
+  if (q.length < 3) { if (found) { found = null; renderThreads(); } return; }
   const v = q.replace(/["\\]/g, ''); // ค่าในเครื่องหมายคำพูด ใส่ , ( ) ได้
   const forShop = shop.id;
   const like = (cols) => cols.map((c) => `${c}.ilike."%${v}%"`).join(',');
@@ -1896,32 +1907,21 @@ async function searchElsewhere() {
     db.from('claims').select('id, app_type').in('order_id', ids),
     db.from('messages').select('contact_id, created_at').in('order_id', ids).is('claim_id', null).order('created_at', { ascending: false }),
   ]) : [{ data: [] }, { data: [] }];
-  if (q !== $('chatQ').value.trim() || forShop !== shop.id) return; // พิมพ์ต่อ / เปลี่ยนร้านระหว่างรอ
-  const claims = new Map(); // เคลม id → ป้าย
-  for (const c of [...(oc.data ?? []), ...(cls.data ?? [])]) claims.set(c.id, `🛠 เคลม #${c.id}${c.app_type ? ' · ' + c.app_type : ''}`);
+  const claimIds = new Set([...(oc.data ?? []), ...(cls.data ?? [])].map((c) => c.id));
   const rooms = new Map(); // ห้องคุย (คน) → เวลาที่เจอ (การ์ดเก่า = โหลดย้อนถึงตรงนั้น)
   for (const m of [...(cards.data ?? []), ...(msgs.data ?? [])]) {
-    if (m.claim_id) { if (!claims.has(m.claim_id)) claims.set(m.claim_id, `🛠 เคลม #${m.claim_id}`); continue; }
-    if (!rooms.has(m.contact_id)) rooms.set(m.contact_id, m.created_at);
+    if (m.claim_id) claimIds.add(m.claim_id);
+    else if (!rooms.has(m.contact_id)) rooms.set(m.contact_id, m.created_at);
   }
-  if (claimOpen) claims.delete(claimOpen.id); // ห้องที่เปิดอยู่ ค้นในจอแล้ว
-  else rooms.delete(thread);
-  const go = (label, open) => {
-    const b = h('button', '', label);
-    b.type = 'button';
-    b.onclick = async () => {
-      await open();
-      $('chatSearch').hidden = false;
-      $('chatQ').value = q;
-      searchChat();
-      searchElsewhere();
-    };
-    return b;
-  };
-  const btns = [...[...claims].slice(0, 6).map(([id, label]) => go(label, () => openClaimById(id))),
-    ...[...rooms].slice(0, 4).map(([cid, at]) => go(`💬 ${threads.find((t) => t.id === cid)?.name ?? shortName(cid)}`, () => openThread(cid, at)))];
-  box.replaceChildren(...(btns.length ? [h('span', 'muted', '🔎 เจอในห้องอื่น:'), ...btns] : []));
-  box.hidden = !btns.length;
+  // ข้อมูลห้องเคลมที่เจอ: มีในรายการแล้วใช้เลย · เคลมเก่าที่ไม่ได้โหลดไว้ → ดึงมา
+  const missing = [...claimIds].filter((id) => !claimThreads.some((c) => c.id === id));
+  const { data: more } = missing.length
+    ? await db.from('claims').select('*, orders(order_no, product_name, option_name, qty, total)').in('id', missing).eq('shop_id', forShop) : { data: [] };
+  if (q !== $('chatQ').value.trim() || forShop !== shop.id) return; // พิมพ์ต่อ / เปลี่ยนร้านระหว่างรอ
+  const claims = [...claimThreads, ...(more ?? [])].filter((c) => claimIds.has(c.id))
+    .sort((a, b) => (b.last_at ?? b.created_at ?? '').localeCompare(a.last_at ?? a.created_at ?? ''));
+  found = { q, claims, rooms: [...rooms].map(([id, at]) => ({ id, at })) };
+  renderThreads();
 }
 $('convSearchBtn').onclick = () => {
   if (!$('chatSearch').hidden) return closeChatSearch();
