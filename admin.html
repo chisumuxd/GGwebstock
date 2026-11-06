@@ -158,6 +158,11 @@
   /* 👁 ดูตัวอย่างข้อความ (ไม่นับว่าอ่าน) */
   #peekDlg { width: min(520px, calc(100% - 24px)); }
   .sound-form { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  /* 🤖 ตอบกลับอัตโนมัติ */
+  .o-card .t-in { width: auto; }
+  .day-picks { display: flex; gap: 4px; flex-wrap: wrap; }
+  .day-picks .day { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--muted); font-size: 13px; cursor: pointer; }
+  .day-picks .day.on { background: var(--green); border-color: transparent; color: #fff; font-weight: 700; }
   .vol-row { display: flex; align-items: center; gap: 10px; }
   .vol-row input { flex: 1; accent-color: var(--green); }
   .vol-row b { min-width: 48px; text-align: right; }
@@ -516,6 +521,7 @@
     <button data-view="promos" aria-pressed="false">✨<span>โปรโมชั่น</span></button>
     <button data-view="services" aria-pressed="false">🛡️<span>บริการ</span></button>
     <button data-view="users" aria-pressed="false">👤<span>ผู้ใช้</span></button>
+    <button data-view="autoreply" aria-pressed="false">🤖<span>ตอบอัตโนมัติ</span></button>
     <button id="soundBtn" class="end" type="button" aria-label="ตั้งค่าเสียงแจ้งเตือน">🔔<span>เสียง</span></button>
     <button id="themeBtn" type="button" aria-label="สลับ Dark mode / Light mode"><b>🌙</b><span>Dark mode</span></button>
     <button id="logout">🚪<span>ออกจากระบบ</span></button>
@@ -638,11 +644,15 @@
         <div class="o-tools acts" data-for="services">
           <button id="addSvc" class="btn" type="button">+ เพิ่มแพ็กเกจ</button>
         </div>
+        <div class="o-tools acts" data-for="autoreply">
+          <button id="addAuto" class="btn" type="button">+ เพิ่มข้อความตอบกลับ</button>
+        </div>
         <div class="o-tools acts" data-for="promos">
           <form id="newPromo"><input id="newPromoTitle" class="field" placeholder="ชื่อโปร เช่น 7.7 PROMOTION" maxlength="120" required><button class="btn">+ สร้างโปร</button></form>
         </div>
       </div>
       <p class="muted" data-for="services">แพ็กเกจด้านล่าง = ที่ร้านเห็นในแท็บ 🛡️ บริการแอดมิน (แก้ชื่อ/ราคา/วัน/รูป/ลำดับ ร้านเห็นทันที · ซ่อน = ร้านไม่เห็น ซื้อไม่ได้) · ร้านที่ใช้อยู่ ยกเลิกได้ จะคืนเครดิตหรือไม่ก็ได้ ร้านเห็นผลในแชท</p>
+      <p class="muted" data-for="autoreply">ร้านทักมาในช่วงเวลาที่ตั้ง → ระบบตอบให้เองทันที แม้ไม่มีแอดมินเปิดหน้าเว็บ · เวลาไทย · เริ่ม = จบ คือทั้งวัน · ข้ามเที่ยงคืนได้ (22:00 → 08:00) · ตรงหลายข้อความพร้อมกัน = ใช้อันบนสุด</p>
       <p class="muted" data-for="promos">สร้างโปรแล้วกด ＋ เพิ่มรูป → ทุกร้านเห็นที่แท็บ ✨ โปรโมชั่น ในหน้าร้าน โหลดรูปไปโพสต์ได้ · กดรูปเพื่อดูเต็ม · ซ่อน = ร้านไม่เห็น</p>
       <p class="muted" data-for="shops">เพิ่มอีเมลผู้ดูแลเข้าร้านได้ที่นี่ หรือสร้างผู้ใช้ใหม่พร้อมเลือกร้านในเมนู 👤 ผู้ใช้ · 1 คนดูแลได้หลายร้าน</p>
       <p class="muted" data-for="users">สร้างผู้ใช้แล้วล็อกอินที่ shop.html ได้ทันที · เห็นและจัดการได้เฉพาะร้านที่รับผิดชอบ · คนในร้านเดียวกันเห็นแชทของกัน</p>
@@ -2025,7 +2035,7 @@ $('addNote').onsubmit = async (e) => {
 const num = (n) => Number(n).toLocaleString('th-TH', { maximumFractionDigits: 2 });
 const when = (iso) => new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
 const title = (o) => `${o.product_name}${o.option_name ? ` (${o.option_name})` : ''} x${o.qty}`;
-const TITLES = { orders: '🧾 ออเดอร์', topups: '💰 แจ้งเติมเครดิต', claims: '🛠 เคลมสินค้า', shops: '🏪 ร้านค้า', users: '👤 ผู้ใช้', promos: '✨ โปรโมชั่น', services: '🛡️ บริการแอดมิน' };
+const TITLES = { orders: '🧾 ออเดอร์', topups: '💰 แจ้งเติมเครดิต', claims: '🛠 เคลมสินค้า', shops: '🏪 ร้านค้า', users: '👤 ผู้ใช้', promos: '✨ โปรโมชั่น', services: '🛡️ บริการแอดมิน', autoreply: '🤖 ข้อความตอบกลับอัตโนมัติ' };
 const ORDER = { pending: '🆕 ออเดอร์ใหม่', waiting: '⏳ รอดำเนินการ', done: '✅ ส่งมอบแล้ว', cancelled: '❌ ยกเลิก' };
 const CLAIM = { pending: ['รอตรวจสอบ', 'pending'], refunded: ['คืนเครดิตแล้ว', ''], replaced: ['เคลมสำเร็จ', ''], rejected: ['ไม่อนุมัติ', 'bad'], chat: ['แชทเก่า', ''] };
 const TOPUP = { pending: ['รอตรวจสอบ', 'pending'], approved: ['อนุมัติแล้ว', ''], rejected: ['ไม่อนุมัติ', 'bad'] };
@@ -2134,7 +2144,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('#rail')) $('r
 
 function reloadOffice() {
   counts();
-  ({ orders: loadOrders, topups: loadTopups, claims: loadClaims, shops: renderShops, users: loadUsers, promos: loadPromos, services: loadServiceSubs })[view]?.();
+  ({ orders: loadOrders, topups: loadTopups, claims: loadClaims, shops: renderShops, users: loadUsers, promos: loadPromos, services: loadServiceSubs, autoreply: loadAutoReplies })[view]?.();
 }
 
 async function loadShops() {
@@ -2831,6 +2841,95 @@ function renderServiceSubs() {
   }));
   $('oList').append(h('h3', 'o-sub', '🧾 ประวัติการซื้อบริการ'), hist);
 }
+
+// --- 🤖 ข้อความตอบกลับอัตโนมัติ (update-56): ข้อความ · ช่วงเวลา · วัน · ตอบห้องเดิมซ้ำทุกกี่นาที — ฐานข้อมูลตอบให้เอง ---
+let autoRows = [];
+const DAYS = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']; // index = 0 อาทิตย์ … 6 เสาร์ (ตรงกับฐานข้อมูล)
+const COOLDOWN = [[0, 'ทุกข้อความ'], [30, 'ทุก 30 นาที'], [60, 'ทุก 1 ชั่วโมง'], [180, 'ทุก 3 ชั่วโมง'], [1440, 'วันละครั้ง']];
+async function loadAutoReplies() {
+  const { data, error } = await db.from('auto_replies').select().order('sort').order('id');
+  if (error) return $('oList').replaceChildren(h('p', 'o-empty', 'ยังไม่ได้รัน update-56.sql — ' + error.message));
+  autoRows = data;
+  if (view === 'autoreply') renderAutoReplies();
+}
+// ตอนนี้ (เวลาไทย) อยู่ในช่วงของข้อความนี้ไหม — เช็คแบบเดียวกับฐานข้อมูล
+function autoLive(r) {
+  const th = new Date(Date.now() + 7 * 36e5); // UTC+7
+  const t = th.toISOString().slice(11, 16);
+  const s = r.start_time.slice(0, 5);
+  const e = r.end_time.slice(0, 5);
+  return r.active && r.days.includes(th.getUTCDay()) && (s === e || (s < e ? t >= s && t < e : t >= s || t < e));
+}
+async function moveAuto(i, d) {
+  const list = [...autoRows];
+  [list[i], list[i + d]] = [list[i + d], list[i]];
+  for (const [k, r] of list.entries()) {
+    if (r.sort !== k + 1 && !(await okDone(db.from('auto_replies').update({ sort: k + 1 }).eq('id', r.id)))) break;
+  }
+  loadAutoReplies();
+}
+function renderAutoReplies() {
+  const liveId = autoRows.find(autoLive)?.id; // ตรงหลายอัน = ฐานข้อมูลใช้อันบนสุด
+  $('oList').replaceChildren(...autoRows.map((r, i) => {
+    const el = h('div', 'o-card' + (r.active ? '' : ' off'));
+    const text = h('textarea', 'field');
+    text.value = r.text;
+    text.maxLength = 2000;
+    text.rows = 3;
+    const time = (v) => { const x = h('input', 'field t-in'); x.type = 'time'; x.value = v.slice(0, 5); return x; };
+    const t1 = time(r.start_time);
+    const t2 = time(r.end_time);
+    const picked = new Set(r.days);
+    const days = h('div', 'day-picks');
+    for (const [d, label] of DAYS.entries()) {
+      const b = h('button', 'day' + (picked.has(d) ? ' on' : ''), label);
+      b.type = 'button';
+      b.onclick = () => { if (picked.has(d)) picked.delete(d); else picked.add(d); b.classList.toggle('on'); };
+      days.append(b);
+    }
+    const cd = h('select', 'field');
+    for (const [v, label] of [...COOLDOWN, ...(COOLDOWN.some(([v]) => v === r.cooldown_min) ? [] : [[r.cooldown_min, `ทุก ${r.cooldown_min} นาที`]])]) {
+      const o = h('option', '', label);
+      o.value = v;
+      cd.append(o);
+    }
+    cd.value = r.cooldown_min;
+    const status = r.id === liveId ? ['🟢 กำลังตอบอยู่ตอนนี้', ''] : autoLive(r) ? ['ตรงเวลา แต่ใช้ข้อความที่อยู่บนกว่า', 'pending']
+      : r.active ? ['⏳ รอถึงเวลา', 'pending'] : ['⏸ ปิดอยู่', 'bad'];
+    el.append(line(h('b', '', `🤖 ข้อความที่ ${i + 1}`), pill(status)), text);
+    const when = h('div', 'acts');
+    when.append('🕒 เวลา', t1, 'ถึง', t2, h('span', 'muted', t1.value === t2.value ? '= ทั้งวัน' : t1.value > t2.value ? '(ข้ามเที่ยงคืน)' : ''));
+    const dayRow = h('div', 'acts');
+    dayRow.append('📅 วัน', days);
+    const cdRow = h('label', 'acts');
+    cdRow.append('🔁 ตอบห้องเดิมซ้ำ', cd);
+    const acts = h('div', 'acts');
+    acts.append(
+      button('💾 บันทึก', '', async () => {
+        if (!text.value.trim()) return alert('ใส่ข้อความตอบกลับก่อน');
+        if (!picked.size) return alert('เลือกวันอย่างน้อย 1 วัน');
+        const patch = { text: text.value.trim(), start_time: t1.value || '00:00', end_time: t2.value || '00:00', days: [...picked].sort(), cooldown_min: Number(cd.value) };
+        if (await okDone(db.from('auto_replies').update(patch).eq('id', r.id))) { toast('บันทึกแล้ว'); loadAutoReplies(); }
+      }),
+      button(r.active ? '⏸ ปิดใช้งาน' : '▶ เปิดใช้งาน', 'gray', async () => {
+        if (await okDone(db.from('auto_replies').update({ active: !r.active }).eq('id', r.id))) loadAutoReplies();
+      }));
+    if (i > 0) acts.append(button('⬆️', 'gray', () => moveAuto(i, -1)));
+    if (i < autoRows.length - 1) acts.append(button('⬇️', 'gray', () => moveAuto(i, 1)));
+    acts.append(button('🗑 ลบ', 'red', async () => {
+      if (confirm('ลบข้อความตอบกลับนี้?') && await okDone(db.from('auto_replies').delete().eq('id', r.id))) loadAutoReplies();
+    }));
+    el.append(when, dayRow, cdRow, acts);
+    return el;
+  }));
+  emptyIf(autoRows, 'ยังไม่มีข้อความตอบกลับ — กด + เพิ่มข้อความตอบกลับ');
+}
+$('addAuto').onclick = async () => {
+  const sort = Math.max(0, ...autoRows.map((r) => r.sort)) + 1;
+  if (!(await okDone(db.from('auto_replies').insert({ text: 'ขณะนี้อยู่นอกเวลาทำการ แอดมินจะรีบตอบกลับโดยเร็วที่สุดครับ 🙏', start_time: '22:00', end_time: '09:00', active: false, sort })))) return;
+  toast('เพิ่มแล้ว (ยังปิดอยู่) — แก้ข้อความ/เวลา กด 💾 บันทึก แล้ว ▶ เปิดใช้งาน');
+  loadAutoReplies();
+};
 
 // --- โปรโมชั่น (อัลบั้มรูป) → ทุกร้านเห็นที่แท็บ ✨ โปรโมชั่น ในหน้าร้าน ---
 const promoUrl = (path) => db.storage.from('promos').getPublicUrl(path).data.publicUrl;
