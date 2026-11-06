@@ -648,6 +648,7 @@ const nameOf = (uid, email) => names[uid] || (emails[uid] ?? email ?? '').split(
 let users = [];
 let myId = null;
 let amSuper = false;     // Superadmin: เปลี่ยนบทบาท / จัดการบัญชีแอดมินคนอื่นได้
+let amOwner = false;     // เจ้าของระบบ: ตั้ง/ถอด Superadmin + จัดการบัญชี Superadmin คนอื่นได้
 
 // textContent เท่านั้น — ข้อความลูกค้าห้ามเข้า innerHTML
 function h(tag, cls = '', text = '') {
@@ -2381,8 +2382,10 @@ $('newPromo').onsubmit = async (e) => {
 
 // --- ผู้ใช้: สร้าง / ร้านที่รับผิดชอบ / รหัสผ่าน / รูปโปรไฟล์ / ลบ ---
 async function loadUsers() {
-  users = (await q(db.rpc('admin_list_users'))) ?? [];
+  const [list, { data: owner }] = await Promise.all([q(db.rpc('admin_list_users')), db.rpc('is_owner')]);
+  users = list ?? [];
   amSuper = !!users.find((u) => u.id === myId)?.is_super;
+  amOwner = !!owner;
   for (const u of users) {
     if (u.avatar_url) avatars[u.id] = u.avatar_url;
     if (u.display_name) names[u.id] = u.display_name;
@@ -2445,7 +2448,7 @@ function renderUsers() {
     top.append(avatar({ id: u.id, name: names[u.id] || u.email }), info);
     top.append(pill(u.is_super ? ['Superadmin', 'pending'] : u.is_admin ? ['แอดมิน', ''] : ['ผู้ใช้', 'user']));
     // แอดมินทั่วไปแตะบัญชีแอดมินคนอื่นไม่ได้ (ฐานข้อมูลกันไว้แล้ว ซ่อนปุ่มให้ตรงกัน)
-    const manageable = amSuper || u.id === myId || !u.is_admin;
+    const manageable = amOwner || u.id === myId || !u.is_admin || (amSuper && !u.is_super);
 
     // ร้านที่รับผิดชอบ: × เอาออก / เลือกเพิ่ม
     const mine = shopsOf(u.id);
@@ -2499,32 +2502,38 @@ function renderUsers() {
         && rpc('admin_delete_user', { p_user: u.id }, 'ลบผู้ใช้แล้ว')));
     }
 
-    // บทบาท: Superadmin เท่านั้นที่เปลี่ยนได้
+    // บทบาท: Superadmin เปลี่ยน ผู้ใช้ ↔ แอดมิน · ตั้ง/ถอด Superadmin = เจ้าของระบบเท่านั้น
     let roleRow = null;
-    if (amSuper && u.id !== myId && !u.is_super) {
+    if (amSuper && u.id !== myId && (amOwner || !u.is_super)) {
       roleRow = h('label', 'acts muted');
       const sel = h('select', 'field');
-      for (const [value, label] of [['user', 'ผู้ใช้ (ร้านค้า)'], ['admin', 'แอดมิน (หลังร้านทุกร้าน)']]) {
+      const roles = [['user', 'ผู้ใช้ (ร้านค้า)'], ['admin', 'แอดมิน (หลังร้านทุกร้าน)']];
+      if (amOwner) roles.push(['super', 'Superadmin (ตั้งบทบาท + นำเข้า + จัดลำดับ)']);
+      for (const [value, label] of roles) {
         const o = h('option', '', label);
         o.value = value;
         sel.append(o);
       }
-      sel.value = u.is_admin ? 'admin' : 'user';
+      const now = u.is_super ? 'super' : u.is_admin ? 'admin' : 'user';
+      sel.value = now;
       sel.onchange = () => {
-        const toAdmin = sel.value === 'admin';
-        if (!confirm(toAdmin
-          ? `ตั้ง ${names[u.id] || u.email} เป็นแอดมิน?\nจะเข้า admin.html ได้ และเห็น/จัดการทุกร้าน ทุกออเดอร์ ทุกแชท`
-          : `เปลี่ยน ${names[u.id] || u.email} เป็นผู้ใช้ธรรมดา?\nจะเข้าหลังร้านไม่ได้ เหลือเฉพาะร้านที่รับผิดชอบใน shop.html`)) {
-          sel.value = u.is_admin ? 'admin' : 'user';
+        const role = sel.value;
+        const who = names[u.id] || u.email;
+        if (!confirm({
+          super: `ตั้ง ${who} เป็น Superadmin?\nเปลี่ยนบทบาทผู้ใช้/แอดมิน ดู/ตั้งรหัสแอดมินคนอื่น และนำเข้าข้อมูลได้`,
+          admin: `ตั้ง ${who} เป็นแอดมิน?\nจะเข้า admin.html ได้ และเห็น/จัดการทุกร้าน ทุกออเดอร์ ทุกแชท`,
+          user: `เปลี่ยน ${who} เป็นผู้ใช้ธรรมดา?\nจะเข้าหลังร้านไม่ได้ เหลือเฉพาะร้านที่รับผิดชอบใน shop.html`,
+        }[role])) {
+          sel.value = now;
           return;
         }
-        rpc('admin_set_admin', { p_user: u.id, p_on: toAdmin }, toAdmin ? 'ตั้งเป็นแอดมินแล้ว' : 'เปลี่ยนเป็นผู้ใช้แล้ว');
+        rpc('admin_set_role', { p_user: u.id, p_role: role }, { super: 'ตั้งเป็น Superadmin แล้ว', admin: 'ตั้งเป็นแอดมินแล้ว', user: 'เปลี่ยนเป็นผู้ใช้แล้ว' }[role]);
       };
       roleRow.append('👑 บทบาท', sel);
     }
     el.append(top);
     if (manageable) el.append(passwordRow(u));
-    else el.append(h('div', 'muted', '🔒 บัญชีแอดมิน — ดู/ตั้งรหัส/ลบ ได้เฉพาะ Superadmin'));
+    else el.append(h('div', 'muted', u.is_super ? '🔒 บัญชี Superadmin — ดู/ตั้งรหัส/บทบาท ได้เฉพาะเจ้าของระบบ' : '🔒 บัญชีแอดมิน — ดู/ตั้งรหัส/ลบ ได้เฉพาะ Superadmin'));
     if (roleRow) el.append(roleRow);
     el.append(chips, add, acts);
     return el;
