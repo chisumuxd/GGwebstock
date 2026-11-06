@@ -972,7 +972,6 @@ function renderViewers() {
 // ---------- 🛠 ห้องเคลม: 1 เคลม = 1 ห้อง · รอตรวจอยู่บน · จบแล้วอยู่ล่าง ----------
 const CLAIM_SEL = '*, orders(order_no, product_name, option_name, qty, total, customer, delivery, ordered_by)';
 let claimDoneTotal = 0;  // เคลมที่จบแล้วทั้งหมด (โหลดมาแค่ 300 ล่าสุด)
-let claimDoneOpen = false; // กลุ่ม ✅ จบแล้ว กางอยู่
 let claimPerson = null;    // แท็บ ⏳ รอเคลม: คนที่กดดูเคลมทีละใบอยู่ (null = รายชื่อคน)
 async function loadClaimRooms() {
   // รอตรวจ + แชทเคลมเก่า = โหลดครบเสมอ · จบแล้ว = 300 ล่าสุด (มีเป็นพันจาก bearplus — ไม่ให้ดันห้องอื่นตกรายการ)
@@ -1100,17 +1099,54 @@ function renderClaimList(q, shopF) {
     if (!pend.length) $('list').append(h('p', 'none', q || shopF ? 'ไม่พบเคลมที่รอ' : 'ไม่มีเคลมที่รอ 🎉'));
     return;
   }
-  // แท็บ 🛠 เคลม: 🗂 แชทเคลมเก่า → ✅ จบแล้ว (พับไว้ · กดเปิด · ค้นหา/เลือกร้านอยู่ = กางเอง)
-  const old = shown.filter((c) => c.status === 'chat'); // ห้องเคลมเก่าจาก bearplus (บัญชี + ร้าน = 1 ห้อง · update-47)
-  const done = shown.filter((c) => c.status !== 'pending' && c.status !== 'chat');
-  const filtered = q || shopF;
-  const openDone = claimDoneOpen || filtered || done.some((c) => current?.key === 'claim:' + c.id); // เปิดห้องที่จบแล้วอยู่ = กางให้เห็น
-  const doneH = h('div', 'grp-h fold', `✅ จบแล้ว (${num(filtered ? done.length : claimDoneTotal)}) ${openDone ? '▾' : '▸ กดเพื่อเปิด'}`);
-  doneH.onclick = () => { claimDoneOpen = !openDone; renderList(); };
-  $('list').replaceChildren(...(old.length ? [h('div', 'grp-h', `🗂 แชทเคลมเก่า (bearplus) (${old.length})`), ...old.map(row)] : []),
-    ...(done.length ? [doneH, ...(openDone ? done.map(row) : [])] : []));
-  if (openDone && !filtered && claimDoneTotal > done.length) $('list').append(h('p', 'none', `แสดง ${done.length} รายการล่าสุด — ดูทั้งหมดที่เมนู 🛠 เคลม`));
-  if (!shown.length) $('list').append(h('p', 'none', claimRooms.length ? 'ไม่พบเคลม' : 'ยังไม่มีเคลม'));
+  // แท็บ 🛠 เคลมแล้ว: รวมตามคน (แบบ ⏳ รอเคลม) · กดคน = แชทเคลมเก่า + เคลมที่จบแล้วทั้งหมดของคนนั้น · ค้นหาอยู่ = แสดงทีละเคลม
+  const at = (c) => c.last_at ?? c.created_at ?? '';
+  const closed = shown.filter((c) => c.status !== 'pending').sort((a, b) => at(b).localeCompare(at(a)));
+  if (q) {
+    $('list').replaceChildren(...closed.map(row));
+    if (!closed.length) $('list').append(h('p', 'none', 'ไม่พบเคลม'));
+    return;
+  }
+  if (claimPerson !== null) { // ดูเคลมของคนเดียว (ที่โหลดไว้ + ทั้งหมดของคนนั้นที่ดึงมาตอนกด)
+    const all = new Map([...(personClaims.get(claimPerson) ?? []).filter((c) => !shopF || c.shop_id === shopF), ...closed.filter((c) => claimWho(c) === claimPerson)].map((c) => [c.id, c])); // ที่โหลดสดทับของเก่า
+    const mine = [...all.values()].sort((a, b) => (a.status !== 'chat') - (b.status !== 'chat') || at(b).localeCompare(at(a))); // ห้องแชทเก่าบนสุด
+    const n = mine.filter((c) => c.status !== 'chat').length;
+    const back = h('div', 'grp-h fold back', `← ${nameOf(claimPerson)} · เคลม ${num(n)} ใบ${personClaims.has(claimPerson) ? '' : ' · กำลังโหลดทั้งหมด…'}`);
+    back.onclick = () => { claimPerson = null; renderList(); };
+    return void $('list').replaceChildren(back, ...mine.map(row));
+  }
+  const groups = new Map(); // คน → เคลม (ล่าสุดก่อน → คนที่มีความเคลื่อนไหวล่าสุดอยู่บน)
+  for (const c of closed) { const u = claimWho(c); (groups.get(u) ?? groups.set(u, []).get(u)).push(c); }
+  $('list').replaceChildren(h('div', 'grp-h', `🛠 เคลมแล้ว ${num(claimDoneTotal)} ใบ · ${groups.size} คน`), ...[...groups].map(([uid, list]) => {
+    const done = list.filter((c) => c.status !== 'chat');
+    const unread = list.reduce((s, c) => s + (c.admin_unread ?? 0), 0);
+    const el = h('div', 'item' + (unread ? ' unread' : '') + (list.some((c) => current?.key === 'claim:' + c.id) ? ' active' : ''));
+    const body = h('div', 'body');
+    const top = h('div', 'top');
+    const bottom = h('div', 'bottom');
+    top.append(h('span', 'name', nameOf(uid)), h('time', '', listTime(at(list[0]))));
+    if (done.length) bottom.append(pill([`🧾 เคลม ${done.length}`, '']));
+    if (done.length < list.length) bottom.append(pill(['🗂 แชทเก่า', '']));
+    bottom.append(h('span', 'preview', list[0].last_message || [...new Set(list.map((c) => shopName[c.shop_id] ?? '#' + c.shop_id))].join(', ')));
+    if (unread) bottom.append(h('span', 'badge', unread));
+    body.append(top, bottom);
+    el.append(avatar({ id: uid ?? '?', name: nameOf(uid), shop_id: list[0].shop_id }), body);
+    el.onclick = () => { claimPerson = uid; renderList(); loadPersonClaims(uid); };
+    return el;
+  }));
+  if (!closed.length) $('list').append(h('p', 'none', shopF ? 'ไม่พบเคลม' : 'ยังไม่มีเคลม'));
+}
+
+// เคลมของใคร (เคลมจากการ์ดออเดอร์ที่ไม่มีคนแจ้ง = คนเบิก)
+const claimWho = (c) => c.created_by ?? c.orders?.ordered_by ?? null;
+// กดคนในแท็บ 🛠 เคลมแล้ว → ดึงเคลมที่จบแล้วทั้งหมดของคนนั้น (รายการหลักโหลดแค่ 300 ล่าสุด)
+const personClaims = new Map();
+async function loadPersonClaims(uid) {
+  if (!uid) return void personClaims.set(uid, []);
+  const { data } = await db.from('claims').select(CLAIM_SEL).eq('created_by', uid).neq('status', 'pending')
+    .order('last_at', { ascending: false, nullsFirst: false }).limit(1000);
+  personClaims.set(uid, data ?? []);
+  if (claimPerson === uid && filter === 'claims') renderList();
 }
 
 // เปิดห้องเคลม = ห้องแชทเดิม (ข้อความ / รูป / ตอบกลับ) แต่เฉพาะข้อความของเคลมนี้ + การ์ดเคลมหัวห้อง
