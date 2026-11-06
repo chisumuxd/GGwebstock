@@ -181,6 +181,20 @@
   .iv-bar a, .iv-bar button { color: #fff; background: rgba(255, 255, 255, .14); border: 0; border-radius: 999px; padding: 7px 16px; font-size: 13px; text-decoration: none; cursor: pointer; }
   .iv-bar a:hover, .iv-bar button:hover { background: rgba(255, 255, 255, .26); }
   .sound-form { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  #soundDlg { width: min(540px, calc(100% - 24px)); }
+  .set-title { font-size: 16px; }
+  .sound-form .grow { flex: 1; } /* ปุ่ม "เสร็จ" ชิดขวา */
+  .set-hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+  .font-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .font-row .seg { display: flex; gap: 6px; }
+  .font-row .seg button { padding: 6px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--hover); color: var(--muted); font-weight: 600; cursor: pointer; }
+  .font-row .seg button[aria-pressed="true"] { border-color: var(--green); color: var(--green); background: var(--gtint); }
+  .font-row input[type="range"] { flex: 1; min-width: 110px; accent-color: var(--green); }
+  .font-row b { color: var(--green); min-width: 40px; text-align: right; }
+  #fontLock { padding: 5px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--hover); font-size: 15px; cursor: pointer; }
+  #fontLock.on { border-color: var(--orange); }
+  .font-row :disabled { opacity: .45; cursor: not-allowed; }
+  .font-preview { align-self: flex-start; max-width: 100%; }
   /* 🤖 ตอบกลับอัตโนมัติ */
   .o-card .t-in { width: auto; }
   .day-picks { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -219,6 +233,7 @@
   .row.out { align-self: flex-end; flex-direction: row-reverse; }
   .row .avatar, .row .spacer { width: 32px; flex: none; align-self: flex-start; }
   .bubble { min-width: 0; padding: 8px 12px; border-radius: 18px; background: var(--soft); white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
+  #msgs .bubble, .font-preview { font-size: var(--chat-fs, 14px); } /* ⚙️ ตั้งค่า → 🔤 ฟอนต์แชท */
   .row.out .bubble { background: var(--green); color: #fff; }
   .row.out.auto .bubble { background: var(--hover); color: var(--txt); border: 1px dashed var(--line); } /* 🤖 ระบบตอบอัตโนมัติ = เทา แยกจากแอดมินพิมพ์เอง */
   .stamp { flex: none; font-size: 10px; color: var(--muted); display: flex; flex-direction: column; align-items: flex-end; }
@@ -559,7 +574,7 @@
     <button data-view="services" aria-pressed="false">🛡️<span>บริการ</span></button>
     <button data-view="users" aria-pressed="false">👤<span>ผู้ใช้</span></button>
     <button data-view="autoreply" aria-pressed="false">🤖<span>ตอบอัตโนมัติ</span></button>
-    <button id="soundBtn" class="end" type="button" aria-label="ตั้งค่าเสียงแจ้งเตือน">🔔<span>เสียง</span></button>
+    <button id="soundBtn" class="end" type="button" aria-label="ตั้งค่า (เสียงแจ้งเตือน / ฟอนต์แชท)">⚙️<span>ตั้งค่า</span></button>
     <button id="themeBtn" type="button" aria-label="สลับ Dark mode / Light mode"><b>🌙</b><span>Dark mode</span></button>
   </nav>
 
@@ -714,10 +729,21 @@
 
 <dialog id="soundDlg">
   <form method="dialog" class="sound-form">
+    <b class="set-title">⚙️ ตั้งค่า <small class="muted">(เฉพาะเครื่องนี้)</small></b>
     <b>🔔 เสียงแจ้งเตือน</b>
     <span class="muted">ดังเมื่อร้านทักมา · เคลมใหม่ · แจ้งเติมเครดิตใหม่ (ห้องที่เปิดดูอยู่ไม่ดัง) · ตั้งแยกแต่ละเครื่อง</span>
     <label class="vol-row">🔈<input id="vol" type="range" min="0" max="100" step="5">🔊<b id="volVal"></b></label>
-    <div class="acts"><button type="button" class="btn gray" id="volTest">▶ ทดลองเสียง</button><span class="grow"></span><button class="btn">เสร็จ</button></div>
+    <div class="acts"><button type="button" class="btn gray" id="volTest">▶ ทดลองเสียง</button></div>
+    <hr class="set-hr">
+    <b>🔤 ฟอนต์แชท <small class="muted">ขนาดตัวอักษรข้อความในห้องแชท</small></b>
+    <div class="font-row">
+      <span class="seg" id="fontPresets"><button type="button">เล็ก</button><button type="button">กลาง</button><button type="button">ใหญ่</button></span>
+      <input id="fontRange" type="range" min="11" max="24" step="1" aria-label="ขนาดฟอนต์แชท">
+      <b id="fontVal"></b>
+      <button type="button" id="fontLock" title="ล็อกไว้ กันเผลอเปลี่ยน"></button>
+    </div>
+    <div class="bubble font-preview">ตัวอย่าง: สวัสดีครับ ส่งข้อมูลให้แล้วนะครับ 🙏</div>
+    <div class="acts"><span class="grow"></span><button class="btn">เสร็จ</button></div>
   </form>
 </dialog>
 
@@ -3428,7 +3454,29 @@ function playDing(force = false) {
   ding.play().catch(() => {}); // ยังไม่เคยคลิกอะไรในหน้า = เบราว์เซอร์ไม่ให้เล่นเสียง
 }
 const showVol = () => { $('volVal').textContent = Number($('vol').value) ? $('vol').value + '%' : 'ปิด'; };
-$('soundBtn').onclick = () => { $('vol').value = soundVol(); showVol(); $('soundDlg').showModal(); };
+$('soundBtn').onclick = () => { $('vol').value = soundVol(); showVol(); $('soundDlg').showModal(); }; // ⚙️ ตั้งค่า (เสียง + ฟอนต์แชท)
+// 🔤 ฟอนต์แชท: ขนาดตัวอักษรข้อความในห้องแชท · เก็บในเครื่องนี้ · 🔒 = กันเผลอเลื่อน
+const FONT_PRESET = { 'เล็ก': 12, 'กลาง': 14, 'ใหญ่': 17 };
+const pref = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { return null; } };
+function setChatFont(px, save = true) {
+  px = Math.min(24, Math.max(11, Math.round(Number(px)) || 14));
+  document.documentElement.style.setProperty('--chat-fs', px + 'px');
+  $('fontRange').value = px;
+  $('fontVal').textContent = px + 'px';
+  for (const b of $('fontPresets').children) b.setAttribute('aria-pressed', FONT_PRESET[b.textContent] === px);
+  if (save) pref('chatFont', px);
+}
+function setFontLock(on) {
+  for (const el of [$('fontRange'), ...$('fontPresets').children]) el.disabled = on;
+  $('fontLock').textContent = on ? '🔒' : '🔓';
+  $('fontLock').classList.toggle('on', on);
+  pref('chatFontLock', on ? '1' : null);
+}
+for (const b of $('fontPresets').children) b.onclick = () => setChatFont(FONT_PRESET[b.textContent]);
+$('fontRange').oninput = () => setChatFont($('fontRange').value);
+$('fontLock').onclick = () => setFontLock(!$('fontRange').disabled);
+setChatFont(pref('chatFont') ?? 14, false);
+setFontLock(pref('chatFontLock') === '1');
 $('vol').oninput = () => { try { localStorage.setItem('notifyVol', $('vol').value); } catch {} showVol(); };
 $('vol').onchange = () => playDing(true); // ปล่อยแถบ = ลองฟังระดับนั้น
 $('volTest').onclick = () => playDing(true);
