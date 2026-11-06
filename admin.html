@@ -353,6 +353,15 @@
   /* 🛠 ห้องเคลม (1 เคลม = 1 ห้อง): แท็บในรายการแชท + การ์ดเคลมหัวห้อง */
   .tabs .cnt { background: var(--orange); color: #fff; border-radius: 999px; padding: 0 6px; font-size: 11px; margin-left: 3px; }
   .tabs .cnt:empty { display: none; }
+  .tabs .cnt.green { background: var(--green); }
+  /* ≡ ทั้งหมด ▾ (แบบ LINE OA): ทั้งหมด / ยังไม่อ่าน / รอดำเนินการ / เสร็จสิ้น / ปักหมุด */
+  .f-menu { position: fixed; z-index: 40; min-width: 230px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: 0 12px 32px rgba(0, 0, 0, .22); display: flex; flex-direction: column; gap: 2px; }
+  .f-menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; border-radius: 8px; text-align: left; font-size: 14px; color: var(--txt); }
+  .f-menu button:hover { background: var(--hover); }
+  .f-menu button.on { background: var(--sel); font-weight: 700; }
+  .f-menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+  .f-menu .n { background: var(--green); color: #fff; border-radius: 999px; min-width: 20px; padding: 0 6px; font-size: 11px; text-align: center; }
+  .f-menu .n.gray { background: var(--hover); color: var(--muted); }
   .grp-h { padding: 10px 16px 2px; font-size: 11px; font-weight: 700; color: var(--muted); }
   .grp-h.fold { cursor: pointer; padding-bottom: 10px; }
   .grp-h.fold:hover { color: var(--txt); }
@@ -509,11 +518,11 @@
       <button id="searchGo" class="search-go" type="button" hidden>🔍 ค้นหาข้อความ</button>
       <div class="filters">
         <div class="tabs">
-          <button data-f="all" aria-pressed="true">💬 ทั้งหมด</button>
-          <button data-f="unread" aria-pressed="false">ยังไม่อ่าน <span id="unreadCount"></span></button>
+          <button id="fBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-pressed="true">≡ <span id="fLabel">💬 ทั้งหมด</span> ▾<span class="cnt green" id="fCount"></span></button>
           <button data-f="pending" aria-pressed="false">⏳ รอเคลม<span class="cnt" id="pendRoomCount"></span></button>
-          <button data-f="claims" aria-pressed="false">🛠 เคลม<span class="cnt" id="claimRoomCount"></span></button>
+          <button data-f="claims" aria-pressed="false">🛠 เคลมแล้ว<span class="cnt" id="claimRoomCount"></span></button>
         </div>
+        <div id="fMenu" class="f-menu" role="menu" hidden></div>
         <span class="f-right"><span class="shop-pick"><button id="shopBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="กรองตามร้าน"></button><div id="shopList" class="shop-list" role="listbox" hidden></div></span><select id="shopFilter" aria-label="กรองตามร้าน" hidden><option value="">ทุกร้าน</option></select><select id="tagFilter" aria-label="กรองตามแท็ก"></select></span>
       </div>
     </div>
@@ -826,7 +835,7 @@ async function loadContacts() {
   const fresh = current && !current.claim && contacts.find((c) => c.key === current.key);
   if (fresh) { current.seen_at = fresh.seen_at; current.status = fresh.status; renderSeen(); renderHeadStatus(); }
   unreadChats = contacts.filter((c) => c.unread).length;
-  $('unreadCount').textContent = unreadChats || '';
+  $('fCount').textContent = unreadChats || '';
   $('n-chat').textContent = unreadChats + claimUnread || '';
   updateTitle();
   renderList();
@@ -849,9 +858,7 @@ function setAllTags(tags) {
     g.append(...opts.map(([value, text]) => { const o = h('option', '', text); o.value = value; return o; }));
     return g;
   };
-  $('tagFilter').replaceChildren(any,
-    group('สถานะ', [['pin', '📌 ปักหมุด'], ...Object.entries(STATUS).map(([k, v]) => ['st:' + k, v])]),
-    ...(allTags.length ? [group('แท็ก', allTags.map((t) => [t, t]))] : []));
+  $('tagFilter').replaceChildren(any, ...(allTags.length ? [group('แท็ก', allTags.map((t) => [t, t]))] : [])); // สถานะ / ปักหมุด อยู่ในเมนู ≡ ทั้งหมด ▾
   $('tagFilter').value = [...$('tagFilter').options].some((o) => o.value === picked) ? picked : '';
   if (current) renderTags();
 }
@@ -861,9 +868,9 @@ function renderList() {
   const tag = $('tagFilter').value;
   const shopF = Number($('shopFilter').value);
   if (filter === 'claims' || filter === 'pending') return renderClaimList(q, shopF);
-  const tagOk = (c) => !tag || (tag === 'pin' ? pins.has(c.tid) : tag.startsWith('st:') ? c.status === tag.slice(3) : c.tags.includes(tag));
-  const shown = contacts.filter((c) => (filter === 'all' || c.unread)
-    && tagOk(c)
+  const viewOk = VIEWS[filter]?.[1] ?? VIEWS.all[1];
+  const shown = contacts.filter((c) => viewOk(c)
+    && (!tag || c.tags.includes(tag))
     && (!shopF || c.shop_id === shopF)
     && (!q || c.name.toLowerCase().includes(q) || c.tags.some((t) => t.toLowerCase().includes(q)) || msgHits.has(c.key)))
     .sort((a, b) => pins.has(b.tid) - pins.has(a.tid)); // 📌 ของบัญชีนี้ขึ้นบนสุด (ที่เหลือเรียงตามเวลาเหมือนเดิม)
@@ -1052,10 +1059,44 @@ function openClaimRoom(c) {
 function setFilter(f) {
   filter = f;
   claimPerson = null; // กดแท็บ = กลับรายชื่อคน
-  for (const x of document.querySelectorAll('.tabs button')) x.setAttribute('aria-pressed', x.dataset.f === f);
-  document.querySelector(`.tabs [data-f="${f}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); // แท็บที่โผล่ครึ่งเดียว → เลื่อนให้เห็นเต็ม
+  for (const x of document.querySelectorAll('.tabs [data-f]')) x.setAttribute('aria-pressed', x.dataset.f === f);
+  $('fBtn').setAttribute('aria-pressed', f in VIEWS);
+  if (f in VIEWS) $('fLabel').textContent = VIEWS[f][0];
+  (f in VIEWS ? $('fBtn') : document.querySelector(`.tabs [data-f="${f}"]`))?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); // แท็บที่โผล่ครึ่งเดียว → เลื่อนให้เห็นเต็ม
   renderList();
 }
+
+// ≡ ทั้งหมด ▾ แบบ LINE OA: มุมมองห้องคุย · ตัวเลข: ทั้งหมด/ยังไม่อ่าน = ยังไม่อ่าน · สถานะ/ปักหมุด = จำนวนห้อง
+const VIEWS = {
+  all: ['💬 ทั้งหมด', () => true],
+  unread: ['🔵 ยังไม่อ่าน', (c) => c.unread > 0],
+  doing: ['🔄 รอดำเนินการ', (c) => c.status === 'doing'],
+  done: ['✅ เสร็จสิ้น', (c) => c.status === 'done'],
+  pin: ['📌 ปักหมุด', (c) => pins.has(c.tid)],
+};
+function toggleFMenu(open = $('fMenu').hidden) {
+  const m = $('fMenu');
+  $('fBtn').setAttribute('aria-expanded', open);
+  if (!open) return void (m.hidden = true);
+  const item = (k) => {
+    const [label, ok] = VIEWS[k];
+    const n = k === 'all' || k === 'unread' ? unreadChats : contacts.filter(ok).length;
+    const b = h('button', filter === k ? 'on' : '');
+    b.type = 'button';
+    b.setAttribute('role', 'menuitem');
+    b.append(h('span', '', label), n ? h('span', 'n' + (k === 'all' || k === 'unread' ? '' : ' gray'), n) : '');
+    b.onclick = () => { toggleFMenu(false); setFilter(k); };
+    return b;
+  };
+  m.replaceChildren(item('all'), h('hr'), item('unread'), item('doing'), item('done'), item('pin'));
+  m.hidden = false;
+  const r = $('fBtn').getBoundingClientRect(); // แถบแท็บเลื่อนซ้ายขวาได้ (overflow) → เมนูลอยแบบ fixed ไม่โดนตัด
+  m.style.left = Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8)) + 'px';
+  m.style.top = r.bottom + 4 + 'px';
+}
+$('fBtn').onclick = (e) => { e.stopPropagation(); toggleFMenu(); };
+document.addEventListener('click', (e) => { if (!e.target.closest('#fMenu')) toggleFMenu(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') toggleFMenu(false); });
 
 function renderClaimPin() {
   if (!current?.claim) return;
@@ -3038,7 +3079,7 @@ $('searchGo').onclick = runSearch;
 $('search').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); runSearch(); } };
 $('tagFilter').onchange = renderList;
 $('shopFilter').onchange = renderList;
-for (const b of document.querySelectorAll('.tabs button')) {
+for (const b of document.querySelectorAll('.tabs [data-f]')) {
   b.onclick = () => setFilter(b.dataset.f);
 }
 $('infoBtn').onclick = () => $('app').classList.toggle('show-profile');
