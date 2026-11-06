@@ -659,9 +659,10 @@ function h(tag, cls = '', text = '') {
 
 const COLORS = ['#06c755', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899'];
 function avatar(c, size = '') {
-  if (avatars[c.id]) { // รูปโปรไฟล์ที่ตั้งไว้
+  const url = avatars[c.id] || (c.shop_id && avatars['shop:' + c.shop_id]); // รูปโปรไฟล์ · ไม่มี = โลโก้ร้านของห้องนั้น
+  if (url) {
     const img = h('img', 'avatar ' + size);
-    img.src = avatars[c.id];
+    img.src = url;
     img.alt = '';
     return img;
   }
@@ -921,7 +922,7 @@ function renderClaimList(q, shopF) {
       bottom.append(pill([`🧾 เคลม ${list.length} ห้อง`, 'pending']), pill([`ค้าง ${list.length}`, 'bad']),
         h('span', 'preview', [...new Set(list.map((c) => shopName[c.shop_id] ?? '#' + c.shop_id))].join(', ')));
       body.append(top, bottom);
-      el.append(avatar({ id: uid ?? '?', name: nameOf(uid) }), body);
+      el.append(avatar({ id: uid ?? '?', name: nameOf(uid), shop_id: list[0].shop_id }), body);
       el.onclick = () => { if (list.length === 1) return openClaimRoom(list[0]); claimPerson = uid; renderList(); };
       return el;
     }));
