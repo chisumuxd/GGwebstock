@@ -683,6 +683,7 @@ let lastDir = '';
 let msgHits = new Map(); // ห้อง (คน:ร้าน) → ข้อความที่ตรงกับคำค้นในรายการแชท
 let claimHits = new Map(); // เคลม id → ข้อความที่ตรงกับคำค้น (ข้อความในห้องเคลม / ปัญหา / คำตอบ / เมลในออเดอร์)
 let claimExtra = [];     // เคลมที่ค้นเจอแต่ไม่ได้อยู่ใน 300 ล่าสุดที่โหลดไว้
+let hitAt = new Map();   // ห้อง → เวลาของข้อความ/การ์ดที่ค้นเจอ (เปิดห้องแล้วโหลดย้อนถึงจุดนั้น)
 let hits = [];           // ผลค้นหาในห้องแชท (Range)
 let hitIdx = -1;
 let view = 'chat';       // หน้าที่เปิดจากเมนูซ้าย
@@ -1289,30 +1290,36 @@ async function searchMessages() {
   const q = $('search').value.trim();
   const found = new Map();
   const cHits = new Map(); // เคลม id → ข้อความที่ตรง (แท็บ ⏳ รอเคลม / 🛠 เคลม)
+  const at = new Map();    // ห้อง → เวลาของจุดที่เจอ
   let extra = [];
   if (q) {
     // ponytail: ilike สแกนทั้งตาราง — ข้อความเป็นแสนค่อยเพิ่ม index pg_trgm
-    const { data, error } = await db.from('messages').select('contact_id, shop_id, text, claim_id').ilike('text', `%${q}%`)
+    const { data, error } = await db.from('messages').select('contact_id, shop_id, text, claim_id, created_at').ilike('text', `%${q}%`)
       .order('created_at', { ascending: false }).limit(300);
     if (error) return alert(error.message);
     for (const m of data) {
       if (m.claim_id) { if (!cHits.has(m.claim_id)) cHits.set(m.claim_id, m.text); continue; } // ข้อความในห้องเคลม
       const k = roomKey(m.contact_id, m.shop_id);
-      if (!found.has(k)) found.set(k, m.text);
+      if (!found.has(k)) { found.set(k, m.text); at.set(k, m.created_at); }
     }
-    // ข้อมูลในการ์ดออเดอร์ (เมล / ข้อมูลส่งมอบ / หมายเหตุ / สินค้า) → ห้องของคนที่เบิก ร้านที่เบิก
+    // ข้อมูลในการ์ดออเดอร์ (เมล / ข้อมูลส่งมอบ / หมายเหตุ / สินค้า) → ห้องที่การ์ดนั้นอยู่ (ไม่มีการ์ด = ห้องของคนที่เบิก)
     const v = q.replace(/["\\]/g, ''); // ค่าในเครื่องหมายคำพูด ใส่ , ( ) ได้
     const { data: ords } = await db.from('orders').select('id, order_no, ordered_by, shop_id, product_name, email')
       .or(['order_no', 'email', 'delivery', 'note', 'product_name', 'customer'].map((c) => `${c}.ilike."%${v}%"`).join(','))
       .order('created_at', { ascending: false }).limit(300);
+    const oIds = (ords ?? []).map((o) => o.id);
+    const { data: cards } = oIds.length ? await db.from('messages').select('order_id, contact_id, shop_id, created_at').in('order_id', oIds).is('claim_id', null) : { data: [] };
+    const cardOf = new Map((cards ?? []).map((m) => [m.order_id, m]));
     for (const o of ords ?? []) {
-      const k = roomKey(o.ordered_by, o.shop_id);
-      if (!found.has(k)) found.set(k, `📦 ${ono(o)} · ${o.product_name}${o.email ? ' · ' + o.email : ''}`);
+      const cm = cardOf.get(o.id);
+      const k = cm ? roomKey(cm.contact_id, cm.shop_id) : roomKey(o.ordered_by, o.shop_id);
+      if (found.has(k)) continue;
+      found.set(k, `📦 ${ono(o)} · ${o.product_name}${o.email ? ' · ' + o.email : ''}`);
+      if (cm) at.set(k, cm.created_at);
     }
     // เคลม: ปัญหา / คำตอบแอดมิน / แอป / ออเดอร์ที่ตรง (เมลในออเดอร์) — รวมเคลมเก่าที่ไม่ได้โหลดไว้ (โหลดแค่ 300 ล่าสุด)
-    const ids = (ords ?? []).map((o) => o.id);
     const { data: cls } = await db.from('claims').select(CLAIM_SEL)
-      .or([...['reason', 'reply', 'app_type'].map((c) => `${c}.ilike."%${v}%"`), ...(ids.length ? [`order_id.in.(${ids})`] : [])].join(','))
+      .or([...['reason', 'reply', 'app_type'].map((c) => `${c}.ilike."%${v}%"`), ...(oIds.length ? [`order_id.in.(${oIds})`] : [])].join(','))
       .order('last_at', { ascending: false, nullsFirst: false }).limit(300);
     for (const c of cls ?? []) if (!cHits.has(c.id)) cHits.set(c.id, c.reply && c.reply.toLowerCase().includes(q.toLowerCase()) ? '✅ ' + c.reply : c.reason);
     const have = new Set([...claimRooms, ...(cls ?? [])].map((c) => c.id));
@@ -1322,6 +1329,7 @@ async function searchMessages() {
   }
   if (q !== $('search').value.trim()) return; // พิมพ์ต่อระหว่างรอผล
   msgHits = found;
+  hitAt = at;
   claimHits = cHits;
   claimExtra = extra;
   renderList();
@@ -1368,7 +1376,14 @@ async function openChat(c) {
     roomMsgs(c).order('created_at', { ascending: false }).limit(200),
     db.from('notes').select().eq('contact_id', c.id).order('created_at', { ascending: false }),
   ]);
-  const urls = await signed(msgs.data.map((m) => m.image_path)); // ขอลิงก์รูปทั้งห้องทีเดียว
+  let rows = msgs.data.reverse(); // เก่า → ใหม่
+  // เปิดจากผลค้นหา แต่จุดที่เจอ (ข้อความ / การ์ดออเดอร์) เก่ากว่า 200 ข้อความล่าสุด → โหลดย้อนถึงจุดนั้น (ไม่เกิน 2000)
+  const at = $('search').value.trim() && hitAt.get(c.key);
+  if (at && rows.length && new Date(at) < new Date(rows[0].created_at)) {
+    const { data: older } = await roomMsgs(c).gte('created_at', at).lt('created_at', rows[0].created_at).order('created_at').limit(2000);
+    rows = [...(older ?? []), ...rows];
+  }
+  const urls = await signed(rows.map((m) => m.image_path)); // ขอลิงก์รูปทั้งห้องทีเดียว
   if (current !== c) return; // กดเปลี่ยนแชทระหว่างโหลด
   imgUrls = urls;
   lastDay = lastDir = '';
@@ -1378,13 +1393,13 @@ async function openChat(c) {
   msgById.clear();
   claimPinEl = null;
   renderClaimPin(); // ห้องเคลม → การ์ดเคลมหัวห้อง
-  msgs.data.reverse().forEach(addMsg);
+  rows.forEach(addMsg);
   renderSeen();
   await fillChatCards(); // รอการ์ดเติมข้อมูลก่อน ค้นหาในแชทจะได้เจอข้อมูลในการ์ด
   if (current !== c) return;
   $('notes').replaceChildren(...notes.data.map(noteEl));
   // เปิดจากผลค้นหาข้อความ → ไฮไลต์คำนั้นในแชทเลย
-  if (msgHits.has(c.key) && $('search').value.trim()) openChatSearch($('search').value.trim());
+  if ((msgHits.has(c.key) || claimHits.has(c.claim?.id)) && $('search').value.trim()) openChatSearch($('search').value.trim());
   else $('text').focus();
   if (c.unread) markRead();
 }
