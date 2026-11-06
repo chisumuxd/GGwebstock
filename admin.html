@@ -271,9 +271,14 @@
   .chat-img { display: block; max-width: min(260px, 100%); max-height: 320px; border-radius: 14px; border: 1px solid var(--line); cursor: zoom-in; background: var(--hover); min-width: 60px; min-height: 60px; }
   .quote { max-width: 100%; background: var(--hover); border-left: 3px solid var(--green); border-radius: 8px; padding: 4px 10px; font-size: 12px; color: var(--muted); cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .quote b { color: var(--txt); }
-  .row .reply { color: var(--muted); font-size: 13px; padding: 0 2px; visibility: hidden; }
-  .row:hover .reply { visibility: visible; }
-  @media (hover: none) { .row .reply { visibility: visible; } }
+  .row .msg-more { color: var(--muted); font-size: 16px; line-height: 1; padding: 0 5px 3px; border-radius: 6px; visibility: hidden; }
+  .row:hover .msg-more, .row .msg-more[aria-expanded="true"] { visibility: visible; }
+  .row .msg-more:hover { background: var(--hover); color: var(--txt); }
+  @media (hover: none) { .row .msg-more { visibility: visible; } }
+  /* เมนู ⋯ ของข้อความ */
+  .msg-menu { position: fixed; z-index: 55; min-width: 170px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: 0 10px 28px rgba(0, 0, 0, .22); display: flex; flex-direction: column; }
+  .msg-menu button { text-align: left; padding: 9px 12px; border-radius: 8px; font-size: 14px; color: var(--txt); background: none; }
+  .msg-menu button:hover { background: var(--hover); }
   .row.flash .bubble, .row.flash .chat-img { outline: 2px solid #ffb300; outline-offset: 2px; }
   .search-go { align-self: center; margin-top: -4px; border: 1px solid var(--green); color: var(--green); background: none; border-radius: 6px; padding: 6px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
   .search-go:hover:not(:disabled) { background: var(--gtint); }
@@ -716,6 +721,8 @@
   <img id="imgViewPic" alt="">
   <div class="iv-bar"><a id="imgViewOpen" target="_blank" rel="noopener">⬇️ เปิดรูปเต็ม / บันทึก</a><button type="button" id="imgViewX" aria-label="ปิด">✕</button></div>
 </dialog>
+
+<div id="msgMenu" class="msg-menu" role="menu" hidden><button type="button" id="mmReply" role="menuitem">↩ ตอบกลับ</button><button type="button" id="mmCopy" role="menuitem">📋 คัดลอก</button></div>
 
 <div id="ctxMenu" role="menu" hidden>
   <button type="button" id="ctxPeek" role="menuitem">👁 ดูตัวอย่างข้อความ</button>
@@ -1745,11 +1752,11 @@ function addMsg(m) {
   const stamp = h('div', 'stamp');
   const text = m.image_path && m.text === IMG_TEXT ? '' : m.text; // รูปอย่างเดียว = ไม่มีกรอบข้อความ
   msgById.set(m.id, { id: m.id, name, text: text || IMG_TEXT });
-  const rb = h('button', 'reply', '↩');
-  rb.type = 'button';
-  rb.title = 'ตอบกลับข้อความนี้';
-  rb.onclick = () => setReply(msgById.get(m.id));
-  stamp.append(rb);
+  const more = h('button', 'msg-more', '⋯'); // แบบ LINE OA: ⋯ → ↩ ตอบกลับ / 📋 คัดลอก
+  more.type = 'button';
+  more.title = 'ตอบกลับ / คัดลอก';
+  more.onclick = (e) => { e.stopPropagation(); openMsgMenu(more, m, text); };
+  stamp.append(more);
   if (m.direction === 'out') stamp.append(h('span', 'read', 'อ่านแล้ว'));
   stamp.append(h('time', '', clock(d)));
   const body = h('div', 'body');
@@ -1865,6 +1872,37 @@ function chatImg(path) {
   });
   return img;
 }
+
+// ⋯ ของข้อความ: ↩ ตอบกลับ · 📋 คัดลอกข้อความ (รูปอย่างเดียว = คัดลอกลิงก์รูป)
+let mmFor = null; // { btn, m, text }
+function openMsgMenu(btn, m, text) {
+  const menu = $('msgMenu');
+  if (mmFor?.btn === btn && !menu.hidden) return closeMsgMenu(); // กดซ้ำ = ปิด
+  closeMsgMenu();
+  mmFor = { btn, m, text };
+  $('mmCopy').textContent = text ? '📋 คัดลอกข้อความ' : '🔗 คัดลอกลิงก์รูป';
+  menu.hidden = false;
+  btn.setAttribute('aria-expanded', 'true');
+  const r = btn.getBoundingClientRect();
+  const x = m.direction === 'out' ? r.right - menu.offsetWidth : r.left; // ฝั่งแอดมิน (ขวา) = เมนูชิดขวา
+  const below = r.bottom + 4 + menu.offsetHeight <= innerHeight;
+  menu.style.left = Math.max(8, Math.min(x, innerWidth - menu.offsetWidth - 8)) + 'px';
+  menu.style.top = (below ? r.bottom + 4 : r.top - menu.offsetHeight - 4) + 'px';
+}
+function closeMsgMenu() {
+  $('msgMenu').hidden = true;
+  mmFor?.btn.removeAttribute('aria-expanded');
+  mmFor = null;
+}
+$('mmReply').onclick = () => { const id = mmFor.m.id; closeMsgMenu(); setReply(msgById.get(id)); };
+$('mmCopy').onclick = () => {
+  const v = mmFor.text || imgUrls[mmFor.m.image_path] || mmFor.m.image_path || '';
+  closeMsgMenu();
+  navigator.clipboard.writeText(v).then(() => toast('คัดลอกแล้ว'), () => alert('คัดลอกไม่สำเร็จ'));
+};
+document.addEventListener('click', (e) => { if (!e.target.closest('#msgMenu')) closeMsgMenu(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMsgMenu(); });
+$('msgs').addEventListener('scroll', closeMsgMenu);
 
 function setReply(r) {
   replyMsg = r;
