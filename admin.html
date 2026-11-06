@@ -104,6 +104,8 @@
   .tabs button[aria-pressed="true"] { color: var(--txt); font-weight: 700; border-color: var(--txt); }
   #list { overflow-y: auto; flex: 1; }
   #list .none { color: var(--muted); text-align: center; padding: 40px 0; }
+  #list .hit-claims { color: var(--green); padding: 16px 0; cursor: pointer; }
+  #list .hit-claims:hover { text-decoration: underline; }
   .item { display: flex; gap: 12px; padding: 12px 16px; align-items: center; cursor: pointer; }
   .item:hover { background: var(--hover); }
   .item.active { background: var(--sel); }
@@ -679,6 +681,8 @@ let editingTags = false;
 let lastDay = '';
 let lastDir = '';
 let msgHits = new Map(); // ห้อง (คน:ร้าน) → ข้อความที่ตรงกับคำค้นในรายการแชท
+let claimHits = new Map(); // เคลม id → ข้อความที่ตรงกับคำค้น (ข้อความในห้องเคลม / ปัญหา / คำตอบ / เมลในออเดอร์)
+let claimExtra = [];     // เคลมที่ค้นเจอแต่ไม่ได้อยู่ใน 300 ล่าสุดที่โหลดไว้
 let hits = [];           // ผลค้นหาในห้องแชท (Range)
 let hitIdx = -1;
 let view = 'chat';       // หน้าที่เปิดจากเมนูซ้าย
@@ -881,6 +885,12 @@ function renderList() {
     return el;
   }));
   if (!shown.length) $('list').append(h('p', 'none', contacts.length ? 'ไม่พบแชท' : 'ยังไม่มีแชท — ร้านทักมาได้จากแท็บ 💬 แชท ใน shop.html'));
+  if (q && claimHits.size) { // คำค้นเจอในห้องเคลมด้วย → ลิงก์ไปแท็บเคลม (มีที่รอ = ⏳ รอเคลม)
+    const all = [...claimRooms, ...claimExtra].filter((c) => claimHits.has(c.id));
+    const more = h('p', 'none hit-claims', `🛠 เจอในห้องเคลมอีก ${claimHits.size} ห้อง — กดดู`);
+    more.onclick = () => setFilter(all.some((c) => c.status === 'pending') ? 'pending' : 'claims');
+    $('list').append(more);
+  }
 }
 
 // ---------- 👁 แอดมินคนไหนเปิดแชทไหนอยู่ (Realtime presence แบบ private · update-44) ----------
@@ -966,8 +976,9 @@ async function loadClaimRooms() {
 }
 
 function renderClaimList(q, shopF) {
-  const shown = claimRooms.filter((c) => (!shopF || c.shop_id === shopF)
-    && (!q || `#${c.id} ${shopName[c.shop_id] ?? ''} ${nameOf(c.created_by)} ${c.orders?.order_no ?? ''} ${c.orders?.product_name ?? ''} ${c.app_type ?? ''} ${c.reason}`.toLowerCase().includes(q)));
+  const shown = (q ? [...claimRooms, ...claimExtra] : claimRooms).filter((c) => (!shopF || c.shop_id === shopF)
+    && (!q || claimHits.has(c.id) // ค้นจากฐานข้อมูล: ข้อความในห้อง / คำตอบ / เมลในออเดอร์
+      || `#${c.id} ${shopName[c.shop_id] ?? ''} ${nameOf(c.created_by)} ${c.orders?.order_no ?? ''} ${c.orders?.product_name ?? ''} ${c.app_type ?? ''} ${c.reason} ${c.reply ?? ''}`.toLowerCase().includes(q)));
   const row = (c) => {
     const el = h('div', 'item' + (c.admin_unread ? ' unread' : '') + (current?.key === 'claim:' + c.id ? ' active' : '') + (viewers['claim:' + c.id] ? ' watched' : ''));
     const body = h('div', 'body');
@@ -975,7 +986,7 @@ function renderClaimList(q, shopF) {
     const bottom = h('div', 'bottom');
     const title = c.status === 'chat' ? `${nameOf(c.created_by)} · เคลมเก่า` : `เคลม #${c.id}${c.app_type ? ' · ' + c.app_type : ''}`;
     top.append(h('span', 'name', `${title} · ${shopName[c.shop_id] ?? '#' + c.shop_id}`), pill(CLAIM[c.status]), viewerChip('claim:' + c.id), h('time', '', listTime(c.last_at ?? c.created_at)));
-    bottom.append(h('span', 'preview', c.last_message || `${c.orders?.product_name ?? ''} · ${c.reason}`));
+    bottom.append(h('span', 'preview', (q && claimHits.get(c.id)) || c.last_message || `${c.orders?.product_name ?? ''} · ${c.reason}`));
     if (c.admin_unread) bottom.append(h('span', 'badge', c.admin_unread));
     body.append(top, bottom);
     const pic = h('span', 'cl-pic');
@@ -1277,12 +1288,15 @@ let searchTimer;
 async function searchMessages() {
   const q = $('search').value.trim();
   const found = new Map();
+  const cHits = new Map(); // เคลม id → ข้อความที่ตรง (แท็บ ⏳ รอเคลม / 🛠 เคลม)
+  let extra = [];
   if (q) {
     // ponytail: ilike สแกนทั้งตาราง — ข้อความเป็นแสนค่อยเพิ่ม index pg_trgm
-    const { data, error } = await db.from('messages').select('contact_id, shop_id, text').ilike('text', `%${q}%`)
+    const { data, error } = await db.from('messages').select('contact_id, shop_id, text, claim_id').ilike('text', `%${q}%`)
       .order('created_at', { ascending: false }).limit(300);
     if (error) return alert(error.message);
     for (const m of data) {
+      if (m.claim_id) { if (!cHits.has(m.claim_id)) cHits.set(m.claim_id, m.text); continue; } // ข้อความในห้องเคลม
       const k = roomKey(m.contact_id, m.shop_id);
       if (!found.has(k)) found.set(k, m.text);
     }
@@ -1295,9 +1309,21 @@ async function searchMessages() {
       const k = roomKey(o.ordered_by, o.shop_id);
       if (!found.has(k)) found.set(k, `📦 ${ono(o)} · ${o.product_name}${o.email ? ' · ' + o.email : ''}`);
     }
+    // เคลม: ปัญหา / คำตอบแอดมิน / แอป / ออเดอร์ที่ตรง (เมลในออเดอร์) — รวมเคลมเก่าที่ไม่ได้โหลดไว้ (โหลดแค่ 300 ล่าสุด)
+    const ids = (ords ?? []).map((o) => o.id);
+    const { data: cls } = await db.from('claims').select(CLAIM_SEL)
+      .or([...['reason', 'reply', 'app_type'].map((c) => `${c}.ilike."%${v}%"`), ...(ids.length ? [`order_id.in.(${ids})`] : [])].join(','))
+      .order('last_at', { ascending: false, nullsFirst: false }).limit(300);
+    for (const c of cls ?? []) if (!cHits.has(c.id)) cHits.set(c.id, c.reply && c.reply.toLowerCase().includes(q.toLowerCase()) ? '✅ ' + c.reply : c.reason);
+    const have = new Set([...claimRooms, ...(cls ?? [])].map((c) => c.id));
+    const missing = [...cHits.keys()].filter((id) => !have.has(id)); // ตรงจากข้อความแต่ยังไม่ได้โหลดเคลมนั้น
+    const { data: more } = missing.length ? await db.from('claims').select(CLAIM_SEL).in('id', missing) : { data: [] };
+    extra = [...(cls ?? []), ...(more ?? [])].filter((c) => !claimRooms.some((x) => x.id === c.id));
   }
   if (q !== $('search').value.trim()) return; // พิมพ์ต่อระหว่างรอผล
   msgHits = found;
+  claimHits = cHits;
+  claimExtra = extra;
   renderList();
 }
 
