@@ -1789,7 +1789,7 @@ function renderThreads() {
   }));
 }
 
-async function openThread(id) {
+async function openThread(id, since = null) { // since = โหลดย้อนถึงเวลานี้ด้วย (กดข้อความแล้วเด้งไปการ์ดเก่า)
   thread = id;
   claimOpen = null;
   unread.delete(id);
@@ -1802,12 +1802,18 @@ async function openThread(id) {
   renderTyping();
   // ponytail: 200 ข้อความล่าสุด
   const forShop = shop.id;
-  const [{ data: rows }, { data: room }] = await Promise.all([
-    (hasClaimRooms ? db.from('messages').select().is('claim_id', null) : db.from('messages').select()) // ข้อความห้องเคลมไม่ปนห้องคุยปกติ
-      .eq('contact_id', id).eq('shop_id', forShop).order('created_at', { ascending: false }).limit(200),
+  const roomQ = () => (hasClaimRooms ? db.from('messages').select().is('claim_id', null) : db.from('messages').select()) // ข้อความห้องเคลมไม่ปนห้องคุยปกติ
+    .eq('contact_id', id).eq('shop_id', forShop);
+  const [{ data: latest }, { data: room }] = await Promise.all([
+    roomQ().order('created_at', { ascending: false }).limit(200),
     db.from('threads').select('unread').eq('contact_id', id).eq('shop_id', forShop).maybeSingle(),
   ]);
-  const urls = await signedUrls((rows ?? []).map((m) => m.image_path)); // ขอลิงก์รูปทั้งห้องทีเดียว
+  let rows = (latest ?? []).reverse(); // เก่า → ใหม่
+  if (since && rows.length && new Date(since) < new Date(rows[0].created_at)) { // การ์ดเก่ากว่า 200 ข้อความ → โหลดย้อนถึงการ์ด (ไม่เกิน 2000)
+    const { data: older } = await roomQ().gte('created_at', since).lt('created_at', rows[0].created_at).order('created_at').limit(2000);
+    rows = [...(older ?? []), ...rows];
+  }
+  const urls = await signedUrls(rows.map((m) => m.image_path)); // ขอลิงก์รูปทั้งห้องทีเดียว
   if (thread !== id || claimOpen || shop.id !== forShop) return; // กดเปลี่ยนห้อง/ร้านระหว่างโหลด
   imgUrls = urls;
   lastDay = lastWho = '';
@@ -1815,7 +1821,7 @@ async function openThread(id) {
   shownIds.clear();
   msgById.clear();
   $('msgs').replaceChildren();
-  (rows ?? []).reverse().forEach(addMsg);
+  rows.forEach(addMsg);
   adminUnread = room?.unread ?? null;
   renderRead();
   await fillCards();
@@ -1918,15 +1924,32 @@ async function jumpTo(text, row) {
     if (claimOpen?.id !== Number(claimId)) return; // หาเคลมไม่เจอ
     el = claimPinEl;
   } else {
-    // การ์ดออเดอร์ "ด้านบน" ข้อความนี้ ที่ตรงเลขออเดอร์ / ชื่อสินค้า · ไม่ตรงเลย = การ์ดที่อยู่ใกล้ที่สุดด้านบน
-    const above = [...$('msgs').querySelectorAll('.slot')].filter((s) => s.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).reverse();
-    const key = (orderNo ?? product).trim();
-    el = above.find((s) => s.textContent.includes(key)) ?? above[0];
+    el = await findOrderCard(norm(orderNo ?? product), row);
+    if (!el) return toast(`ไม่พบการ์ด ${orderNo ?? product}`);
   }
-  if (!el?.isConnected) return toast('การ์ดเก่าเกินกว่าที่โหลดไว้');
+  if (!el?.isConnected) return toast('ไม่พบการ์ดในห้องนี้');
   el.scrollIntoView({ block: 'center', behavior: 'smooth' });
   el.classList.add('flash');
   setTimeout(() => el.classList.remove('flash'), 1600);
+}
+
+// ชื่อสินค้า / เลขออเดอร์ เทียบแบบไม่สนช่องว่างและตัวพิมพ์ ("Youtube Premium (1 เดือน)" = "YouTube Premium(1 เดือน)")
+const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, '');
+const cardName = (o) => norm(`${o.product_name}${o.option_name ? ` (${o.option_name})` : ''}`);
+// การ์ดของข้อความ "ส่งมอบ…": ใบล่าสุดก่อนข้อความนี้ในห้องนี้ ชื่อสินค้า/เลขออเดอร์ตรง (ไม่ตรง = ไม่เด้ง ดีกว่าเด้งผิดใบ)
+async function findOrderCard(key, row) {
+  const match = (o) => o && (norm(o.order_no) === key || key === '#' + o.id || cardName(o) === key || cardName(o).startsWith(key) || key.startsWith(cardName(o)));
+  const above = [...$('msgs').querySelectorAll('.slot')].filter((s) => s.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).reverse();
+  const onScreen = above.find((s) => s.order && match(s.order));
+  if (onScreen || claimOpen || !thread) return onScreen;
+  // ไม่อยู่ในจอ → หาในฐานข้อมูล (ห้องนี้) แล้วโหลดย้อนถึงการ์ด
+  const { data } = await db.from('messages').select('order_id, created_at, orders(id, order_no, product_name, option_name)')
+    .eq('contact_id', thread).eq('shop_id', shop.id).not('order_id', 'is', null).lte('created_at', row.dataset.at)
+    .order('created_at', { ascending: false }).limit(500);
+  const hit = (data ?? []).find((m) => match(m.orders));
+  if (!hit) return null;
+  await openThread(thread, hit.created_at);
+  return slots[hit.order_id]?.[0];
 }
 
 // ของฉัน = ขวา · แอดมิน / เพื่อนร่วมร้าน = ซ้าย มีรูป+ชื่อ · มี order_id = การ์ดออเดอร์
@@ -1973,6 +1996,7 @@ function addMsg(m) {
       body.append(b);
     }
     r.dataset.id = m.id;
+    r.dataset.at = m.created_at; // เวลา → หาการ์ดที่อยู่ก่อนข้อความนี้
     const time = h('time', '', d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }));
     if (m.direction === 'in') r.dataset.shop = '';
     if (mine) {
@@ -2035,7 +2059,7 @@ async function fillCards(ids = Object.keys(slots)) {
   if (!ids.length) return;
   const { data: rows } = await db.from('orders').select('*, products(image_url), shops(name), claims(*)').in('id', ids);
   const got = new Set((rows ?? []).map((o) => String(o.id)));
-  for (const o of rows ?? []) for (const slot of slots[o.id] ?? []) slot.replaceChildren(chatCard(o));
+  for (const o of rows ?? []) for (const slot of slots[o.id] ?? []) { slot.order = o; slot.replaceChildren(chatCard(o)); } // slot.order = จับคู่ข้อความ "ส่งมอบ…" กับการ์ด
   for (const id of ids) {
     if (!got.has(String(id))) for (const slot of slots[id] ?? []) slot.firstChild.textContent = `📦 ออเดอร์ #${id} · ร้านที่คุณไม่ได้ดูแล`;
   }

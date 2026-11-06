@@ -1347,7 +1347,7 @@ function roomMsgs(c) {
   return mq;
 }
 
-async function openChat(c) {
+async function openChat(c, since = null) { // since = โหลดย้อนถึงเวลานี้ด้วย (กดข้อความแล้วเด้งไปการ์ดเก่า)
   current = c;
   $('app').classList.add('open');
   $('empty').hidden = true;
@@ -1378,7 +1378,7 @@ async function openChat(c) {
   ]);
   let rows = msgs.data.reverse(); // เก่า → ใหม่
   // เปิดจากผลค้นหา แต่จุดที่เจอ (ข้อความ / การ์ดออเดอร์) เก่ากว่า 200 ข้อความล่าสุด → โหลดย้อนถึงจุดนั้น (ไม่เกิน 2000)
-  const at = $('search').value.trim() && hitAt.get(c.key);
+  const at = since ?? ($('search').value.trim() && hitAt.get(c.key));
   if (at && rows.length && new Date(at) < new Date(rows[0].created_at)) {
     const { data: older } = await roomMsgs(c).gte('created_at', at).lt('created_at', rows[0].created_at).order('created_at').limit(2000);
     rows = [...(older ?? []), ...rows];
@@ -1526,15 +1526,37 @@ async function jumpTo(text, row) {
     }
     el = claimPinEl;
   } else {
-    // การ์ดออเดอร์ "ด้านบน" ข้อความนี้ ที่ตรงเลขออเดอร์ / ชื่อสินค้า · ไม่ตรงเลย = การ์ดที่อยู่ใกล้ที่สุดด้านบน
-    const above = [...$('msgs').querySelectorAll('.chat-order')].filter((s) => s.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).reverse();
-    const key = (orderNo ?? product).trim();
-    el = above.find((s) => s.textContent.includes(key)) ?? above[0];
+    el = await findOrderCard(norm(orderNo ?? product), row);
+    if (!el) return toast(`ไม่พบการ์ด ${orderNo ?? product}`);
   }
-  if (!el?.isConnected) return toast('การ์ดเก่าเกินกว่าที่โหลดไว้ (200 ข้อความล่าสุด)');
+  if (!el?.isConnected) return toast('ไม่พบการ์ดในห้องนี้');
   el.scrollIntoView({ block: 'center', behavior: 'smooth' });
   el.classList.add('flash');
   setTimeout(() => el.classList.remove('flash'), 1600);
+}
+
+// ชื่อสินค้า / เลขออเดอร์ เทียบแบบไม่สนช่องว่างและตัวพิมพ์ ("Youtube Premium (1 เดือน)" = "YouTube Premium(1 เดือน)")
+const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, '');
+const cardName = (o) => norm(`${o.product_name}${o.option_name ? ` (${o.option_name})` : ''}`);
+// การ์ดของข้อความ "ส่งมอบ…": ใบล่าสุดที่อยู่ก่อนข้อความนี้ และชื่อสินค้า/เลขออเดอร์ตรง (ไม่ตรง = ไม่เด้ง ดีกว่าเด้งผิดใบ)
+async function findOrderCard(key, row) {
+  const match = (o) => o && (norm(o.order_no) === key || key === '#' + o.id || cardName(o) === key || cardName(o).startsWith(key) || key.startsWith(cardName(o)));
+  // 1) ในจอ
+  const above = [...$('msgs').querySelectorAll('.chat-order')].filter((s) => s.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).reverse();
+  const onScreen = above.find((s) => s.order && match(s.order));
+  if (onScreen) return onScreen;
+  // 2) ฐานข้อมูล: การ์ดก่อนเวลานี้ ห้องนี้ก่อน แล้วค่อยห้องอื่นของร้านเดียวกัน → โหลดย้อนถึงการ์ด
+  let qb = db.from('messages').select('order_id, contact_id, shop_id, created_at, orders(id, order_no, product_name, option_name)')
+    .not('order_id', 'is', null).lte('created_at', row.dataset.at).order('created_at', { ascending: false }).limit(500);
+  qb = current.shop_id ? qb.eq('shop_id', current.shop_id) : qb.eq('contact_id', current.id);
+  const { data } = await qb;
+  const hits = (data ?? []).filter((m) => match(m.orders));
+  const hit = hits.find((m) => m.contact_id === current.id) ?? hits[0];
+  if (!hit) return null;
+  const room = hit.contact_id === current.id ? current : contacts.find((c) => c.key === roomKey(hit.contact_id, hit.shop_id));
+  if (!room) return null;
+  if (!chatSlots[hit.order_id]?.[0]?.isConnected || room !== current) await openChat(room, hit.created_at);
+  return chatSlots[hit.order_id]?.[0];
 }
 
 function renderSeen() {
@@ -2147,7 +2169,7 @@ async function fillChatCards(ids = Object.keys(chatSlots)) {
   const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
   const { data } = await db.from('orders').select(ORDER_SEL).in('id', ids);
   if (current !== c) return; // เปลี่ยนแชทระหว่างโหลด
-  for (const o of data ?? []) for (const slot of chatSlots[o.id] ?? []) slot.replaceChildren(chatCard(o));
+  for (const o of data ?? []) for (const slot of chatSlots[o.id] ?? []) { slot.order = o; slot.replaceChildren(chatCard(o)); } // slot.order = ใช้จับคู่ข้อความ "ส่งมอบ…" กับการ์ด
   if (!$('chatSearch').hidden && $('chatQ').value.trim()) searchChat(); // การ์ดเปลี่ยน → ไฮไลต์ใหม่
   else if (atBottom) box.scrollTop = box.scrollHeight;
 }
