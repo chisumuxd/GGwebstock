@@ -294,6 +294,13 @@
   .c-pick input:focus-visible + span { outline: 2px solid var(--ac); outline-offset: 2px; }
   .pw-form { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
   .pw-form .acts { display: flex; gap: 8px; justify-content: flex-end; }
+  /* ป๊อปอัปดูรูป */
+  dialog.img-view { width: fit-content; height: fit-content; max-width: 96vw; max-height: 96dvh; padding: 0; border: 0; background: none; overflow: visible; }
+  dialog.img-view::backdrop { background: rgba(0, 0, 0, .85); }
+  .img-view img { display: block; margin: 0 auto; max-width: 94vw; max-height: 84dvh; border-radius: 10px; object-fit: contain; background: #111; }
+  .iv-bar { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 10px; }
+  .iv-bar a, .iv-bar button { color: #fff; background: rgba(255, 255, 255, .14); border: 0; border-radius: 999px; padding: 7px 16px; font-size: 13px; text-decoration: none; cursor: pointer; }
+  .iv-bar a:hover, .iv-bar button:hover { background: rgba(255, 255, 255, .26); }
   .vol-row { display: flex; align-items: center; gap: 10px; }
   .vol-row input { flex: 1; accent-color: var(--ac); }
   .vol-row b { min-width: 48px; text-align: right; }
@@ -690,6 +697,10 @@
   </form>
 </dialog>
 
+<dialog id="imgView" class="img-view" aria-label="ดูรูป"><!-- กดรูปในแชท = ป๊อปอัปดูรูป (แบบ LINE OA) · กดนอกรูป / ✕ / Esc = ปิด -->
+  <img id="imgViewPic" alt="">
+  <div class="iv-bar"><a id="imgViewOpen" target="_blank" rel="noopener">⬇️ เปิดรูปเต็ม / บันทึก</a><button type="button" id="imgViewX" aria-label="ปิด">✕</button></div>
+</dialog>
 <dialog id="soundDlg">
   <form method="dialog" class="pw-form">
     <b>🔔 เสียงแจ้งเตือน</b>
@@ -982,7 +993,7 @@ function renderPromos(error) {
       img.onerror = () => { img.onerror = null; img.src = promoUrl(path); }; // ไม่มีรูปย่อ → ใช้ตัวเต็ม
       img.alt = `${p.title} รูปที่ ${i + 1}`;
       img.loading = 'lazy';
-      img.onclick = () => window.open(promoUrl(path), '_blank'); // ดูรูปเต็ม
+      img.onclick = () => viewImg(promoUrl(path)); // ดูรูปเต็ม (ป๊อปอัป)
       const dl = h('a', 'dl', '⬇');
       dl.href = promoUrl(path, promoFile(p, path, i));
       dl.title = 'โหลดรูปนี้';
@@ -1629,6 +1640,17 @@ function renderMe() {
 // ชื่อของฉัน: กดชื่อที่หัวเว็บ (มือถือ: เมนู ☰ → ตั้งชื่อ)
 $('menuName').onclick = () => $('meName').click();
 // เปลี่ยนรหัสผ่านเอง (บัญชีที่ย้ายจาก bearplus ได้รหัสชั่วคราวจากแอดมิน)
+// 🖼 ป๊อปอัปดูรูป (แทนเปิดแท็บใหม่): กดนอกรูป / ✕ / Esc = ปิด · ⬇️ = เปิดรูปเต็มแท็บใหม่ไว้บันทึก
+function viewImg(src) {
+  if (!src) return;
+  $('imgViewPic').src = src;
+  $('imgViewOpen').href = src;
+  $('imgView').showModal();
+}
+$('imgViewX').onclick = () => $('imgView').close();
+$('imgView').onclick = (e) => { if (e.target === $('imgView')) $('imgView').close(); }; // กดพื้นหลังดำ
+$('imgView').onclose = () => { $('imgViewPic').removeAttribute('src'); };
+
 // 🔔 เสียงแจ้งเตือน (notify.mp3) · ระดับเสียงเก็บในเครื่องนี้ (0 = ปิด)
 const ding = new Audio('notify.mp3');
 let dingAt = 0;
@@ -2131,7 +2153,7 @@ async function signedUrls(paths) {
 function chatImg(path) {
   const img = h('img', 'chat-img');
   img.alt = 'รูปภาพ';
-  img.onclick = () => img.src && window.open(img.src, '_blank');
+  img.onclick = () => viewImg(img.src);
   img.onload = () => { // รูปโหลดเสร็จทีหลัง → ถ้าดูข้อความล่าสุดอยู่ เลื่อนลงให้เห็นรูปเต็ม
     const box = $('msgs');
     if (box.scrollHeight - box.scrollTop - box.clientHeight < img.offsetHeight + 120) box.scrollTop = box.scrollHeight;
@@ -2407,10 +2429,9 @@ async function upload(file) {
 function fileButton(path, label) {
   const b = h('button', 'ghost', label);
   b.onclick = async () => {
-    const w = window.open('', '_blank');
     const { data: res, error } = await db.storage.from('shop-files').createSignedUrl(path, 300);
-    if (error) { w?.close(); return alert(error.message); }
-    if (w) w.location = res.signedUrl;
+    if (error) return alert(error.message);
+    viewImg(res.signedUrl); // สลิป / รูปเคลม = ป๊อปอัปดูรูป
   };
   return b;
 }

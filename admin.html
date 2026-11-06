@@ -38,7 +38,23 @@
   #notAdmin a { text-decoration: none; }
   #login h1 { color: var(--green); text-align: center; margin-bottom: 8px; }
 
-  #app { display: flex; flex: 1; min-width: 0; }
+  #app { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+  #appBody { display: flex; flex: 1; min-width: 0; min-height: 0; }
+  /* แถบบน: แอดมินออนไลน์ (ซ้าย) · บัญชีที่ล็อกอิน + ออกจากระบบ (ขวา) */
+  #topbar { height: 44px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 12px 0 16px; border-bottom: 1px solid var(--line); background: var(--bg); }
+  #topbar #online { flex: 1; margin: 0; min-width: 0; }
+  .acct { position: relative; flex: none; }
+  #acctBtn { display: flex; align-items: center; gap: 8px; padding: 3px 10px 3px 3px; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--txt); font-size: 13px; cursor: pointer; max-width: 220px; }
+  #acctBtn:hover, #acctBtn[aria-expanded="true"] { background: var(--hover); }
+  #acctBtn b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #acctBtn .caret { color: var(--muted); font-size: 10px; }
+  .acct-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 260px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: 0 12px 32px rgba(0, 0, 0, .22); display: flex; flex-direction: column; gap: 2px; }
+  .acct-head { display: flex; gap: 10px; align-items: center; padding: 8px 10px; }
+  .acct-head > div { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+  .acct-head small { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .acct-menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+  .acct-menu button { text-align: left; padding: 9px 12px; border-radius: 8px; font-size: 14px; color: var(--bad); background: none; }
+  .acct-menu button:hover { background: var(--hover); }
   #app:not([data-view="chat"]) :is(#side, #chat, #profile), #app[data-view="chat"] #office { display: none; }
 
   /* เมนูซ้าย */
@@ -157,6 +173,13 @@
   #headStatus:not([hidden]) + #searchBtn { margin-left: 0; }
   /* 👁 ดูตัวอย่างข้อความ (ไม่นับว่าอ่าน) */
   #peekDlg { width: min(520px, calc(100% - 24px)); }
+  /* ป๊อปอัปดูรูป */
+  dialog.img-view { width: fit-content; height: fit-content; max-width: 96vw; max-height: 96dvh; padding: 0; border: 0; background: none; overflow: visible; }
+  dialog.img-view::backdrop { background: rgba(0, 0, 0, .85); }
+  .img-view img { display: block; margin: 0 auto; max-width: 94vw; max-height: 84dvh; border-radius: 10px; object-fit: contain; background: #111; }
+  .iv-bar { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 10px; }
+  .iv-bar a, .iv-bar button { color: #fff; background: rgba(255, 255, 255, .14); border: 0; border-radius: 999px; padding: 7px 16px; font-size: 13px; text-decoration: none; cursor: pointer; }
+  .iv-bar a:hover, .iv-bar button:hover { background: rgba(255, 255, 255, .26); }
   .sound-form { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
   /* 🤖 ตอบกลับอัตโนมัติ */
   .o-card .t-in { width: auto; }
@@ -483,8 +506,9 @@
     #rail span { font-size: 11px; line-height: 14px; font-weight: 600; white-space: nowrap; } /* ชื่อทุกปุ่มขนาด/ความหนาเท่ากัน (ปุ่มที่เลือก = เปลี่ยนแค่สี) */
     /* ลำดับ (ล่าง → บน): แถวหลัก 4 เมนู + ☰ · Light mode + ออกจากระบบ · ร้านค้า สินค้า … */
     #rail > :nth-child(-n+5) { order: 0; }
-    #rail #soundBtn, #rail #themeBtn, #rail #logout { order: 1; }
-    #rail #logout { margin-right: 40%; } /* เต็มแถว → ร้านค้า/สินค้า ขึ้นแถวบนถัดไป */
+    #rail #soundBtn, #rail #themeBtn { order: 1; }
+    #rail #themeBtn { margin-right: 60%; } /* เต็มแถว → ร้านค้า/สินค้า ขึ้นแถวบนถัดไป */
+    #app.open #topbar { display: none; } /* เปิดห้องแชทบนมือถือ = ซ่อนแถบบน ให้แชทเต็มจอ */
     #rail .end { margin-top: 0; }
     #moreBtn { display: flex; }
     #rail:not(.more) #moreBtn ~ * { display: none; }
@@ -511,6 +535,18 @@
 </form>
 
 <div id="app" hidden data-view="chat">
+  <header id="topbar"><!-- แถบบน: สถานะแอดมินออนไลน์ · บัญชีที่ล็อกอิน (กด = เมนู ออกจากระบบ) แบบ LINE OA -->
+    <div id="online">👁 กำลังเชื่อมต่อสถานะแอดมิน…</div>
+    <div class="acct">
+      <button id="acctBtn" type="button" aria-haspopup="menu" aria-expanded="false" title="บัญชีที่ใช้อยู่"><span id="acctAv"></span><b id="acctName"></b><span class="caret">▾</span></button>
+      <div id="acctMenu" class="acct-menu" role="menu" hidden>
+        <div class="acct-head"><span id="acctAv2"></span><div><b id="acctName2"></b><small id="acctEmail" class="muted"></small><span id="acctRole"></span></div></div>
+        <hr>
+        <button id="logout" type="button" role="menuitem">🚪 ออกจากระบบ</button>
+      </div>
+    </div>
+  </header>
+  <div id="appBody">
   <nav id="rail">
     <button data-view="chat" aria-pressed="true">💬<span>แชท</span><i class="count" id="n-chat"></i></button>
     <button data-view="orders" aria-pressed="false">🧾<span>ออเดอร์</span><i class="count" id="n-orders"></i></button>
@@ -525,14 +561,12 @@
     <button data-view="autoreply" aria-pressed="false">🤖<span>ตอบอัตโนมัติ</span></button>
     <button id="soundBtn" class="end" type="button" aria-label="ตั้งค่าเสียงแจ้งเตือน">🔔<span>เสียง</span></button>
     <button id="themeBtn" type="button" aria-label="สลับ Dark mode / Light mode"><b>🌙</b><span>Dark mode</span></button>
-    <button id="logout">🚪<span>ออกจากระบบ</span></button>
   </nav>
 
   <aside id="side">
     <div class="side-top">
       <div class="account"><span class="acc-brand"><img src="logo.png" alt="" onerror="this.remove()"><span>GGplus Stock-chat</span></span>
         <button id="newChat" class="btn gray" type="button" title="เริ่มคุยกับร้านได้เลย ไม่ต้องรอร้านทัก">✏️ แชทใหม่</button></div>
-      <div id="online">👁 กำลังเชื่อมต่อสถานะแอดมิน…</div>
       <input id="search" class="field" type="search" placeholder="ค้นหาชื่อ / แท็ก · Enter = ค้นในข้อความ">
       <button id="searchGo" class="search-go" type="button" hidden>🔍 ค้นหาข้อความ</button>
       <div class="filters">
@@ -660,7 +694,13 @@
       <div id="oList"></div>
     </div>
   </section>
+  </div>
 </div>
+
+<dialog id="imgView" class="img-view" aria-label="ดูรูป"><!-- กดรูปในแชท = ป๊อปอัปดูรูป (แบบ LINE OA) · กดนอกรูป / ✕ / Esc = ปิด -->
+  <img id="imgViewPic" alt="">
+  <div class="iv-bar"><a id="imgViewOpen" target="_blank" rel="noopener">⬇️ เปิดรูปเต็ม / บันทึก</a><button type="button" id="imgViewX" aria-label="ปิด">✕</button></div>
+</dialog>
 
 <div id="ctxMenu" role="menu" hidden>
   <button type="button" id="ctxPeek" role="menuitem">👁 ดูตัวอย่างข้อความ</button>
@@ -761,6 +801,7 @@ let names = {};          // user id → ชื่อผู้ใช้ (แช�
 const nameOf = (uid, email) => names[uid] || (emails[uid] ?? email ?? '').split('@')[0] || 'สมาชิกร้าน';
 let users = [];
 let myId = null;
+let myEmail = '';     // บัญชีที่ล็อกอิน (แถบบนขวา)
 let amSuper = false;     // Superadmin: เปลี่ยนบทบาท / จัดการบัญชีแอดมินคนอื่นได้
 let amOwner = false;     // เจ้าของระบบ: ตั้ง/ถอด Superadmin + จัดการบัญชี Superadmin คนอื่นได้
 
@@ -806,6 +847,7 @@ async function start() {
   $('app').hidden = !session;
   if (!session) return;
   myId = session.user.id;
+  myEmail = session.user.email ?? '';
   // ช่องสดแบบ private ("กำลังพิมพ์…") ต้องเข้าด้วย token ผู้ใช้ — supabase-js ใส่ให้ช้า (หลังช่องแรกเชื่อมต่อแล้ว)
   await db.realtime.setAuth(session.access_token).catch(() => {});
   const { data: isAdmin } = await db.rpc('is_admin');
@@ -814,9 +856,10 @@ async function start() {
     $('notAdmin').hidden = false;
     return;
   }
-  db.rpc('is_super').then(({ data }) => { amSuper = !!data; }); // เมนู 🗑 ลบแชท = Superadmin เท่านั้น
+  Promise.all([db.rpc('is_super'), db.rpc('is_owner')]).then(([s, o]) => { amSuper = !!s.data; amOwner = !!o.data; renderAcct(); }); // เมนู 🗑 ลบแชท = Superadmin เท่านั้น · บทบาทที่แถบบน
   loadTags();
   await Promise.all([loadAvatars(), loadShops()]); // รูปโปรไฟล์ + อีเมลสมาชิก ก่อนวาดรายการแชท
+  renderAcct();
   loadContacts();
   loadClaimRooms();
   loadWaiting(); // แท็บ 📦 รอดำเนินการ
@@ -1785,7 +1828,7 @@ function quoteEl(id) {
 function chatImg(path) {
   const img = h('img', 'chat-img');
   img.alt = 'รูปภาพ';
-  img.onclick = () => img.src && window.open(img.src, '_blank');
+  img.onclick = () => viewImg(img.src);
   img.onload = () => { // รูปโหลดเสร็จทีหลัง → ถ้าดูข้อความล่าสุดอยู่ เลื่อนลงให้เห็นรูปเต็ม
     const box = $('msgs');
     if (box.scrollHeight - box.scrollTop - box.clientHeight < img.offsetHeight + 120) box.scrollTop = box.scrollHeight;
@@ -2227,7 +2270,7 @@ function thumb(url) {
   const img = h('img', 'thumb');
   img.src = url;
   img.alt = 'รูปแนบ';
-  img.onclick = () => window.open(url, '_blank');
+  img.onclick = () => viewImg(url);
   return img;
 }
 
@@ -2961,7 +3004,7 @@ function renderPromos() {
       img.onerror = () => { img.onerror = null; img.src = promoUrl(path); }; // ไม่มีรูปย่อ → ใช้ตัวเต็ม
       img.alt = '';
       img.loading = 'lazy';
-      img.onclick = () => window.open(promoUrl(path), '_blank');
+      img.onclick = () => viewImg(promoUrl(path));
       const x = h('button', '', '✕');
       x.type = 'button';
       x.title = 'ลบรูปนี้';
@@ -3361,6 +3404,17 @@ function renderThemeBtn() {
   $('themeBtn').querySelector('b').textContent = dark ? '☀️' : '🌙';
   $('themeBtn').querySelector('span').textContent = dark ? 'Light mode' : 'Dark mode'; // ชื่อ = โหมดที่จะสลับไป
 }
+// 🖼 ป๊อปอัปดูรูป (แทนเปิดแท็บใหม่): กดนอกรูป / ✕ / Esc = ปิด · ⬇️ = เปิดรูปเต็มแท็บใหม่ไว้บันทึก
+function viewImg(src) {
+  if (!src) return;
+  $('imgViewPic').src = src;
+  $('imgViewOpen').href = src;
+  $('imgView').showModal();
+}
+$('imgViewX').onclick = () => $('imgView').close();
+$('imgView').onclick = (e) => { if (e.target === $('imgView')) $('imgView').close(); }; // กดพื้นหลังดำ
+$('imgView').onclose = () => { $('imgViewPic').removeAttribute('src'); };
+
 // 🔔 เสียงแจ้งเตือน (notify.mp3) · ระดับเสียงเก็บในเครื่องนี้ (0 = ปิด)
 const ding = new Audio('notify.mp3');
 let dingAt = 0;
@@ -3407,6 +3461,20 @@ renderThemeBtn();
 }
 
 $('logout').onclick = () => db.auth.signOut({ scope: 'local' }).then(() => location.reload());
+// บัญชีที่ล็อกอิน (แถบบนขวา แบบ LINE OA): รูป + ชื่อ ▾ → ชื่อ / อีเมล / บทบาท · 🚪 ออกจากระบบ
+function renderAcct() {
+  const name = names[myId] || myEmail.split('@')[0] || 'แอดมิน';
+  $('acctAv').replaceChildren(avatar({ id: myId, name }, 'xs'));
+  $('acctName').textContent = name;
+  $('acctAv2').replaceChildren(avatar({ id: myId, name }));
+  $('acctName2').textContent = name;
+  $('acctEmail').textContent = myEmail;
+  $('acctRole').replaceChildren(pill(amOwner ? ['👑 เจ้าของระบบ', 'pending'] : amSuper ? ['Superadmin', 'pending'] : ['แอดมิน', '']));
+}
+const toggleAcct = (open = $('acctMenu').hidden) => { $('acctMenu').hidden = !open; $('acctBtn').setAttribute('aria-expanded', open); };
+$('acctBtn').onclick = (e) => { e.stopPropagation(); toggleAcct(); };
+document.addEventListener('click', (e) => { if (!e.target.closest('.acct')) toggleAcct(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') toggleAcct(false); });
 $('switchAcc').onclick = () => db.auth.signOut({ scope: 'local' }).then(() => location.reload());
 
 $('login').onsubmit = async (e) => {
