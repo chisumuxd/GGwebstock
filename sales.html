@@ -412,9 +412,13 @@ function showTip(e, r) {
 // ---------- สินค้าขายดี ----------
 function renderTop() {
   const map = new Map();
+  // ไม่มีรูป (ออเดอร์เก่าที่ไม่ได้ผูกสินค้า) → ยืมรูปจากออเดอร์อื่นของแอปเดียวกัน: "Netflix ( TV )" ใช้รูปของ "Netflix"
+  const appKey = (n) => String(n ?? '').split('(')[0].toLowerCase().replace(/\s+/g, '');
+  const appImg = new Map();
+  for (const p of products) if (p.image_url && !appImg.has(appKey(p.product_name))) appImg.set(appKey(p.product_name), p.image_url);
   for (const p of products) {
     const key = group === 'app' ? p.product_name : `${p.product_name}${p.option_name ? ' · ' + p.option_name : ''}`;
-    const g = map.get(key) ?? { name: key, img: p.image_url, orders: 0, sales: 0 };
+    const g = map.get(key) ?? { name: key, img: p.image_url ?? appImg.get(appKey(p.product_name)), orders: 0, sales: 0 };
     g.orders += p.orders;
     g.sales += +p.sales;
     g.img ??= p.image_url;
