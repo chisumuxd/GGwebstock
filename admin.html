@@ -182,7 +182,16 @@
   .iv-bar a, .iv-bar button { color: #fff; background: rgba(255, 255, 255, .14); border: 0; border-radius: 999px; padding: 7px 16px; font-size: 13px; text-decoration: none; cursor: pointer; }
   .iv-bar a:hover, .iv-bar button:hover { background: rgba(255, 255, 255, .26); }
   .sound-form { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-  #soundDlg { width: min(540px, calc(100% - 24px)); }
+  #soundDlg { width: min(540px, calc(100% - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; }
+  .rail-order { display: flex; flex-direction: column; gap: 4px; }
+  .ro-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--hover); }
+  .ro-row.drag { opacity: .4; }
+  .ro-row.over { border-color: var(--green); }
+  .ro-grip { cursor: grab; color: var(--muted); padding: 0 2px; user-select: none; }
+  .ro-row .lbl { flex: 1; }
+  .ro-row .mob { font-size: 11px; color: var(--green); }
+  .ro-row button { padding: 2px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; }
+  .ro-row button:disabled { visibility: hidden; }
   .set-title { font-size: 16px; }
   .sound-form .grow { flex: 1; } /* ปุ่ม "เสร็จ" ชิดขวา */
   .set-hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
@@ -574,7 +583,7 @@
     <button data-view="topups" aria-pressed="false">💰<span>เติมเครดิต</span><i class="count" id="n-topups"></i></button>
     <button id="moreBtn" type="button" aria-label="เมนูเพิ่มเติม">☰<span>เมนู</span></button>
     <button data-view="shops" aria-pressed="false">🏪<span>ร้านค้า</span></button>
-    <a href="stock.html">📦<span>สินค้า</span></a>
+    <a href="stock.html" data-key="stock">📦<span>สินค้า</span></a>
     <button data-view="promos" aria-pressed="false">✨<span>โปรโมชั่น</span></button>
     <button data-view="services" aria-pressed="false">🛡️<span>บริการ</span></button>
     <button data-view="users" aria-pressed="false">👤<span>ผู้ใช้</span></button>
@@ -750,6 +759,10 @@
       <button type="button" id="fontLock" title="ล็อกไว้ กันเผลอเปลี่ยน"></button>
     </div>
     <div class="bubble font-preview">ตัวอย่าง: สวัสดีครับ ส่งข้อมูลให้แล้วนะครับ 🙏</div>
+    <hr class="set-hr">
+    <b>🧭 จัดเมนู <small class="muted">ลาก (คอม) หรือกด ⬆️⬇️ · 4 อันแรก = แถบล่างบนมือถือ</small></b>
+    <div id="railOrder" class="rail-order"></div>
+    <div class="acts"><button type="button" class="btn gray" id="railReset">↺ ค่าเริ่มต้น</button></div>
     <div class="acts"><span class="grow"></span><button class="btn">เสร็จ</button></div>
   </form>
 </dialog>
@@ -3492,10 +3505,58 @@ function playDing(force = false) {
   ding.play().catch(() => {}); // ยังไม่เคยคลิกอะไรในหน้า = เบราว์เซอร์ไม่ให้เล่นเสียง
 }
 const showVol = () => { $('volVal').textContent = Number($('vol').value) ? $('vol').value + '%' : 'ปิด'; };
-$('soundBtn').onclick = () => { $('vol').value = soundVol(); showVol(); $('soundDlg').showModal(); }; // ⚙️ ตั้งค่า (เสียง + ฟอนต์แชท)
+$('soundBtn').onclick = () => { $('vol').value = soundVol(); showVol(); renderRailOrder(); $('soundDlg').showModal(); }; // ⚙️ ตั้งค่า (เสียง + ฟอนต์แชท + จัดเมนู)
+// ค่าที่จำในเครื่องนี้ (ฟอนต์แชท / จัดเมนู): pref(k) อ่าน · pref(k, v) เขียน · pref(k, null) ลบ
+const pref = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { return null; } };
+// 🧭 จัดเมนู: เรียงปุ่มเมนูซ้ายเอง (เก็บในเครื่องนี้) · 4 อันแรก = แถบล่างมือถือ (ปุ่ม ☰ ต้องอยู่ช่องที่ 5 ใน DOM) · ⚙️ / Light mode อยู่ล่างสุดเสมอ
+const railKey = (el) => el.dataset.view ?? el.dataset.key;
+const railItems = () => [...$('rail').children].filter((el) => railKey(el)); // ปุ่มเมนูที่ย้ายได้
+const RAIL_DEFAULT = railItems().map(railKey);
+function applyRailOrder(keys) {
+  const all = new Map(railItems().map((el) => [railKey(el), el]));
+  const order = [...keys.filter((k) => all.has(k)), ...RAIL_DEFAULT.filter((k) => !keys.includes(k))]; // เมนูใหม่ที่ยังไม่เคยจัด = ต่อท้าย
+  order.forEach((k, i) => $('rail').insertBefore(all.get(k), i < 4 ? $('moreBtn') : $('soundBtn')));
+  return order;
+}
+function saveRailOrder(keys) {
+  pref('railOrder', JSON.stringify(applyRailOrder(keys)));
+  renderRailOrder();
+}
+function renderRailOrder() {
+  const keys = railItems().map(railKey);
+  let from = null;
+  $('railOrder').replaceChildren(...keys.map((k, i) => {
+    const el = railItems()[i];
+    const row = h('div', 'ro-row');
+    row.draggable = true;
+    const move = (d) => { const n = [...keys]; [n[i], n[i + d]] = [n[i + d], n[i]]; saveRailOrder(n); };
+    const up = h('button', '', '⬆️');
+    const down = h('button', '', '⬇️');
+    up.type = down.type = 'button';
+    up.disabled = i === 0;
+    down.disabled = i === keys.length - 1;
+    up.onclick = () => move(-1);
+    down.onclick = () => move(1);
+    row.append(h('span', 'ro-grip', '⠿'), h('span', 'lbl', `${el.firstChild.textContent} ${el.querySelector('span').textContent}`), i < 4 ? h('span', 'mob', '📱 แถบล่าง') : '', up, down);
+    // ลากวาง (เมาส์): ปล่อยบนแถวไหน = ไปอยู่ตำแหน่งนั้น
+    row.ondragstart = () => { from = i; row.classList.add('drag'); };
+    row.ondragend = () => row.classList.remove('drag');
+    row.ondragover = (e) => { e.preventDefault(); row.classList.add('over'); };
+    row.ondragleave = () => row.classList.remove('over');
+    row.ondrop = (e) => {
+      e.preventDefault();
+      if (from === null || from === i) return renderRailOrder();
+      const n = [...keys];
+      n.splice(i, 0, n.splice(from, 1)[0]);
+      saveRailOrder(n);
+    };
+    return row;
+  }));
+}
+$('railReset').onclick = () => { pref('railOrder', null); applyRailOrder(RAIL_DEFAULT); renderRailOrder(); };
+try { applyRailOrder(JSON.parse(pref('railOrder') ?? '[]')); } catch { /* ค่าเสีย = ใช้ลำดับเดิม */ }
 // 🔤 ฟอนต์แชท: ขนาดตัวอักษรข้อความในห้องแชท · เก็บในเครื่องนี้ · 🔒 = กันเผลอเลื่อน
 const FONT_PRESET = { 'เล็ก': 12, 'กลาง': 14, 'ใหญ่': 17 };
-const pref = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { return null; } };
 function setChatFont(px, save = true) {
   px = Math.min(24, Math.max(11, Math.round(Number(px)) || 14));
   document.documentElement.style.setProperty('--chat-fs', px + 'px');
