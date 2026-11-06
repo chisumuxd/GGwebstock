@@ -526,15 +526,15 @@
     #app.open #side, #app:not(.open) #chat { display: none; }
     #back { display: inline; }
     /* เมนูย้ายไปล่างจอ ซ่อนตอนเปิดห้องแชท · แถวล่าง = 4 เมนูหลัก + ☰ เมนู (ช่องละ 20%)
-       กด ☰ → เมนูที่เหลือ 8 ปุ่ม เป็นตาราง 4 คอลัมน์เหนือแถวล่าง เรียงตาม DOM → Light mode · ⚙️ ตั้งค่า อยู่มุมขวาล่างของตาราง */
+       กด ☰ → เมนูที่เหลือ 9 ปุ่ม (6 เมนู + 📊 ยอดขาย + Light mode + ⚙️) = ตาราง 3×3 เหนือแถวล่าง · ⚙️ ตั้งค่า อยู่มุมขวาล่างเสมอ */
     #app { padding-bottom: 60px; }
     #app.open { padding-bottom: 0; }
     #app.open #rail { display: none; }
     #rail { position: fixed; left: 0; right: 0; bottom: 0; width: auto; height: auto; flex-direction: row; flex-wrap: wrap; align-items: stretch;
       padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); gap: 0; border: 0; border-top: 1px solid var(--line); background: var(--bg); z-index: 20; }
-    #rail > * { flex: 0 0 25%; width: auto; min-height: 56px; padding: 6px 0; font-size: 20px; line-height: 24px; justify-content: center; order: 1; }
+    #rail > * { flex: 0 0 33.333%; width: auto; min-height: 56px; padding: 6px 0; font-size: 20px; line-height: 24px; justify-content: center; order: 1; }
     #rail span { font-size: 11px; line-height: 14px; font-weight: 600; white-space: nowrap; } /* ชื่อทุกปุ่มขนาด/ความหนาเท่ากัน (ปุ่มที่เลือก = เปลี่ยนแค่สี) */
-    /* ลำดับ (บน → ล่าง): ร้านค้า สินค้า โปรโมชั่น บริการ · ผู้ใช้ ตอบอัตโนมัติ Light mode ⚙️ ตั้งค่า · แถวหลัก 4 เมนู + ☰ (ล่างสุด) */
+    /* ลำดับ (บน → ล่าง): ร้านค้า สินค้า ยอดขาย · โปรโมชั่น บริการ ผู้ใช้ · ตอบอัตโนมัติ Light mode ⚙️ ตั้งค่า · แถวหลัก 4 เมนู + ☰ (ล่างสุด) */
     #rail > :nth-child(-n+5) { order: 2; flex-basis: 20%; }
     #rail.more > :nth-child(n+6) { border-radius: 12px; }
     #app.open #topbar { display: none; } /* เปิดห้องแชทบนมือถือ = ซ่อนแถบบน ให้แชทเต็มจอ */
@@ -584,6 +584,7 @@
     <button id="moreBtn" type="button" aria-label="เมนูเพิ่มเติม">☰<span>เมนู</span></button>
     <button data-view="shops" aria-pressed="false">🏪<span>ร้านค้า</span></button>
     <a href="stock.html" data-key="stock">📦<span>สินค้า</span></a>
+    <a href="sales.html?admin=1" data-key="sales" title="เช็คยอดขายทุกร้าน">📊<span>ยอดขาย</span></a>
     <button data-view="promos" aria-pressed="false">✨<span>โปรโมชั่น</span></button>
     <button data-view="services" aria-pressed="false">🛡️<span>บริการ</span></button>
     <button data-view="users" aria-pressed="false">👤<span>ผู้ใช้</span></button>
