@@ -157,6 +157,10 @@
   #headStatus:not([hidden]) + #searchBtn { margin-left: 0; }
   /* 👁 ดูตัวอย่างข้อความ (ไม่นับว่าอ่าน) */
   #peekDlg { width: min(520px, calc(100% - 24px)); }
+  .sound-form { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .vol-row { display: flex; align-items: center; gap: 10px; }
+  .vol-row input { flex: 1; accent-color: var(--green); }
+  .vol-row b { min-width: 48px; text-align: right; }
   #peekDlg[open] { display: flex; flex-direction: column; max-height: 85vh; }
   .peek .chat-img { max-width: min(220px, 100%); max-height: 240px; margin-top: 4px; }
   #peekMsgs .cc-wait { display: none; } /* ช่องส่งมอบ = ทำในห้องแชท (ตัวอย่างดูอย่างเดียว) */
@@ -473,8 +477,8 @@
     #rail span { font-size: 11px; line-height: 14px; font-weight: 600; white-space: nowrap; } /* ชื่อทุกปุ่มขนาด/ความหนาเท่ากัน (ปุ่มที่เลือก = เปลี่ยนแค่สี) */
     /* ลำดับ (ล่าง → บน): แถวหลัก 4 เมนู + ☰ · Light mode + ออกจากระบบ · ร้านค้า สินค้า … */
     #rail > :nth-child(-n+5) { order: 0; }
-    #rail #themeBtn, #rail #logout { order: 1; }
-    #rail #logout { margin-right: 60%; } /* เต็มแถว → ร้านค้า/สินค้า ขึ้นแถวบนถัดไป */
+    #rail #soundBtn, #rail #themeBtn, #rail #logout { order: 1; }
+    #rail #logout { margin-right: 40%; } /* เต็มแถว → ร้านค้า/สินค้า ขึ้นแถวบนถัดไป */
     #rail .end { margin-top: 0; }
     #moreBtn { display: flex; }
     #rail:not(.more) #moreBtn ~ * { display: none; }
@@ -512,7 +516,8 @@
     <button data-view="promos" aria-pressed="false">✨<span>โปรโมชั่น</span></button>
     <button data-view="services" aria-pressed="false">🛡️<span>บริการ</span></button>
     <button data-view="users" aria-pressed="false">👤<span>ผู้ใช้</span></button>
-    <button id="themeBtn" class="end" type="button" aria-label="สลับ Dark mode / Light mode"><b>🌙</b><span>Dark mode</span></button>
+    <button id="soundBtn" class="end" type="button" aria-label="ตั้งค่าเสียงแจ้งเตือน">🔔<span>เสียง</span></button>
+    <button id="themeBtn" type="button" aria-label="สลับ Dark mode / Light mode"><b>🌙</b><span>Dark mode</span></button>
     <button id="logout">🚪<span>ออกจากระบบ</span></button>
   </nav>
 
@@ -655,6 +660,15 @@
   <hr id="ctxDelSep">
   <button type="button" id="ctxDelete" role="menuitem">🗑 ลบแชท</button>
 </div>
+
+<dialog id="soundDlg">
+  <form method="dialog" class="sound-form">
+    <b>🔔 เสียงแจ้งเตือน</b>
+    <span class="muted">ดังเมื่อร้านทักมา · เคลมใหม่ · แจ้งเติมเครดิตใหม่ (ห้องที่เปิดดูอยู่ไม่ดัง) · ตั้งแยกแต่ละเครื่อง</span>
+    <label class="vol-row">🔈<input id="vol" type="range" min="0" max="100" step="5">🔊<b id="volVal"></b></label>
+    <div class="acts"><button type="button" class="btn gray" id="volTest">▶ ทดลองเสียง</button><span class="grow"></span><button class="btn">เสร็จ</button></div>
+  </form>
+</dialog>
 
 <dialog id="peekDlg">
   <div class="peek-head"><b id="peekName"></b><button type="button" id="peekClose" aria-label="ปิด">✕</button></div>
@@ -802,6 +816,7 @@ async function start() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'threads' }, loadContacts)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: m }) => {
       dropTyper(roomKey(m.contact_id, m.shop_id), m.sender ?? m.contact_id); // ส่งข้อความแล้ว = เลิกพิมพ์
+      if (m.direction === 'in' && !(inRoom(m) && document.visibilityState === 'visible')) playDing(); // 🔔 ร้านทักมา (ห้องที่ดูอยู่ = ไม่ดัง)
       if (!inRoom(m)) return;
       addMsg(m);
       renderSeen();
@@ -818,8 +833,12 @@ async function start() {
       loadWaiting(); // ออเดอร์เปลี่ยนสถานะ → แท็บ 📦 รอดำเนินการ อัปเดต
       if (chatSlots[o?.id]) fillChatCards([o.id]); // การ์ดในแชทที่เปิดอยู่อัปเดตตาม
     })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'topups' }, onChange('topups', loadTopups))
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, ({ new: c }) => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'topups' }, (p) => {
+      if (p.eventType === 'INSERT') playDing(); // 🔔 แจ้งเติมเครดิตใหม่
+      onChange('topups', loadTopups)();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, ({ new: c, eventType }) => {
+      if (eventType === 'INSERT') playDing(); // 🔔 เคลมใหม่
       onChange('claims', loadClaims)();
       loadClaimRooms(); // ห้องเคลม: ข้อความล่าสุด / ยังไม่อ่าน / ผลเคลม
       if (view === 'orders') loadOrders();
@@ -3240,6 +3259,24 @@ function renderThemeBtn() {
   $('themeBtn').querySelector('b').textContent = dark ? '☀️' : '🌙';
   $('themeBtn').querySelector('span').textContent = dark ? 'Light mode' : 'Dark mode'; // ชื่อ = โหมดที่จะสลับไป
 }
+// 🔔 เสียงแจ้งเตือน (notify.mp3) · ระดับเสียงเก็บในเครื่องนี้ (0 = ปิด)
+const ding = new Audio('notify.mp3');
+let dingAt = 0;
+const soundVol = () => { try { return Number(localStorage.getItem('notifyVol') ?? 70); } catch { return 70; } };
+function playDing(force = false) {
+  const v = soundVol();
+  if (!v || (!force && Date.now() - dingAt < 1500)) return; // มาพร้อมกันหลายอัน = ดังครั้งเดียว
+  dingAt = Date.now();
+  ding.volume = v / 100;
+  ding.currentTime = 0;
+  ding.play().catch(() => {}); // ยังไม่เคยคลิกอะไรในหน้า = เบราว์เซอร์ไม่ให้เล่นเสียง
+}
+const showVol = () => { $('volVal').textContent = Number($('vol').value) ? $('vol').value + '%' : 'ปิด'; };
+$('soundBtn').onclick = () => { $('vol').value = soundVol(); showVol(); $('soundDlg').showModal(); };
+$('vol').oninput = () => { try { localStorage.setItem('notifyVol', $('vol').value); } catch {} showVol(); };
+$('vol').onchange = () => playDing(true); // ปล่อยแถบ = ลองฟังระดับนั้น
+$('volTest').onclick = () => playDing(true);
+
 $('themeBtn').onclick = () => {
   const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   document.documentElement.dataset.theme = t;
