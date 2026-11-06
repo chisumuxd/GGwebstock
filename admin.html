@@ -421,6 +421,12 @@
   .ocard.done { border-left-color: var(--green); }
   .ocard.cancelled { border-left-color: #c4c7cc; opacity: .75; }
   .ocard.claiming { border-left-color: #f5c84c; } /* มีเคลมรอตรวจสอบ */
+  /* หน้า 🧾 ออเดอร์: แถวย่อแบบหน้าเคลม · กางแล้วเป็นการ์ดเต็ม (ไม่ซ้ำเลข/ร้าน/คนเบิกที่หัวแถว) */
+  .o-row .ocard { border: 0; padding: 0; background: none; }
+  .o-row .ocard > .oc-meta { display: none; }
+  .tag-kind { border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 600; background: var(--gtint); color: var(--gtext); }
+  .tag-kind.renew { background: rgba(59, 130, 246, .14); color: #3b82f6; }
+  .o-row .c-end .minus { color: var(--orange); }
   .oc-head { display: flex; gap: 12px; align-items: center; }
   .oc-head .pill { align-self: flex-start; }
   .oc-pic { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; background: var(--hover); border: 1px solid var(--line); flex: none; display: grid; place-items: center; font-size: 22px; }
@@ -2061,7 +2067,7 @@ function setView(v) {
   for (const b of document.querySelectorAll('#rail [data-view]')) b.setAttribute('aria-pressed', b.dataset.view === v);
   for (const el of document.querySelectorAll('#office [data-for]')) el.hidden = el.dataset.for !== v;
   $('oTitle').textContent = TITLES[v] ?? '';
-  $('oList').className = { shops: 'grid', users: 'grid', orders: 'cards' }[v] ?? '';
+  $('oList').className = { shops: 'grid', users: 'grid' }[v] ?? '';
   if (v !== 'chat') reloadOffice();
 }
 for (const b of document.querySelectorAll('#rail [data-view]')) b.onclick = () => { $('rail').classList.remove('more'); setView(b.dataset.view); };
@@ -2177,8 +2183,30 @@ async function renderOrders() {
     shown = (await q(db.from('orders').select(ORDER_SEL).eq('order_no', s.toUpperCase()))) ?? [];
     if (s !== $('orderSearch').value.trim().toLowerCase()) return; // พิมพ์ต่อระหว่างรอ
   }
-  $('oList').replaceChildren(...shown.map(orderCard));
+  $('oList').replaceChildren(...shown.map((o) => orderRow(o, shown.length === 1)));
   emptyIf(shown, 'ไม่มีออเดอร์');
+}
+
+// แถวออเดอร์ (แบบหน้าเคลม): ร้าน · สินค้า · เบิกใหม่/ต่ออายุ | เครดิต · สถานะ ▼ → กดเพื่อกางการ์ดเต็ม (ส่งมอบ / ยกเลิก / แชท)
+const openOrders = new Set(); // ออเดอร์ที่กางดูอยู่ (เปิดค้างไว้หลังโหลดใหม่)
+function orderRow(o, open = false) {
+  const el = h('details', 'o-card c-fold o-row');
+  const head = h('summary');
+  const tags = h('div', 'c-tags');
+  const shopTag = h('span', 'c-shop');
+  shopTag.append(shopPic(o.shop_id, shopName[o.shop_id] ?? '?'), shopName[o.shop_id] ?? '#' + o.shop_id);
+  tags.append(shopTag, h('span', 'tag-app ' + appCls(o.product_name), o.product_name),
+    h('span', 'tag-kind ' + (o.kind ?? 'new'), ORDER_KIND[o.kind] ?? ORDER_KIND.new));
+  const end = h('span', 'c-end');
+  end.append(h('b', 'minus', `฿${num(o.total)}`), orderPill(o), h('span', 'caret', '▼'));
+  head.append(line(tags, end),
+    h('span', 'muted', `ออเดอร์ ${ono(o)} · ${when(o.created_at)} · ${title(o)} · 👤 ${nameOf(o.ordered_by, o.orderer)}`));
+  const body = h('div', 'c-body');
+  body.append(orderCard(o));
+  el.append(head, body);
+  el.open = open || openOrders.has(o.id);
+  el.ontoggle = () => (el.open ? openOrders.add(o.id) : openOrders.delete(o.id));
+  return el;
 }
 
 function copyButton(text, cls = 'cc-copy', label = '📋') {
