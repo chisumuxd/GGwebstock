@@ -103,7 +103,7 @@
   .tabs button { padding: 8px 0; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; flex: none; }
   .tabs button[aria-pressed="true"] { color: var(--txt); font-weight: 700; border-color: var(--txt); }
   #list { overflow-y: auto; flex: 1; }
-  #list .none { color: var(--muted); text-align: center; padding: 40px 0; }
+  #list .none { color: var(--muted); text-align: center; padding: 40px 16px; }
   .item { display: flex; gap: 12px; padding: 12px 16px; align-items: center; cursor: pointer; }
   .item:hover { background: var(--hover); }
   .item.active { background: var(--sel); }
@@ -225,6 +225,9 @@
   .row:hover .reply { visibility: visible; }
   @media (hover: none) { .row .reply { visibility: visible; } }
   .row.flash .bubble, .row.flash .chat-img { outline: 2px solid #ffb300; outline-offset: 2px; }
+  .search-go { align-self: center; margin-top: -4px; border: 1px solid var(--green); color: var(--green); background: none; border-radius: 6px; padding: 6px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .search-go:hover:not(:disabled) { background: var(--gtint); }
+  .search-go:disabled { opacity: .6; cursor: progress; }
   .chat-order .lone-h { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 6px; }
   .chat-order.flash .ccard, .cl-card.flash { outline: 3px solid #ffb300; outline-offset: 3px; transition: outline-color .3s; } /* กดข้อความแล้วเด้งมาการ์ดนี้ */
   .bubble.jump { cursor: pointer; }
@@ -502,7 +505,8 @@
       <div class="account"><span class="acc-brand"><img src="logo.png" alt="" onerror="this.remove()"><span>GGplus Stock-chat</span></span>
         <button id="newChat" class="btn gray" type="button" title="เริ่มคุยกับร้านได้เลย ไม่ต้องรอร้านทัก">✏️ แชทใหม่</button></div>
       <div id="online">👁 กำลังเชื่อมต่อสถานะแอดมิน…</div>
-      <input id="search" class="field" type="search" placeholder="ค้นหาชื่อ / แท็ก / ข้อความ">
+      <input id="search" class="field" type="search" placeholder="ค้นหาชื่อ / แท็ก · Enter = ค้นในข้อความ">
+      <button id="searchGo" class="search-go" type="button" hidden>🔍 ค้นหาข้อความ</button>
       <div class="filters">
         <div class="tabs">
           <button data-f="all" aria-pressed="true">💬 ทั้งหมด</button>
@@ -889,7 +893,8 @@ function renderList() {
   const claimFound = filter === 'all' && q ? [...claimRooms, ...claimExtra].filter((c) => claimHits.has(c.id) && (!shopF || c.shop_id === shopF))
     .sort((a, b) => (b.last_at ?? b.created_at ?? '').localeCompare(a.last_at ?? a.created_at ?? '')) : [];
   if (claimFound.length) $('list').append(h('div', 'grp-h', `🛠 ห้องเคลมที่เจอ (${claimFound.length})`), ...claimFound.map((c) => claimRowEl(c, q)));
-  if (!shown.length && !claimFound.length) $('list').append(h('p', 'none', contacts.length ? 'ไม่พบแชท' : 'ยังไม่มีแชท — ร้านทักมาได้จากแท็บ 💬 แชท ใน shop.html'));
+  if (!shown.length && !claimFound.length) $('list').append(h('p', 'none', !contacts.length ? 'ยังไม่มีแชท — ร้านทักมาได้จากแท็บ 💬 แชท ใน shop.html'
+    : q && !msgHits.size ? 'ไม่พบชื่อนี้ — กด 🔍 ค้นหาข้อความ (หรือ Enter) เพื่อค้นในแชท / เลขออเดอร์ / เมล' : 'ไม่พบแชท'));
 }
 
 // ---------- 👁 แอดมินคนไหนเปิดแชทไหนอยู่ (Realtime presence แบบ private · update-44) ----------
@@ -1285,8 +1290,7 @@ $('shopBtn').onclick = (e) => { e.stopPropagation(); toggleShopList(); };
 document.addEventListener('click', (e) => { if (!e.target.closest('.shop-pick')) toggleShopList(false); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') toggleShopList(false); });
 
-// ค้นข้อความในทุกแชท (ฝั่ง DB) — รอพิมพ์เสร็จ 300ms
-let searchTimer;
+// ค้นข้อความในทุกแชท (ฝั่ง DB) — กด 🔍 ค้นหาข้อความ / Enter (runSearch)
 async function searchMessages() {
   const q = $('search').value.trim();
   const found = new Map();
@@ -3007,11 +3011,31 @@ $('newShop').onsubmit = async (e) => {
 };
 
 // ---------- อื่นๆ ----------
+// ค้นหาแบบ LINE OA: พิมพ์ = กรองชื่อ/แท็กทันที · กด 🔍 ค้นหาข้อความ / Enter = ค้นในข้อความ การ์ดออเดอร์ และเคลม (ฝั่ง DB)
 $('search').oninput = () => {
+  msgHits = new Map(); // คำเปลี่ยน = ผลค้นข้อความเดิมใช้ไม่ได้แล้ว
+  claimHits = new Map();
+  claimExtra = [];
+  hitAt = new Map();
+  hitOrder = new Map();
+  $('searchGo').hidden = !$('search').value.trim();
+  $('searchGo').textContent = '🔍 ค้นหาข้อความ';
   renderList();
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(searchMessages, 300);
 };
+async function runSearch() {
+  const q = $('search').value.trim();
+  if (!q) return;
+  const b = $('searchGo');
+  b.disabled = true;
+  b.textContent = 'กำลังค้นหา…';
+  await searchMessages();
+  b.disabled = false;
+  if (q !== $('search').value.trim()) return; // พิมพ์ต่อระหว่างค้น
+  const n = msgHits.size + claimHits.size;
+  b.textContent = n ? `✓ เจอในข้อความ ${n} ห้อง · ค้นอีกครั้ง` : 'ไม่เจอในข้อความ · ค้นอีกครั้ง';
+}
+$('searchGo').onclick = runSearch;
+$('search').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); runSearch(); } };
 $('tagFilter').onchange = renderList;
 $('shopFilter').onchange = renderList;
 for (const b of document.querySelectorAll('.tabs button')) {
