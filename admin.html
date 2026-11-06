@@ -66,7 +66,8 @@
   /* แถวตัวกรอง: [ทั้งหมด ยังไม่อ่าน] ซ้าย · [ร้าน ▾ แท็ก ▾] ขวา — บรรทัดเดียวเสมอ ชื่อร้านยาวตัด … แทนการตกบรรทัด */
   /* แถวแท็บเต็มบรรทัด · ตัวเลือกร้าน + แท็กอยู่บรรทัดล่าง ชิดขวา (แท็บ 4 อันไม่พอที่วางในรายการแชท 340px / มือถือ) */
   .filters { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0 8px; border-bottom: 1px solid var(--line); }
-  .tabs { display: flex; gap: 14px; flex: 1 0 100%; border-bottom: 1px solid var(--line); }
+  .tabs { display: flex; gap: 14px; flex: 1 0 100%; min-width: 0; box-shadow: inset 0 -1px var(--line); overflow: auto hidden; scrollbar-width: none; } /* แคบ = ปัดแท็บซ้ายขวา ไม่ล้นทับเมนู · เส้นล่าง = เงา (ขีดแท็บที่เลือกทับได้ ไม่โดนตัด) */
+  .tabs::-webkit-scrollbar { display: none; }
   .f-right { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 5px 0; }
   /* ตัวกรองร้าน: ปุ่ม → รายการร้านพร้อมรูป (แบบเดียวกับหน้า sales) */
   .shop-pick { position: relative; display: flex; min-width: 0; }
@@ -99,7 +100,7 @@
   .shop-pic .avatar { border-radius: 12px; }
   .shop-pic::after { content: '📷'; position: absolute; right: -4px; bottom: -4px; font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 50%; width: 20px; height: 20px; display: grid; place-items: center; }
   #headShops .shop-chips { flex-wrap: wrap; }
-  .tabs button { padding: 8px 0; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+  .tabs button { padding: 8px 0; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; flex: none; }
   .tabs button[aria-pressed="true"] { color: var(--txt); font-weight: 700; border-color: var(--txt); }
   #list { overflow-y: auto; flex: 1; }
   #list .none { color: var(--muted); text-align: center; padding: 40px 0; }
@@ -130,10 +131,38 @@
   /* ห้องแชท */
   #chat { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   #empty { margin: auto; color: var(--muted); }
-  /* เมนูคลิกขวาที่รายการแชท */
-  #ctxMenu { position: fixed; z-index: 50; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .18); padding: 4px; min-width: 150px; }
-  #ctxMenu button { display: block; width: 100%; text-align: left; padding: 8px 12px; border-radius: 6px; color: var(--bad); font-size: 13px; }
+  /* เมนู ⋮ / คลิกขวาที่รายการแชท (แบบ LINE OA) */
+  #ctxMenu { position: fixed; z-index: 50; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .18); padding: 4px; min-width: 200px; }
+  #ctxMenu button { display: block; width: 100%; text-align: left; padding: 8px 12px; border-radius: 6px; color: var(--txt); font-size: 13px; }
   #ctxMenu button:hover { background: var(--hover); }
+  #ctxMenu .on::after { content: ' ✓'; color: var(--green); font-weight: 700; }
+  #ctxMenu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+  #ctxMenu #ctxDelete { color: var(--bad); }
+  .item .more { flex: none; align-self: center; width: 28px; height: 28px; border-radius: 6px; color: var(--muted); font-size: 18px; line-height: 1; opacity: 0; }
+  .item:hover .more, .item .more:focus-visible { opacity: 1; }
+  .item .more:hover { background: var(--line); }
+  @media (hover: none) { .item .more { opacity: 1; } }
+  .item .pin { flex: none; font-size: 11px; }
+  /* สถานะห้อง: แถวแชท + ปุ่มบนหัวแชท */
+  .st { flex: none; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; color: #fff; white-space: nowrap; }
+  .st.claim, #headStatus [data-st="claim"][aria-pressed="true"] { background: var(--orange); }
+  .st.doing, #headStatus [data-st="doing"][aria-pressed="true"] { background: #3b82f6; }
+  .st.done, #headStatus [data-st="done"][aria-pressed="true"] { background: var(--green); }
+  #headStatus { margin-left: auto; display: flex; gap: 4px; flex: none; }
+  #headStatus button { font-size: 12px; font-weight: 600; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); white-space: nowrap; }
+  #headStatus button:hover { background: var(--hover); }
+  #headStatus button[aria-pressed="true"] { color: #fff; border-color: transparent; }
+  #headStatus #pinBtn[aria-pressed="true"] { background: var(--sel); color: var(--txt); border-color: var(--line); }
+  #headStatus:not([hidden]) + #searchBtn { margin-left: 0; }
+  /* 👁 ดูตัวอย่างข้อความ (ไม่นับว่าอ่าน) */
+  #peekDlg[open] { display: flex; flex-direction: column; max-height: 80vh; }
+  .peek-head, .peek-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; }
+  .peek-head { border-bottom: 1px solid var(--line); }
+  .peek-foot { border-top: 1px solid var(--line); }
+  #peekMsgs { overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; min-height: 80px; }
+  .peek { max-width: 85%; align-self: flex-start; background: var(--hover); border-radius: 10px; padding: 6px 10px; font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+  .peek.out { align-self: flex-end; background: var(--sel); }
+  .peek small { display: block; font-size: 11px; color: var(--muted); }
   #room { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .chat-head { height: 60px; flex: none; padding: 0 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
   #name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -236,6 +265,7 @@
   /* 🛡️ บริการแอดมิน */
   .svc-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .svc-who .spic { width: 40px; height: 40px; border-radius: 10px; }
+  .svc-who img.pkg { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; flex: none; }
   .svc-who div { display: flex; flex-direction: column; min-width: 0; }
   .svc-hist { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   .svc-hist > div { display: grid; grid-template-columns: 130px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
@@ -403,6 +433,8 @@
   @media (max-width: 700px) {
     #side { width: 100% !important; border: 0; }
     #sideGrip { display: none; }
+    #headStatus button { padding: 4px 7px; }
+    #headStatus button span { display: none; } /* มือถือ: ปุ่มสถานะเหลือแค่ไอคอน */
     #app.open #side, #app:not(.open) #chat { display: none; }
     #back { display: inline; }
     /* เมนูย้ายไปล่างจอ ซ่อนตอนเปิดห้องแชท · แถวล่าง = 4 เมนูหลัก + ☰ เมนู
@@ -469,7 +501,7 @@
         <div class="tabs">
           <button data-f="all" aria-pressed="true">📦 เบิกสินค้า</button>
           <button data-f="unread" aria-pressed="false">ยังไม่อ่าน <span id="unreadCount"></span></button>
-          <button data-f="pending" aria-pressed="false">⏳ รอตรวจ<span class="cnt" id="pendRoomCount"></span></button>
+          <button data-f="pending" aria-pressed="false">⏳ รอเคลม<span class="cnt" id="pendRoomCount"></span></button>
           <button data-f="claims" aria-pressed="false">🛠 เคลม<span class="cnt" id="claimRoomCount"></span></button>
         </div>
         <span class="f-right"><span class="shop-pick"><button id="shopBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="กรองตามร้าน"></button><div id="shopList" class="shop-list" role="listbox" hidden></div></span><select id="shopFilter" aria-label="กรองตามร้าน" hidden><option value="">ทุกร้าน</option></select><select id="tagFilter" aria-label="กรองตามแท็ก"></select></span>
@@ -484,6 +516,7 @@
     <div id="room" hidden>
       <div class="chat-head">
         <button id="back" aria-label="กลับ">‹</button><span id="headAvatar"></span><span id="name"></span><span id="headShops"></span><span id="headViewers"></span>
+        <span id="headStatus" hidden><button type="button" data-st="claim" title="รอเคลม">⏳<span> รอเคลม</span></button><button type="button" data-st="doing" title="รอดำเนินการ">🔄<span> รอดำเนินการ</span></button><button type="button" data-st="done" title="เสร็จสิ้น">✅<span> เสร็จสิ้น</span></button><button type="button" id="pinBtn" title="ปักหมุด (เห็นเฉพาะบัญชีเรา)">📌<span> ปักหมุด</span></button></span>
         <button id="searchBtn" aria-label="ค้นหาในแชท" title="ค้นหาในแชท"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
         <button id="infoBtn">ข้อมูล</button>
       </div>
@@ -568,11 +601,14 @@
           <input id="userSearch" class="field" type="search" placeholder="ค้นหาอีเมล / ร้าน">
           <button id="addUser" class="btn" type="button">+ เพิ่มผู้ใช้</button>
         </div>
+        <div class="o-tools acts" data-for="services">
+          <button id="addSvc" class="btn" type="button">+ เพิ่มแพ็กเกจ</button>
+        </div>
         <div class="o-tools acts" data-for="promos">
           <form id="newPromo"><input id="newPromoTitle" class="field" placeholder="ชื่อโปร เช่น 7.7 PROMOTION" maxlength="120" required><button class="btn">+ สร้างโปร</button></form>
         </div>
       </div>
-      <p class="muted" data-for="services">ร้านซื้อบริการแอดมินที่แท็บ 🛡️ ในหน้าร้าน (หักเครดิต · ได้ 30 วัน · แจ้งในแชท) · ยกเลิกได้ที่นี่ จะคืนเครดิตหรือไม่ก็ได้ ร้านเห็นผลในแชท</p>
+      <p class="muted" data-for="services">แพ็กเกจด้านล่าง = ที่ร้านเห็นในแท็บ 🛡️ บริการเสริม (แก้ชื่อ/ราคา/วัน/รูป/ลำดับ ร้านเห็นทันที · ซ่อน = ร้านไม่เห็น ซื้อไม่ได้) · ร้านที่ใช้อยู่ ยกเลิกได้ จะคืนเครดิตหรือไม่ก็ได้ ร้านเห็นผลในแชท</p>
       <p class="muted" data-for="promos">สร้างโปรแล้วกด ＋ เพิ่มรูป → ทุกร้านเห็นที่แท็บ ✨ โปรโมชั่น ในหน้าร้าน โหลดรูปไปโพสต์ได้ · กดรูปเพื่อดูเต็ม · ซ่อน = ร้านไม่เห็น</p>
       <p class="muted" data-for="shops">เพิ่มอีเมลผู้ดูแลเข้าร้านได้ที่นี่ หรือสร้างผู้ใช้ใหม่พร้อมเลือกร้านในเมนู 👤 ผู้ใช้ · 1 คนดูแลได้หลายร้าน</p>
       <p class="muted" data-for="users">สร้างผู้ใช้แล้วล็อกอินที่ shop.html ได้ทันที · เห็นและจัดการได้เฉพาะร้านที่รับผิดชอบ · คนในร้านเดียวกันเห็นแชทของกัน</p>
@@ -581,7 +617,22 @@
   </section>
 </div>
 
-<div id="ctxMenu" role="menu" hidden><button type="button" id="ctxDelete" role="menuitem">🗑 ลบแชท</button></div>
+<div id="ctxMenu" role="menu" hidden>
+  <button type="button" id="ctxPeek" role="menuitem">👁 ดูตัวอย่างข้อความ</button>
+  <hr>
+  <button type="button" data-st="claim" role="menuitem">⏳ รอเคลม</button>
+  <button type="button" data-st="doing" role="menuitem">🔄 รอดำเนินการ</button>
+  <button type="button" data-st="done" role="menuitem">✅ เสร็จสิ้น</button>
+  <button type="button" id="ctxPin" role="menuitem">📌 ปักหมุด</button>
+  <hr id="ctxDelSep">
+  <button type="button" id="ctxDelete" role="menuitem">🗑 ลบแชท</button>
+</div>
+
+<dialog id="peekDlg">
+  <div class="peek-head"><b id="peekName"></b><button type="button" id="peekClose" aria-label="ปิด">✕</button></div>
+  <div id="peekMsgs"></div>
+  <div class="peek-foot"><span class="muted">👁 ดูอย่างเดียว ยังไม่นับว่าอ่าน</span><button type="button" class="btn" id="peekOpen">เปิดแชท</button></div>
+</dialog>
 
 <dialog id="newChatDlg">
   <form id="ncForm">
@@ -706,6 +757,7 @@ async function start() {
     $('notAdmin').hidden = false;
     return;
   }
+  db.rpc('is_super').then(({ data }) => { amSuper = !!data; }); // เมนู 🗑 ลบแชท = Superadmin เท่านั้น
   loadTags();
   await Promise.all([loadAvatars(), loadShops()]); // รูปโปรไฟล์ + อีเมลสมาชิก ก่อนวาดรายการแชท
   loadContacts();
@@ -745,19 +797,21 @@ async function start() {
 // ---------- รายการแชท ----------
 // ห้องแชท = คน × ร้าน (ตาราง threads) · key ไว้แยกห้องของคนเดียวกันคนละร้าน · id = คน (ใช้กับแท็ก/โน้ต/รูป)
 async function loadContacts() {
-  const [cs, ts] = await Promise.all([
+  const [cs, ts, ps] = await Promise.all([
     db.from('contacts').select(),
-    db.from('threads').select('*'), // * = มี cleared_at (update-29) ก็ได้ ไม่มีก็ได้
+    db.from('threads').select('*'), // * = มี cleared_at (update-29) / status (update-52) ก็ได้ ไม่มีก็ได้
+    db.from('chat_pins').select('thread_id'), // หมุดของบัญชีนี้ (ยังไม่ได้รัน update-52 = ไม่มีหมุด)
   ]);
   if (cs.error) return alert(cs.error.message);
+  pins = new Set((ps.data ?? []).map((p) => p.thread_id));
   const byId = Object.fromEntries(cs.data.map((c) => [c.id, c]));
   contacts = ts.error // ยังไม่ได้รัน update-13 → 1 ห้องต่อคนแบบเดิม
     ? cs.data.map((c) => ({ ...c, key: c.id, shop_id: null }))
     : ts.data.filter((t) => byId[t.contact_id] && !cleared(t))
-      .map((t) => ({ ...byId[t.contact_id], ...t, id: t.contact_id, key: `${t.contact_id}:${t.shop_id ?? 0}` }));
+      .map((t) => ({ ...byId[t.contact_id], ...t, id: t.contact_id, tid: t.id, key: `${t.contact_id}:${t.shop_id ?? 0}` }));
   contacts.sort((a, b) => (b.last_at ?? '').localeCompare(a.last_at ?? ''));
-  const fresh = current && contacts.find((c) => c.key === current.key);
-  if (fresh) { current.seen_at = fresh.seen_at; renderSeen(); }
+  const fresh = current && !current.claim && contacts.find((c) => c.key === current.key);
+  if (fresh) { current.seen_at = fresh.seen_at; current.status = fresh.status; renderSeen(); renderHeadStatus(); }
   unreadChats = contacts.filter((c) => c.unread).length;
   $('unreadCount').textContent = unreadChats || '';
   $('n-chat').textContent = unreadChats + claimUnread || '';
@@ -776,8 +830,16 @@ function setAllTags(tags) {
   const picked = $('tagFilter').value;
   const any = h('option', '', 'ทุกแท็ก');
   any.value = '';
-  $('tagFilter').replaceChildren(any, ...allTags.map((t) => h('option', '', t)));
-  $('tagFilter').value = allTags.includes(picked) ? picked : '';
+  const group = (label, opts) => {
+    const g = document.createElement('optgroup');
+    g.label = label;
+    g.append(...opts.map(([value, text]) => { const o = h('option', '', text); o.value = value; return o; }));
+    return g;
+  };
+  $('tagFilter').replaceChildren(any,
+    group('สถานะ', [['pin', '📌 ปักหมุด'], ...Object.entries(STATUS).map(([k, v]) => ['st:' + k, v])]),
+    ...(allTags.length ? [group('แท็ก', allTags.map((t) => [t, t]))] : []));
+  $('tagFilter').value = [...$('tagFilter').options].some((o) => o.value === picked) ? picked : '';
   if (current) renderTags();
 }
 
@@ -786,21 +848,30 @@ function renderList() {
   const tag = $('tagFilter').value;
   const shopF = Number($('shopFilter').value);
   if (filter === 'claims' || filter === 'pending') return renderClaimList(q, shopF);
+  const tagOk = (c) => !tag || (tag === 'pin' ? pins.has(c.tid) : tag.startsWith('st:') ? c.status === tag.slice(3) : c.tags.includes(tag));
   const shown = contacts.filter((c) => (filter === 'all' || c.unread)
-    && (!tag || c.tags.includes(tag))
+    && tagOk(c)
     && (!shopF || c.shop_id === shopF)
-    && (!q || c.name.toLowerCase().includes(q) || c.tags.some((t) => t.toLowerCase().includes(q)) || msgHits.has(c.key)));
+    && (!q || c.name.toLowerCase().includes(q) || c.tags.some((t) => t.toLowerCase().includes(q)) || msgHits.has(c.key)))
+    .sort((a, b) => pins.has(b.tid) - pins.has(a.tid)); // 📌 ของบัญชีนี้ขึ้นบนสุด (ที่เหลือเรียงตามเวลาเหมือนเดิม)
   $('list').replaceChildren(...shown.map((c) => {
     const el = h('div', 'item' + (c.unread ? ' unread' : '') + (c.key === current?.key ? ' active' : '') + (viewers[c.key] ? ' watched' : ''));
     const body = h('div', 'body');
     const top = h('div', 'top');
     const bottom = h('div', 'bottom');
-    top.append(h('span', 'name', c.name), roomChip(c), viewerChip(c.key), h('time', '', listTime(c.last_at)));
+    top.append(h('span', 'name', c.name), roomChip(c), viewerChip(c.key));
+    if (pins.has(c.tid)) top.append(h('span', 'pin', '📌'));
+    top.append(h('time', '', listTime(c.last_at)));
     const typing = typingText(c.key);
     bottom.append(h('span', 'preview' + (typing ? ' typing-now' : ''), typing || (q && msgHits.get(c.key)) || c.last_message || ''));
+    if (c.status) bottom.append(h('span', 'st ' + c.status, STATUS[c.status]));
     if (c.unread) bottom.append(h('span', 'badge', c.unread));
     body.append(top, bottom);
-    el.append(avatar(c), body);
+    const more = h('button', 'more', '⋮');
+    more.type = 'button';
+    more.setAttribute('aria-label', 'เมนูแชทนี้');
+    more.onclick = (e) => { e.stopPropagation(); openCtx(e, c); };
+    el.append(avatar(c), body, more);
     el.onclick = () => openChat(c);
     el.oncontextmenu = (e) => openCtx(e, c);
     return el;
@@ -863,7 +934,7 @@ function renderViewers() {
 const CLAIM_SEL = '*, orders(order_no, product_name, option_name, qty, total, customer, delivery, ordered_by)';
 let claimDoneTotal = 0;  // เคลมที่จบแล้วทั้งหมด (โหลดมาแค่ 300 ล่าสุด)
 let claimDoneOpen = false; // กลุ่ม ✅ จบแล้ว กางอยู่
-let claimPerson = null;    // แท็บ ⏳ รอตรวจ: คนที่กดดูเคลมทีละใบอยู่ (null = รายชื่อคน)
+let claimPerson = null;    // แท็บ ⏳ รอเคลม: คนที่กดดูเคลมทีละใบอยู่ (null = รายชื่อคน)
 async function loadClaimRooms() {
   // รอตรวจ + แชทเคลมเก่า = โหลดครบเสมอ · จบแล้ว = 300 ล่าสุด (มีเป็นพันจาก bearplus — ไม่ให้ดันห้องอื่นตกรายการ)
   const by = (qb) => qb.order('last_at', { ascending: false, nullsFirst: false });
@@ -910,7 +981,7 @@ function renderClaimList(q, shopF) {
     return el;
   };
   const pend = shown.filter((c) => c.status === 'pending');
-  if (filter === 'pending') { // แท็บ ⏳ รอตรวจ: รวมตามคนเคลม (แบบ bearplus) · กดคน = เคลมทีละใบของคนนั้น · มีใบเดียว = เปิดห้องเลย
+  if (filter === 'pending') { // แท็บ ⏳ รอเคลม: รวมตามคนเคลม (แบบ bearplus) · กดคน = เคลมทีละใบของคนนั้น · มีใบเดียว = เปิดห้องเลย
     const groups = new Map();
     for (const c of pend) (groups.get(c.created_by) ?? groups.set(c.created_by, []).get(c.created_by)).push(c);
     const mine = claimPerson !== null && groups.get(claimPerson);
@@ -933,7 +1004,7 @@ function renderClaimList(q, shopF) {
       el.onclick = () => { if (list.length === 1) return openClaimRoom(list[0]); claimPerson = uid; renderList(); };
       return el;
     }));
-    if (!pend.length) $('list').append(h('p', 'none', q || shopF ? 'ไม่พบเคลมรอตรวจ' : 'ไม่มีเคลมรอตรวจ 🎉'));
+    if (!pend.length) $('list').append(h('p', 'none', q || shopF ? 'ไม่พบเคลมที่รอ' : 'ไม่มีเคลมที่รอ 🎉'));
     return;
   }
   // แท็บ 🛠 เคลม: 🗂 แชทเคลมเก่า → ✅ จบแล้ว (พับไว้ · กดเปิด · ค้นหา/เลือกร้านอยู่ = กางเอง)
@@ -960,6 +1031,7 @@ function setFilter(f) {
   filter = f;
   claimPerson = null; // กดแท็บ = กลับรายชื่อคน
   for (const x of document.querySelectorAll('.tabs button')) x.setAttribute('aria-pressed', x.dataset.f === f);
+  document.querySelector(`.tabs [data-f="${f}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); // แท็บที่โผล่ครึ่งเดียว → เลื่อนให้เห็นเต็ม
   renderList();
 }
 
@@ -1033,15 +1105,78 @@ function claimCardEl(c) {
 // ---------- คลิกขวาที่รายการแชท → ลบแชท (ซ่อนจากฝั่งแอดมิน · ร้านยังเห็นของตัวเองครบ) ----------
 // ห้องที่ลบแล้ว และยังไม่มีข้อความใหม่หลังลบ → ไม่แสดงในรายการ
 const cleared = (t) => t.cleared_at && (!t.last_at || new Date(t.last_at) <= new Date(t.cleared_at));
+// ---------- สถานะห้อง (แอดมินทุกคนเห็นเหมือนกัน) + 📌 ปักหมุด (แยกตามบัญชี) · update-52 ----------
+const STATUS = { claim: '⏳ รอเคลม', doing: '🔄 รอดำเนินการ', done: '✅ เสร็จสิ้น' };
+let pins = new Set(); // thread id ที่บัญชีนี้ปักหมุด
+async function setStatus(c, st) {
+  st = c.status === st ? null : st; // กดสถานะเดิมซ้ำ = เอาออก
+  const { error } = await db.from('threads').update({ status: st }).eq('id', c.tid);
+  if (error) return alert('ตั้งสถานะไม่สำเร็จ: ' + error.message);
+  for (const x of [c, current, contacts.find((y) => y.key === c.key)]) if (x?.key === c.key && !x.claim) x.status = st;
+  renderHeadStatus();
+  renderList();
+}
+async function togglePin(c) {
+  const on = !pins.has(c.tid);
+  const { error } = await (on ? db.from('chat_pins').insert({ thread_id: c.tid }) : db.from('chat_pins').delete().eq('thread_id', c.tid));
+  if (error) return alert('ปักหมุดไม่สำเร็จ: ' + error.message);
+  if (on) pins.add(c.tid);
+  else pins.delete(c.tid);
+  toast(on ? '📌 ปักหมุดแล้ว (เห็นเฉพาะบัญชีนี้)' : 'เลิกปักหมุดแล้ว');
+  renderHeadStatus();
+  renderList();
+}
+function renderHeadStatus() {
+  const box = $('headStatus');
+  box.hidden = !current?.tid || !!current.claim; // ห้องเคลมมีสถานะเคลมของตัวเองอยู่แล้ว
+  if (box.hidden) return;
+  for (const b of box.querySelectorAll('[data-st]')) b.setAttribute('aria-pressed', current.status === b.dataset.st);
+  $('pinBtn').setAttribute('aria-pressed', pins.has(current.tid));
+}
+for (const b of $('headStatus').querySelectorAll('[data-st]')) b.onclick = () => setStatus(current, b.dataset.st);
+$('pinBtn').onclick = () => togglePin(current);
+
+// ---------- เมนู ⋮ / คลิกขวา ที่แถวแชท: ดูตัวอย่าง · สถานะ · ปักหมุด · ลบ (Superadmin) ----------
 let ctxRoom = null;
 function openCtx(e, c) {
   e.preventDefault();
   ctxRoom = c;
   const m = $('ctxMenu');
+  for (const b of m.querySelectorAll('[data-st]')) {
+    b.hidden = !c.tid;
+    b.classList.toggle('on', c.status === b.dataset.st);
+  }
+  $('ctxPin').hidden = !c.tid;
+  $('ctxPin').textContent = pins.has(c.tid) ? '📌 เลิกปักหมุด' : '📌 ปักหมุด';
+  $('ctxDelete').hidden = $('ctxDelSep').hidden = !amSuper;
   m.hidden = false;
-  m.style.left = Math.min(e.clientX, innerWidth - m.offsetWidth - 8) + 'px';
-  m.style.top = Math.min(e.clientY, innerHeight - m.offsetHeight - 8) + 'px';
+  const r = e.type === 'click' ? e.currentTarget.getBoundingClientRect() : null; // กด ⋮ → เมนูใต้ปุ่ม ชิดขวา
+  const x = r ? r.right - m.offsetWidth : e.clientX;
+  const y = r ? r.bottom + 4 : e.clientY;
+  m.style.left = Math.max(8, Math.min(x, innerWidth - m.offsetWidth - 8)) + 'px';
+  m.style.top = Math.max(8, Math.min(y, innerHeight - m.offsetHeight - 8)) + 'px';
 }
+for (const b of $('ctxMenu').querySelectorAll('[data-st]')) b.onclick = () => setStatus(ctxRoom, b.dataset.st);
+$('ctxPin').onclick = () => togglePin(ctxRoom);
+// 👁 ดูข้อความล่าสุดโดยไม่เปิดห้อง (ยังไม่นับว่าอ่าน · ร้านไม่เห็น "อ่านแล้ว")
+$('ctxPeek').onclick = async () => {
+  const c = ctxRoom;
+  $('peekName').textContent = c.name + (c.shop_id ? ' · ' + (shopName[c.shop_id] ?? '') : '');
+  $('peekMsgs').replaceChildren(h('p', 'muted', 'กำลังโหลด…'));
+  $('peekOpen').onclick = () => { $('peekDlg').close(); openChat(c); };
+  $('peekDlg').showModal();
+  const { data, error } = await roomMsgs(c).order('created_at', { ascending: false }).limit(20);
+  if (error) return $('peekMsgs').replaceChildren(h('p', 'muted', error.message));
+  $('peekMsgs').replaceChildren(...data.reverse().map((m) => {
+    const r = h('div', 'peek ' + m.direction);
+    r.append(h('small', '', `${m.direction === 'in' ? nameOf(m.sender ?? m.contact_id) : nameOf(m.sender, 'แอดมิน')} · ${when(m.created_at)}`),
+      m.text || (m.image_path ? '🖼 รูปภาพ' : ''));
+    return r;
+  }));
+  if (!data.length) $('peekMsgs').append(h('p', 'muted', 'ยังไม่มีข้อความ'));
+  $('peekMsgs').scrollTop = $('peekMsgs').scrollHeight;
+};
+$('peekClose').onclick = () => $('peekDlg').close();
 const closeCtx = () => { $('ctxMenu').hidden = true; };
 document.addEventListener('click', closeCtx);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCtx(); });
@@ -1049,6 +1184,7 @@ $('list').addEventListener('scroll', closeCtx);
 $('ctxDelete').onclick = async () => {
   const c = ctxRoom;
   closeCtx();
+  if (!amSuper) return alert('ลบแชทได้เฉพาะ Superadmin');
   if (c.key === c.id) return alert('แชทแบบเก่า (ก่อนแยกห้องตามร้าน) ลบไม่ได้');
   if (!confirm(`ลบแชทกับ ${c.name}${c.shop_id ? ' · ' + (shopName[c.shop_id] ?? '') : ''}?
 
@@ -1138,6 +1274,17 @@ async function searchMessages() {
 }
 
 // ---------- ห้องแชท ----------
+// ข้อความของห้องนี้ (ใช้ทั้งตอนเปิดห้อง และ 👁 ดูตัวอย่าง)
+function roomMsgs(c) {
+  let mq = db.from('messages').select();
+  if (c.claim) return mq.eq('claim_id', c.claim.id); // ห้องเคลม = เฉพาะข้อความของเคลมนี้
+  mq = mq.eq('contact_id', c.id);
+  if (hasClaimRooms) mq = mq.is('claim_id', null); // ข้อความห้องเคลมไม่ปนห้องคุยปกติ
+  if (c.key !== c.id) mq = c.shop_id ? mq.eq('shop_id', c.shop_id) : mq.is('shop_id', null); // เฉพาะร้านของห้องนี้
+  if (c.cleared_at) mq = mq.gt('created_at', c.cleared_at); // เคยลบแชท → แสดงเฉพาะข้อความหลังลบ
+  return mq;
+}
+
 async function openChat(c) {
   current = c;
   $('app').classList.add('open');
@@ -1160,18 +1307,11 @@ async function openChat(c) {
   renderTyping();
   closeChatSearch();
   renderTags();
+  renderHeadStatus();
   renderList();
   // ponytail: โหลด 200 ข้อความล่าสุด — เพิ่ม "โหลดเก่ากว่า" ถ้าต้องย้อนไกล
-  let mq = db.from('messages').select();
-  if (c.claim) mq = mq.eq('claim_id', c.claim.id); // ห้องเคลม = เฉพาะข้อความของเคลมนี้
-  else {
-    mq = mq.eq('contact_id', c.id);
-    if (hasClaimRooms) mq = mq.is('claim_id', null); // ข้อความห้องเคลมไม่ปนห้องคุยปกติ
-    if (c.key !== c.id) mq = c.shop_id ? mq.eq('shop_id', c.shop_id) : mq.is('shop_id', null); // เฉพาะร้านของห้องนี้
-    if (c.cleared_at) mq = mq.gt('created_at', c.cleared_at); // เคยลบแชท → แสดงเฉพาะข้อความหลังลบ
-  }
   const [msgs, notes] = await Promise.all([
-    mq.order('created_at', { ascending: false }).limit(200),
+    roomMsgs(c).order('created_at', { ascending: false }).limit(200),
     db.from('notes').select().eq('contact_id', c.id).order('created_at', { ascending: false }),
   ]);
   const urls = await signed(msgs.data.map((m) => m.image_path)); // ขอลิงก์รูปทั้งห้องทีเดียว
@@ -2220,11 +2360,95 @@ function renderShops() {
 }
 $('shopSearch').oninput = renderShops;
 
-// --- 🛡️ บริการแอดมิน: ร้านที่ใช้อยู่ (ยกเลิก / คืนเครดิต) + ประวัติการซื้อ ---
+// --- 🛡️ บริการแอดมิน: แพ็กเกจที่ร้านเห็น (แก้ไข) + ร้านที่ใช้อยู่ (ยกเลิก / คืนเครดิต) + ประวัติการซื้อ ---
 let subRows = [];
+let svcPkgs = [];
 async function loadServiceSubs() {
-  subRows = (await q(db.from('service_subs').select('*').order('created_at', { ascending: false }).limit(300))) ?? [];
+  const [subs, pkgs] = await Promise.all([
+    q(db.from('service_subs').select('*').order('created_at', { ascending: false }).limit(300)),
+    q(db.from('admin_services').select().order('sort').order('id')),
+  ]);
+  subRows = subs ?? [];
+  svcPkgs = pkgs ?? [];
   if (view === 'services') renderServiceSubs();
+}
+
+// ถาม ชื่อ / ราคา / วัน (กดยกเลิกช่องไหน = ไม่บันทึก)
+function askSvc(v = { name: '', price: '', days: 30 }) {
+  const name = prompt('ชื่อแพ็กเกจ', v.name)?.trim();
+  if (!name) return null;
+  const price = prompt('ราคา (เครดิต)', v.price);
+  if (price === null) return null;
+  const days = prompt('ใช้งานได้กี่วัน (1–366)', v.days);
+  if (days === null) return null;
+  const out = { name: name.slice(0, 120), price: Number(price.replace(/,/g, '')), days: Number(days) };
+  if (!price.trim() || !(out.price >= 0)) return alert('ราคาต้องเป็นตัวเลข 0 ขึ้นไป'), null;
+  if (!Number.isInteger(out.days) || out.days < 1 || out.days > 366) return alert('จำนวนวันต้องเป็น 1–366'), null;
+  return out;
+}
+const saveSvc = async (id, patch, msg) => {
+  if (!(await okDone(db.from('admin_services').update(patch).eq('id', id)))) return;
+  toast(msg);
+  loadServiceSubs();
+};
+async function moveSvc(i, d) {
+  const list = [...svcPkgs];
+  [list[i], list[i + d]] = [list[i + d], list[i]];
+  for (const [k, v] of list.entries()) {
+    if (v.sort !== k + 1 && !(await okDone(db.from('admin_services').update({ sort: k + 1 }).eq('id', v.id)))) break;
+  }
+  loadServiceSubs();
+}
+async function svcImage(v, f) {
+  if (!f) return;
+  if (!PIC_EXT[f.type]) return alert('ใช้ได้เฉพาะรูป JPG / PNG / WEBP');
+  toast('กำลังอัปโหลดรูป…');
+  const path = `services/${crypto.randomUUID()}.webp`;
+  const { error } = await db.storage.from('promos').upload(path, await shrinkImg(f, 800), { contentType: 'image/webp' });
+  if (error) return alert('อัปโหลดไม่สำเร็จ: ' + error.message);
+  const old = v.image_url.split('/promos/')[1]; // รูปเดิมที่อัปผ่านหน้านี้ → ลบทิ้ง (รูปตั้งต้นในโฟลเดอร์ services/ ของเว็บ ไม่แตะ)
+  await saveSvc(v.id, { image_url: promoUrl(path) }, 'เปลี่ยนรูปแล้ว');
+  if (old) db.storage.from('promos').remove([old]);
+}
+$('addSvc').onclick = async () => {
+  const v = askSvc();
+  if (!v || !(await okDone(db.from('admin_services').insert({ ...v, image_url: 'services/header.jpg', sort: Math.max(0, ...svcPkgs.map((x) => x.sort)) + 1 })))) return;
+  toast('เพิ่มแพ็กเกจแล้ว — กด 🖼 เปลี่ยนรูป ได้เลย');
+  loadServiceSubs();
+};
+
+function svcPkgCard(v, i) {
+  const el = h('div', 'o-card' + (v.active ? '' : ' off'));
+  const who = h('div', 'svc-who');
+  const img = h('img', 'pkg');
+  img.src = v.image_url;
+  img.alt = '';
+  const txt = h('div');
+  txt.append(h('b', '', v.name), h('span', 'muted', `฿${num(v.price)} · ${v.days} วัน`));
+  who.append(img, txt);
+  el.append(line(who, pill(v.active ? ['ร้านเห็น', ''] : ['ซ่อนอยู่', 'bad'])));
+  const file = h('input');
+  file.type = 'file';
+  file.accept = 'image/jpeg,image/png,image/webp';
+  file.hidden = true;
+  file.onchange = () => svcImage(v, file.files[0]);
+  const acts = h('div', 'acts');
+  acts.append(file,
+    button('✏️ แก้ชื่อ / ราคา / วัน', 'gray', () => { const p = askSvc(v); if (p) saveSvc(v.id, p, 'บันทึกแล้ว'); }),
+    button('🖼 เปลี่ยนรูป', 'gray', () => file.click()));
+  if (i > 0) acts.append(button('⬆️', 'gray', () => moveSvc(i, -1)));
+  if (i < svcPkgs.length - 1) acts.append(button('⬇️', 'gray', () => moveSvc(i, 1)));
+  acts.append(
+    button(v.active ? '🙈 ซ่อนจากร้าน' : '👁 แสดงให้ร้านเห็น', 'gray', () => saveSvc(v.id, { active: !v.active }, v.active ? 'ซ่อนแล้ว' : 'แสดงแล้ว')),
+    button('🗑 ลบ', 'red', async () => {
+      if (!confirm(`ลบแพ็กเกจ "${v.name}"?`)) return;
+      const { error } = await db.from('admin_services').delete().eq('id', v.id);
+      if (error) return alert(error.code === '23503' ? 'มีร้านเคยซื้อแพ็กเกจนี้แล้ว ลบไม่ได้ (ต้องเก็บประวัติ) — กด 🙈 ซ่อนจากร้าน แทน' : error.message);
+      toast('ลบแพ็กเกจแล้ว');
+      loadServiceSubs();
+    }));
+  el.append(acts);
+  return el;
 }
 
 function renderServiceSubs() {
@@ -2241,7 +2465,9 @@ function renderServiceSubs() {
   }
   const active = [...groups.values()].sort((a, b) => a.exp.localeCompare(b.exp));
   const daysLeft = (iso) => Math.max(0, Math.ceil((new Date(iso) - Date.now()) / 864e5));
-  $('oList').replaceChildren(...active.map((g) => {
+  $('oList').replaceChildren(h('h3', 'o-sub', '📦 แพ็กเกจที่ร้านเห็น'), ...svcPkgs.map(svcPkgCard),
+    ...(svcPkgs.length ? [] : [h('p', 'o-empty', 'ยังไม่มีแพ็กเกจ — กด + เพิ่มแพ็กเกจ')]), h('h3', 'o-sub', '👑 ร้านที่ใช้บริการอยู่'));
+  $('oList').append(...active.map((g) => {
     const el = h('div', 'o-card');
     const who = h('div', 'svc-who');
     const txt = h('div');
