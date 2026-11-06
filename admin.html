@@ -225,6 +225,7 @@
   .row:hover .reply { visibility: visible; }
   @media (hover: none) { .row .reply { visibility: visible; } }
   .row.flash .bubble, .row.flash .chat-img { outline: 2px solid #ffb300; outline-offset: 2px; }
+  .chat-order .lone-h { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 6px; }
   .chat-order.flash .ccard, .cl-card.flash { outline: 3px solid #ffb300; outline-offset: 3px; transition: outline-color .3s; } /* กดข้อความแล้วเด้งมาการ์ดนี้ */
   .bubble.jump { cursor: pointer; }
   .bubble.jump:hover { text-decoration: underline; }
@@ -682,6 +683,7 @@ let msgHits = new Map(); // ห้อง (คน:ร้าน) → ข้อค�
 let claimHits = new Map(); // เคลม id → ข้อความที่ตรงกับคำค้น (ข้อความในห้องเคลม / ปัญหา / คำตอบ / เมลในออเดอร์)
 let claimExtra = [];     // เคลมที่ค้นเจอแต่ไม่ได้อยู่ใน 300 ล่าสุดที่โหลดไว้
 let hitAt = new Map();   // ห้อง → เวลาของข้อความ/การ์ดที่ค้นเจอ (เปิดห้องแล้วโหลดย้อนถึงจุดนั้น)
+let hitOrder = new Map(); // ห้อง → ออเดอร์ที่ค้นเจอแต่ไม่มีการ์ดในแชท (เปิดห้องแล้วแสดงการ์ดหัวห้อง)
 let hits = [];           // ผลค้นหาในห้องแชท (Range)
 let hitIdx = -1;
 let view = 'chat';       // หน้าที่เปิดจากเมนูซ้าย
@@ -1290,6 +1292,7 @@ async function searchMessages() {
   const found = new Map();
   const cHits = new Map(); // เคลม id → ข้อความที่ตรง (แท็บ ⏳ รอเคลม / 🛠 เคลม)
   const at = new Map();    // ห้อง → เวลาของจุดที่เจอ
+  const lone = new Map();  // ห้อง → ออเดอร์ที่ตรงแต่ไม่มีการ์ดในแชท
   let extra = [];
   if (q) {
     // ponytail: ilike สแกนทั้งตาราง — ข้อความเป็นแสนค่อยเพิ่ม index pg_trgm
@@ -1315,6 +1318,7 @@ async function searchMessages() {
       if (found.has(k)) continue;
       found.set(k, `📦 ${ono(o)} · ${o.product_name}${o.email ? ' · ' + o.email : ''}`);
       if (cm) at.set(k, cm.created_at);
+      else lone.set(k, o.id); // ออเดอร์ที่ไม่มีการ์ดในแชท (ก่อนย้ายระบบ) → เปิดห้องแล้วแสดงการ์ดให้
     }
     // เคลม: ปัญหา / คำตอบแอดมิน / แอป / ออเดอร์ที่ตรง (เมลในออเดอร์) — รวมเคลมเก่าที่ไม่ได้โหลดไว้ (โหลดแค่ 300 ล่าสุด)
     const { data: cls } = await db.from('claims').select(CLAIM_SEL)
@@ -1329,6 +1333,7 @@ async function searchMessages() {
   if (q !== $('search').value.trim()) return; // พิมพ์ต่อระหว่างรอผล
   msgHits = found;
   hitAt = at;
+  hitOrder = lone;
   claimHits = cHits;
   claimExtra = extra;
   renderList();
@@ -1393,6 +1398,16 @@ async function openChat(c, since = null) { // since = โหลดย้อน�
   claimPinEl = null;
   renderClaimPin(); // ห้องเคลม → การ์ดเคลมหัวห้อง
   rows.forEach(addMsg);
+  // ค้นเจอออเดอร์ที่ไม่มีการ์ดในแชทนี้ (สั่งก่อนย้ายระบบ) → แสดงการ์ดนั้นหัวห้อง ค้นในแชทจะได้เจอ
+  const loneId = !since && $('search').value.trim() && hitOrder.get(c.key);
+  if (loneId && !chatSlots[loneId]) {
+    const box = h('div', 'chat-order lone');
+    const slot = h('div');
+    slot.append(h('div', 'ccard', `📦 ออเดอร์ #${loneId} …`));
+    box.append(h('div', 'lone-h', '🔎 ออเดอร์ที่ค้นเจอ · ไม่มีการ์ดในแชทนี้ (สั่งก่อนย้ายระบบ)'), slot);
+    (chatSlots[loneId] ??= []).push(slot);
+    $('msgs').prepend(box);
+  }
   renderSeen();
   await fillChatCards(); // รอการ์ดเติมข้อมูลก่อน ค้นหาในแชทจะได้เจอข้อมูลในการ์ด
   if (current !== c) return;
