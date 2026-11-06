@@ -145,7 +145,6 @@
   .item .pin { flex: none; font-size: 11px; }
   /* สถานะห้อง: แถวแชท + ปุ่มบนหัวแชท */
   .st { flex: none; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; color: #fff; white-space: nowrap; }
-  .st.claim, #headStatus [data-st="claim"][aria-pressed="true"] { background: var(--orange); }
   .st.doing, #headStatus [data-st="doing"][aria-pressed="true"] { background: #3b82f6; }
   .st.done, #headStatus [data-st="done"][aria-pressed="true"] { background: var(--green); }
   #headStatus { margin-left: auto; display: flex; gap: 4px; flex: none; }
@@ -155,7 +154,10 @@
   #headStatus #pinBtn[aria-pressed="true"] { background: var(--sel); color: var(--txt); border-color: var(--line); }
   #headStatus:not([hidden]) + #searchBtn { margin-left: 0; }
   /* 👁 ดูตัวอย่างข้อความ (ไม่นับว่าอ่าน) */
-  #peekDlg[open] { display: flex; flex-direction: column; max-height: 80vh; }
+  #peekDlg { width: min(520px, calc(100% - 24px)); }
+  #peekDlg[open] { display: flex; flex-direction: column; max-height: 85vh; }
+  .peek .chat-img { max-width: min(220px, 100%); max-height: 240px; margin-top: 4px; }
+  #peekMsgs .cc-wait { display: none; } /* ช่องส่งมอบ = ทำในห้องแชท (ตัวอย่างดูอย่างเดียว) */
   .peek-head, .peek-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; }
   .peek-head { border-bottom: 1px solid var(--line); }
   .peek-foot { border-top: 1px solid var(--line); }
@@ -516,7 +518,7 @@
     <div id="room" hidden>
       <div class="chat-head">
         <button id="back" aria-label="กลับ">‹</button><span id="headAvatar"></span><span id="name"></span><span id="headShops"></span><span id="headViewers"></span>
-        <span id="headStatus" hidden><button type="button" data-st="claim" title="รอเคลม">⏳<span> รอเคลม</span></button><button type="button" data-st="doing" title="รอดำเนินการ">🔄<span> รอดำเนินการ</span></button><button type="button" data-st="done" title="เสร็จสิ้น">✅<span> เสร็จสิ้น</span></button><button type="button" id="pinBtn" title="ปักหมุด (เห็นเฉพาะบัญชีเรา)">📌<span> ปักหมุด</span></button></span>
+        <span id="headStatus" hidden><button type="button" data-st="doing" title="รอดำเนินการ">🔄<span> รอดำเนินการ</span></button><button type="button" data-st="done" title="เสร็จสิ้น">✅<span> เสร็จสิ้น</span></button><button type="button" id="pinBtn" title="ปักหมุด (เห็นเฉพาะบัญชีเรา)">📌<span> ปักหมุด</span></button></span>
         <button id="searchBtn" aria-label="ค้นหาในแชท" title="ค้นหาในแชท"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
         <button id="infoBtn">ข้อมูล</button>
       </div>
@@ -620,7 +622,6 @@
 <div id="ctxMenu" role="menu" hidden>
   <button type="button" id="ctxPeek" role="menuitem">👁 ดูตัวอย่างข้อความ</button>
   <hr>
-  <button type="button" data-st="claim" role="menuitem">⏳ รอเคลม</button>
   <button type="button" data-st="doing" role="menuitem">🔄 รอดำเนินการ</button>
   <button type="button" data-st="done" role="menuitem">✅ เสร็จสิ้น</button>
   <button type="button" id="ctxPin" role="menuitem">📌 ปักหมุด</button>
@@ -864,7 +865,7 @@ function renderList() {
     top.append(h('time', '', listTime(c.last_at)));
     const typing = typingText(c.key);
     bottom.append(h('span', 'preview' + (typing ? ' typing-now' : ''), typing || (q && msgHits.get(c.key)) || c.last_message || ''));
-    if (c.status) bottom.append(h('span', 'st ' + c.status, STATUS[c.status]));
+    if (STATUS[c.status]) bottom.append(h('span', 'st ' + c.status, STATUS[c.status]));
     if (c.unread) bottom.append(h('span', 'badge', c.unread));
     body.append(top, bottom);
     const more = h('button', 'more', '⋮');
@@ -1106,7 +1107,7 @@ function claimCardEl(c) {
 // ห้องที่ลบแล้ว และยังไม่มีข้อความใหม่หลังลบ → ไม่แสดงในรายการ
 const cleared = (t) => t.cleared_at && (!t.last_at || new Date(t.last_at) <= new Date(t.cleared_at));
 // ---------- สถานะห้อง (แอดมินทุกคนเห็นเหมือนกัน) + 📌 ปักหมุด (แยกตามบัญชี) · update-52 ----------
-const STATUS = { claim: '⏳ รอเคลม', doing: '🔄 รอดำเนินการ', done: '✅ เสร็จสิ้น' };
+const STATUS = { doing: '🔄 รอดำเนินการ', done: '✅ เสร็จสิ้น' };
 let pins = new Set(); // thread id ที่บัญชีนี้ปักหมุด
 async function setStatus(c, st) {
   st = c.status === st ? null : st; // กดสถานะเดิมซ้ำ = เอาออก
@@ -1159,24 +1160,48 @@ function openCtx(e, c) {
 for (const b of $('ctxMenu').querySelectorAll('[data-st]')) b.onclick = () => setStatus(ctxRoom, b.dataset.st);
 $('ctxPin').onclick = () => togglePin(ctxRoom);
 // 👁 ดูข้อความล่าสุดโดยไม่เปิดห้อง (ยังไม่นับว่าอ่าน · ร้านไม่เห็น "อ่านแล้ว")
+let peekSeq = 0;
 $('ctxPeek').onclick = async () => {
   const c = ctxRoom;
   $('peekName').textContent = c.name + (c.shop_id ? ' · ' + (shopName[c.shop_id] ?? '') : '');
   $('peekMsgs').replaceChildren(h('p', 'muted', 'กำลังโหลด…'));
   $('peekOpen').onclick = () => { $('peekDlg').close(); openChat(c); };
   $('peekDlg').showModal();
+  const seq = ++peekSeq;
   const { data, error } = await roomMsgs(c).order('created_at', { ascending: false }).limit(20);
   if (error) return $('peekMsgs').replaceChildren(h('p', 'muted', error.message));
+  // รูป: ขอลิงก์ทีเดียวทั้งชุด · การ์ด: ดึงออเดอร์ทีเดียว (ตัววาดเดียวกับในห้องแชท)
+  const ids = [...new Set(data.map((m) => m.order_id).filter(Boolean))];
+  const [urls, ords] = await Promise.all([
+    signed(data.map((m) => m.image_path)),
+    ids.length ? db.from('orders').select(ORDER_SEL).in('id', ids) : { data: [] },
+  ]);
+  if (seq !== peekSeq) return; // กดดูห้องอื่นระหว่างโหลด
+  Object.assign(imgUrls, urls);
+  const orders = Object.fromEntries((ords.data ?? []).map((o) => [o.id, o]));
   $('peekMsgs').replaceChildren(...data.reverse().map((m) => {
+    if (m.order_id) {
+      const slot = h('div', 'chat-order');
+      slot.inert = true; // ดูอย่างเดียว · ส่งมอบ/คัดลอก ทำในห้องแชท
+      slot.append(orders[m.order_id] ? chatCard(orders[m.order_id]) : h('div', 'ccard', `📦 ออเดอร์ #${m.order_id}`));
+      return slot;
+    }
     const r = h('div', 'peek ' + m.direction);
-    r.append(h('small', '', `${m.direction === 'in' ? nameOf(m.sender ?? m.contact_id) : nameOf(m.sender, 'แอดมิน')} · ${when(m.created_at)}`),
-      m.text || (m.image_path ? '🖼 รูปภาพ' : ''));
+    r.append(h('small', '', `${m.direction === 'in' ? nameOf(m.sender ?? m.contact_id) : nameOf(m.sender, 'แอดมิน')} · ${when(m.created_at)}`));
+    if (m.image_path) r.append(chatImg(m.image_path));
+    const text = m.image_path && m.text === IMG_TEXT ? '' : m.text; // รูปอย่างเดียว = ไม่ต้องมีคำว่า "รูปภาพ" ซ้ำ
+    if (text) r.append(h('div', '', text));
     return r;
   }));
   if (!data.length) $('peekMsgs').append(h('p', 'muted', 'ยังไม่มีข้อความ'));
   $('peekMsgs').scrollTop = $('peekMsgs').scrollHeight;
 };
 $('peekClose').onclick = () => $('peekDlg').close();
+// รูป/การ์ดโหลดเสร็จทีหลัง → ยังดูล่างสุดอยู่ = เลื่อนตามให้เห็นข้อความล่าสุด (load ไม่ bubble → ฟังแบบ capture)
+$('peekMsgs').addEventListener('load', () => {
+  const box = $('peekMsgs');
+  if (box.scrollHeight - box.scrollTop - box.clientHeight < 400) box.scrollTop = box.scrollHeight;
+}, true);
 const closeCtx = () => { $('ctxMenu').hidden = true; };
 document.addEventListener('click', closeCtx);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCtx(); });
@@ -1412,7 +1437,7 @@ function addMsg(m) {
   const name = m.direction === 'out' ? names[who] || 'แอดมิน' : who === m.contact_id && !current.claim ? current.name : nameOf(who); // ห้องเคลม = ชื่อคนพิมพ์ ไม่ใช่ชื่อห้อง
   const key = m.direction + who;
   const first = lastDir !== key;
-  if (m.direction === 'in') row.append(first ? avatar({ id: who, name }, 'sm') : h('div', 'spacer'));
+  if (m.direction === 'in') row.append(first ? avatar({ id: who, name, shop_id: current.shop_id }, 'sm') : h('div', 'spacer'));
   const stamp = h('div', 'stamp');
   const text = m.image_path && m.text === IMG_TEXT ? '' : m.text; // รูปอย่างเดียว = ไม่มีกรอบข้อความ
   msgById.set(m.id, { id: m.id, name, text: text || IMG_TEXT });

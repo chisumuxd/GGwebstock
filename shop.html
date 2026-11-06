@@ -371,7 +371,7 @@
   #msgs { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 4px; }
   .av { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--grad2); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none; }
   #me { display: flex; align-items: center; gap: 6px; }
-  #mePic { cursor: pointer; }
+  #mePic:has(:enabled) { cursor: pointer; } /* เปลี่ยนรูปโปรไฟล์ได้เฉพาะแอดมิน */
   #meName { background: none; border: 0; color: var(--txt); font-size: 14px; max-width: 120px; padding: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* กว้างคงที่ ชื่อยาวตัด … */
   @media (max-width: 700px) {
     #chatPop { inset: 0; border: 0; border-radius: 0; }
@@ -503,7 +503,7 @@
         <select id="shopSel" aria-label="เลือกร้าน" hidden></select>
       </div>
       <div class="hud-me">
-        <span id="me"><label id="mePic" title="กดเพื่อเปลี่ยนรูปโปรไฟล์"><span id="meAv"></span><input id="meFile" type="file" accept="image/*" hidden></label><button id="meName" type="button" title="กดเพื่อตั้งชื่อ"></button></span>
+        <span id="me"><label id="mePic"><span id="meAv"></span><input id="meFile" type="file" accept="image/*" hidden disabled></label><button id="meName" type="button" title="กดเพื่อตั้งชื่อ"></button></span>
         <div class="w-menu">
           <button id="menuBtn" class="w-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="เมนูเพิ่มเติม" title="เมนูเพิ่มเติม">☰<span class="count" id="nTopups"></span></button>
           <div id="menuList" class="shop-list menu-list" role="menu" hidden>
@@ -799,7 +799,11 @@ async function start() {
   show('app');
   loadProducts();
   db.rpc('is_super').then(({ data }) => { $('arrangeBtn').hidden = !data; }); // ปุ่มจัดลำดับ = Superadmin เท่านั้น (ฐานข้อมูลเช็คซ้ำตอนบันทึก)
-  db.rpc('is_admin').then(({ data }) => { $('adminLink').hidden = !data; });  // ไปที่สต็อกแชท = แอดมิน + Superadmin (หน้า admin กันเองอยู่แล้ว)
+  db.rpc('is_admin').then(({ data }) => {
+    $('adminLink').hidden = !data;  // ไปที่สต็อกแชท = แอดมิน + Superadmin (หน้า admin กันเองอยู่แล้ว)
+    $('meFile').disabled = !data;   // เปลี่ยนรูปโปรไฟล์ = แอดมินเท่านั้น (ฐานข้อมูลกันซ้ำ update-53)
+    $('mePic').title = data ? 'กดเพื่อเปลี่ยนรูปโปรไฟล์' : '';
+  });
   refresh();
   startChat(session);
   // ออเดอร์/เคลม/เติมเครดิต/แชท เปลี่ยน → อัปเดตเอง (RLS ส่งเฉพาะของเรา)
