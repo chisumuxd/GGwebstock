@@ -1192,7 +1192,7 @@ function claimRowEl(c, q) {
 function renderClaimList(q, shopF) {
   const shown = (q ? [...claimRooms, ...claimExtra] : claimRooms).filter((c) => (!shopF || c.shop_id === shopF)
     && (!q || claimHits.has(c.id) // ค้นจากฐานข้อมูล: ข้อความในห้อง / คำตอบ / เมลในออเดอร์
-      || `#${c.id} ${shopName[c.shop_id] ?? ''} ${nameOf(c.created_by)} ${c.orders?.order_no ?? ''} ${c.orders?.product_name ?? ''} ${c.app_type ?? ''} ${c.reason} ${c.reply ?? ''}`.toLowerCase().includes(q)));
+      || `#${c.id} ${shopName[c.shop_id] ?? ''} ${nameOf(c.created_by)} ${c.orders?.order_no ?? ''} ${c.orders?.product_name ?? ''} ${c.app_type ?? ''} ${c.email ?? ''} ${c.reason} ${c.reply ?? ''}`.toLowerCase().includes(q)));
   const row = (c) => claimRowEl(c, q);
   const pend = shown.filter((c) => c.status === 'pending');
   if (filter === 'pending') { // แท็บ ⏳ รอเคลม: รวมตามคนเคลม (แบบ bearplus) · กดคน = เคลมทีละใบของคนนั้น · มีใบเดียว = เปิดห้องเลย
@@ -1335,6 +1335,7 @@ function claimCardEl(c) {
   const who = h('div', 'cl-who');
   who.append('👤 คนเคลม: ', h('b', '', c.created_by ? nameOf(c.created_by) : '-'));
   if (c.app_type) who.append(' · 📱 แอป: ', h('b', '', c.app_type));
+  if (c.email) who.append(' · 📧 ', h('b', '', c.email), copyButton(c.email)); // เคลมเปลี่ยนห้อง: อีเมลที่ร้านแจ้ง (update-59)
   if (c.order_id) who.append(' · 🧾 ', h('b', '', o.order_no ?? '#' + c.order_id), o.product_name ? ' ' + title(o) : ''); // เคลมจาก bearplus ไม่มีออเดอร์
   const note = h('div', 'cl-note');
   const nh = h('small', '', '📝 ปัญหา / หมายเหตุจากร้าน');
@@ -2675,7 +2676,7 @@ function renderClaims() {
   const af = $('claimApp').value;
   const shown = claimRows.filter((c) => (!$('claimShop').value || String(c.shop_id) === $('claimShop').value)
     && (!af || c.app_type === af)
-    && (!s || `#${c.id} ${c.orders?.order_no ?? '#' + c.order_id} ${shopName[c.shop_id]} ${c.orders?.product_name} ${c.reason} ${c.app_type ?? ''}`.toLowerCase().includes(s)));
+    && (!s || `#${c.id} ${c.orders?.order_no ?? '#' + c.order_id} ${shopName[c.shop_id]} ${c.orders?.product_name} ${c.reason} ${c.app_type ?? ''} ${c.email ?? ''}`.toLowerCase().includes(s)));
   $('oList').replaceChildren(...shown.map((c) => {
     const o = c.orders ?? {};
     // ตัดสินแล้ว = การ์ดย่อ (กดหัวเพื่อเปิดดู) · รอตรวจสอบ = เปิดเต็มพร้อมปุ่ม
@@ -2695,7 +2696,7 @@ function renderClaims() {
     end.append(pill(CLAIM[c.status]));
     if (done) end.append(h('span', 'caret', '▼'));
     head.append(line(tags, end));
-    head.append(h('span', 'muted', `เคลม #${c.id}${c.order_id ? ` · ออเดอร์ ${c.orders?.order_no ?? '#' + c.order_id}` : ''} · ${when(c.created_at)}${done && c.order_id ? ' · ' + title(o) : ''}`));
+    head.append(h('span', 'muted', `เคลม #${c.id}${c.order_id ? ` · ออเดอร์ ${c.orders?.order_no ?? '#' + c.order_id}` : ''}${c.email ? ' · 📧 ' + c.email : ''} · ${when(c.created_at)}${done && c.order_id ? ' · ' + title(o) : ''}`));
     body.append(claimMeta(c, false));
     body.append(button('💬 เปิดห้องเคลม', 'gray', () => { setView('chat'); setFilter(c.status === 'pending' ? 'pending' : 'claims'); openClaimRoom(claimRooms.find((x) => x.id === c.id) ?? c); }));
     body.append(line(h('b', '', title(o)), h('span', 'muted', `ยอด ${num(o.total)} เครดิต${o.customer ? ' · ลูกค้า: ' + o.customer : ''}`)));
