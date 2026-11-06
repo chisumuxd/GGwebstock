@@ -187,6 +187,10 @@ $('go').onclick = async () => {
     if (data.claimRooms?.length) await batches('เคลมค้าง (bearplus)', 'import_legacy_claim_rooms', data.claimRooms, 200);
     // แชทที่ไม่รู้เจ้าของ (ห้อง "📜 แชทเก่า bearplus") ไม่เอา — ตั้งใจลบห้องพวกนี้ไปแล้ว (5 พ.ย.)
     await batches('แชท', 'import_legacy_chats', data.chats.filter((c) => /^[a-z0-9._+-]+$/.test(c.by ?? '')), 400);
+    // การ์ดออเดอร์ + "🆕 เบิกสต็อคสินค้าใหม่" (bearplus ให้บอทส่ง) → เป็นข้อความของคนที่เบิก (update-55)
+    $('step').textContent = 'ข้อความเบิกสินค้า → ฝั่งคนเบิก…';
+    const { error: eFix } = await db.rpc('legacy_fix_order_msgs');
+    if (eFix && !/legacy_fix_order_msgs/.test(eFix.message)) throw new Error('ข้อความเบิกสินค้า: ' + eFix.message); // ยังไม่ได้รัน update-55 = ข้าม
     if ($('setBalance').checked) await batches('ยอดเครดิตคงเหลือ', 'import_legacy_balances', data.shops.filter((s) => s.credit != null).map((s) => ({ shop: s.key, credit: s.credit })), 100);
     $('step').textContent = `✅ เสร็จ (${Math.round((Date.now() - t0) / 1000)} วินาที)`;
     log('✅ นำเข้าเสร็จ');
