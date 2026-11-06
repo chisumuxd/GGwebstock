@@ -67,7 +67,7 @@
   .shop-opt:hover { background: var(--card2); }
   .shop-opt.on { background: rgba(236, 72, 153, .1); border-color: rgba(236, 72, 153, .45); border-left-color: #ec4899; color: #f9a8d4; }
   .shop-opt .tick { color: var(--ac); font-weight: 700; }
-  /* กรอบเดียว: [รูปร้าน · ชื่อร้าน ▾ / ยอดเครดิต] | [โปรไฟล์ · ☰ เมนูซ่อน (เติมเครดิต / เช็คยอดขาย / บริการเสริม / ออกจากระบบ)] */
+  /* กรอบเดียว: [รูปร้าน · ชื่อร้าน ▾ / ยอดเครดิต] | [โปรไฟล์ · ☰ เมนูซ่อน (เติมเครดิต / เช็คยอดขาย / ออกจากระบบ) · บริการแอดมิน = แท็บบน] */
   .hud { display: flex; align-items: stretch; padding: 6px; border: 1px solid var(--edge); border-radius: 16px;
     background: linear-gradient(135deg, rgba(var(--ac-rgb), .13), rgba(var(--ac-rgb), .02)), var(--card); }
   .hud > * { display: flex; align-items: center; padding: 0 12px; }
@@ -518,7 +518,6 @@
             <button type="button" role="menuitem" data-go="credit">💰 เติมเครดิต</button>
             <a id="adminLink" role="menuitem" href="admin.html" hidden>💬 ไปที่สต็อกแชท</a>
             <a id="salesLink" role="menuitem" href="sales.html">📊 เช็คยอดขาย</a>
-            <button type="button" role="menuitem" data-go="services">🛡️ บริการเสริม</button>
             <button type="button" role="menuitem" id="menuName" class="m-only">✏️ ตั้งชื่อ</button>
             <button type="button" role="menuitem" id="menuPw">🔑 เปลี่ยนรหัสผ่าน</button>
             <button type="button" role="menuitem" class="logout">🚪 ออกจากระบบ</button>
@@ -530,6 +529,7 @@
     <nav class="tabs">
       <button data-tab="products" aria-pressed="true">🛒 สินค้า</button>
       <button data-tab="promos" aria-pressed="false">✨ โปรโมชั่น</button>
+      <button data-tab="services" aria-pressed="false">🛡️ บริการแอดมิน</button>
       <button data-tab="orders" aria-pressed="false">📜 ประวัติการซื้อ<span class="count" id="nOrders"></span></button>
     </nav>
   </header>
@@ -566,7 +566,7 @@
 
     <section id="tab-services" hidden>
       <div class="svc-head">
-        <h2>🛡️ บริการเสริม</h2>
+        <h2>🛡️ บริการแอดมิน</h2>
         <span class="muted">ซื้อบริการแยก · หักเฉพาะเครดิต · ได้อายุ 30 วัน · ไม่นับในหน้าสรุปยอดขาย</span>
       </div>
       <div class="svc-note">ℹ️ บริการนี้<b>ไม่มีต้นทุน</b> และซื้อแยกจากสินค้าทั่วไป · กดซื้อแล้ว<b>หักเครดิตของร้านตามราคาบริการเท่านั้น</b>
