@@ -45,9 +45,10 @@
   header { position: sticky; top: 0; z-index: 5; background: rgba(7, 12, 9, .97); border-bottom: 1px solid var(--line); } /* พื้นทึบแทนเบลอ (เบลอทุกครั้งที่เลื่อน = แลค) */
   .bar { margin: auto; padding: 10px 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   #brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
-  #brand img, .auth-logo { height: 34px; width: auto; }
+  .auth-logo { height: 34px; width: auto; }
+  #brand img { height: 48px; width: auto; }
   .auth-logo { height: 64px; align-self: center; }
-  #logo { font-weight: 700; font-size: 20px; white-space: nowrap; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #logo { font-weight: 800; font-size: 28px; letter-spacing: .3px; white-space: nowrap; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
   /* รูปร้าน + ช่องเลือกร้าน อยู่ในกรอบเดียวกัน */
   .shop-pick { position: relative; }
   .shop-box { display: inline-flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 3px 12px 3px 3px; font-weight: 600; max-width: 240px; }
@@ -92,8 +93,9 @@
   .menu-list > :hover { background: var(--card2); }
   .bar a { color: var(--txt); text-decoration: none; white-space: nowrap; }
   .tabs { margin: auto; padding: 0 20px; display: flex; overflow-x: auto; scrollbar-width: none; }
-  .tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; color: var(--muted); white-space: nowrap; }
-  .tabs button[aria-pressed="true"] { color: var(--txt); border-image: var(--grad2) 1; font-weight: 600; }
+  .tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 12px 18px; color: var(--txt); opacity: .72; font-size: 16px; font-weight: 600; white-space: nowrap; }
+  .tabs button:hover { opacity: 1; }
+  .tabs button[aria-pressed="true"] { opacity: 1; border-image: var(--grad2) 1; font-weight: 800; }
   .count { background: var(--warn); color: #241400; border-radius: 999px; font-size: 11px; padding: 0 6px; margin-left: 4px; }
   .count:empty { display: none; }
 
@@ -368,6 +370,8 @@
   .cl-card pre { white-space: pre-wrap; word-break: break-word; font: 13px/1.6 ui-monospace, monospace; }
   #conv { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   #convHead { padding: 10px 14px; border-bottom: 1px solid var(--line); font-weight: 600; display: flex; gap: 8px; align-items: center; }
+  .conv-shop { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; }
+  .conv-shop .spic { width: 22px; height: 22px; border-radius: 6px; font-size: 11px; }
   /* ค้นหาในแชท (ข้อความ + เลขออเดอร์ในการ์ด) */
   #convSearchBtn { margin-left: auto; background: none; border: 0; color: var(--muted); display: grid; place-items: center; padding: 4px; border-radius: 6px; }
   #convSearchBtn:hover { color: var(--txt); }
@@ -475,6 +479,10 @@
     #search { flex: 1 1 0; }
     .cols { grid-template-columns: 1fr; }
     #brand { flex-basis: 100%; }
+    #brand img { height: 40px; }
+    #logo { font-size: 22px; }
+    .tabs { padding: 0 8px; }
+    .tabs button { padding: 10px 12px; font-size: 15px; }
     /* มือถือ: แถวเดียว [ร้าน / เครดิต] | [รูปโปรไฟล์ ☰] · ตั้งชื่อย้ายเข้าเมนู ☰ */
     .hud { flex-basis: 100%; min-width: 0; }
     .hud .shop-pick { flex: 1; min-width: 0; }
@@ -873,6 +881,12 @@ for (const b of document.querySelectorAll('.logout')) b.onclick = () => db.auth.
 
 // รูปร้านที่เลือกอยู่ (แอดมินตั้งให้) ข้างช่องเลือกร้าน
 // ปุ่มเลือกร้าน (รูป + ชื่อ) → รายการร้านพร้อมรูป · เลือกแล้วส่งค่าให้ #shopSel (ซ่อน) ทำงานเหมือนเดิม
+// หัวห้องแชท: ชื่อห้อง · โลโก้ร้าน + ชื่อร้าน (ไม่มีโลโก้ = ตัวอักษรแรก)
+function setConvName(title) {
+  const tag = h('span', 'conv-shop');
+  tag.append(shopPic(shop), shop.name);
+  $('convName').replaceChildren(title + ' · ', tag);
+}
 function shopPic(s) { // ไม่มีรูป = ตัวอักษรแรกของชื่อร้าน
   if (!s.avatar_url) return h('span', 'spic', ([...s.name][0] ?? '?').toUpperCase());
   const img = h('img', 'spic');
@@ -1773,7 +1787,7 @@ async function openClaimThread(c) {
   claimOpen = c;
   thread = c.created_by ?? me; // ห้องเคลมผูกกับคนแจ้งเคลม · คนในร้านพิมพ์ได้ทุกคน
   $('chatBox').classList.add('open');
-  $('convName').textContent = `${c.status === 'chat' ? '🗂 เคลมเก่า' : `🛠 เคลม #${c.id}`} · 🏪 ${shop.name}`;
+  setConvName(c.status === 'chat' ? '🗂 เคลมเก่า' : `🛠 เคลม #${c.id}`);
   $('chatText').placeholder = 'พิมพ์ข้อความในห้องเคลมนี้';
   renderThreads();
   const { data: rows } = await db.from('messages').select().eq('claim_id', c.id).order('created_at', { ascending: false }).limit(200);
@@ -1869,7 +1883,7 @@ async function openThread(id, since = null) { // since = โหลดย้อ�
   claimOpen = null;
   unread.delete(id);
   $('chatBox').classList.add('open');
-  $('convName').textContent = `${id === me ? 'แชทของฉันกับแอดมิน' : threads.find((t) => t.id === id)?.name ?? ''} · 🏪 ${shop.name}`;
+  setConvName(id === me ? 'แชทของฉันกับแอดมิน' : threads.find((t) => t.id === id)?.name ?? '');
   $('chatText').placeholder = id === me ? 'พิมพ์ข้อความถึงแอดมิน' : `ตอบในห้องของ ${shortName(id)}`;
   renderThreads();
   joinTyping(shop.id);
