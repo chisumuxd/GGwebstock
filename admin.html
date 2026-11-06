@@ -58,6 +58,7 @@
   #app:not([data-view="chat"]) :is(#side, #chat, #profile), #app[data-view="chat"] #office { display: none; }
 
   /* เมนูซ้าย */
+  #rail { overflow-y: auto; scrollbar-width: none; } /* จอเตี้ย (มือถือแนวนอน) = เลื่อนเมนูขึ้นลงได้ ไม่โดนตัด */
   #rail { width: 72px; flex: none; background: var(--hover); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; }
   #rail > * { position: relative; width: 62px; padding: 8px 0; border-radius: 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 20px; color: var(--muted); text-decoration: none; }
   #rail > *:hover { background: var(--rail-hover); }
@@ -515,19 +516,18 @@
     #headStatus button span { display: none; } /* มือถือ: ปุ่มสถานะเหลือแค่ไอคอน */
     #app.open #side, #app:not(.open) #chat { display: none; }
     #back { display: inline; }
-    /* เมนูย้ายไปล่างจอ ซ่อนตอนเปิดห้องแชท · แถวล่าง = 4 เมนูหลัก + ☰ เมนู
-       กด ☰ → เมนูที่เหลือเลื่อนขึ้นมาเหนือแถวล่าง (wrap-reverse = แถวแรกอยู่ล่างสุด ใกล้นิ้ว) */
+    /* เมนูย้ายไปล่างจอ ซ่อนตอนเปิดห้องแชท · แถวล่าง = 4 เมนูหลัก + ☰ เมนู (ช่องละ 20%)
+       กด ☰ → เมนูที่เหลือ 8 ปุ่ม เป็นตาราง 4 คอลัมน์ เลื่อนขึ้นมาเหนือแถวล่าง (wrap-reverse = แถวแรกอยู่ล่างสุด ใกล้นิ้ว) */
     #app { padding-bottom: 60px; }
     #app.open { padding-bottom: 0; }
     #app.open #rail { display: none; }
     #rail { position: fixed; left: 0; right: 0; bottom: 0; width: auto; height: auto; flex-direction: row; flex-wrap: wrap-reverse; align-items: stretch;
       padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); gap: 0; border: 0; border-top: 1px solid var(--line); background: var(--bg); z-index: 20; }
-    #rail > * { flex: 0 0 20%; width: auto; min-height: 52px; padding: 6px 0; font-size: 20px; line-height: 24px; justify-content: center; order: 2; }
+    #rail > * { flex: 0 0 25%; width: auto; min-height: 56px; padding: 6px 0; font-size: 20px; line-height: 24px; justify-content: center; order: 1; }
     #rail span { font-size: 11px; line-height: 14px; font-weight: 600; white-space: nowrap; } /* ชื่อทุกปุ่มขนาด/ความหนาเท่ากัน (ปุ่มที่เลือก = เปลี่ยนแค่สี) */
-    /* ลำดับ (ล่าง → บน): แถวหลัก 4 เมนู + ☰ · Light mode + ออกจากระบบ · ร้านค้า สินค้า … */
-    #rail > :nth-child(-n+5) { order: 0; }
-    #rail #soundBtn, #rail #themeBtn { order: 1; }
-    #rail #themeBtn { margin-right: 60%; } /* เต็มแถว → ร้านค้า/สินค้า ขึ้นแถวบนถัดไป */
+    /* ลำดับ (ล่าง → บน): แถวหลัก 4 เมนู + ☰ · ร้านค้า สินค้า โปรโมชั่น บริการ · ผู้ใช้ ตอบอัตโนมัติ ตั้งค่า Light mode */
+    #rail > :nth-child(-n+5) { order: 0; flex-basis: 20%; }
+    #rail.more > :nth-child(n+6) { border-radius: 12px; }
     #app.open #topbar { display: none; } /* เปิดห้องแชทบนมือถือ = ซ่อนแถบบน ให้แชทเต็มจอ */
     #rail .end { margin-top: 0; }
     #moreBtn { display: flex; }
