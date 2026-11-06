@@ -526,16 +526,16 @@
     #app.open #side, #app:not(.open) #chat { display: none; }
     #back { display: inline; }
     /* เมนูย้ายไปล่างจอ ซ่อนตอนเปิดห้องแชท · แถวล่าง = 4 เมนูหลัก + ☰ เมนู (ช่องละ 20%)
-       กด ☰ → เมนูที่เหลือ 8 ปุ่ม เป็นตาราง 4 คอลัมน์ เลื่อนขึ้นมาเหนือแถวล่าง (wrap-reverse = แถวแรกอยู่ล่างสุด ใกล้นิ้ว) */
+       กด ☰ → เมนูที่เหลือ 8 ปุ่ม เป็นตาราง 4 คอลัมน์เหนือแถวล่าง เรียงตาม DOM → Light mode · ⚙️ ตั้งค่า อยู่มุมขวาล่างของตาราง */
     #app { padding-bottom: 60px; }
     #app.open { padding-bottom: 0; }
     #app.open #rail { display: none; }
-    #rail { position: fixed; left: 0; right: 0; bottom: 0; width: auto; height: auto; flex-direction: row; flex-wrap: wrap-reverse; align-items: stretch;
+    #rail { position: fixed; left: 0; right: 0; bottom: 0; width: auto; height: auto; flex-direction: row; flex-wrap: wrap; align-items: stretch;
       padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); gap: 0; border: 0; border-top: 1px solid var(--line); background: var(--bg); z-index: 20; }
     #rail > * { flex: 0 0 25%; width: auto; min-height: 56px; padding: 6px 0; font-size: 20px; line-height: 24px; justify-content: center; order: 1; }
     #rail span { font-size: 11px; line-height: 14px; font-weight: 600; white-space: nowrap; } /* ชื่อทุกปุ่มขนาด/ความหนาเท่ากัน (ปุ่มที่เลือก = เปลี่ยนแค่สี) */
-    /* ลำดับ (ล่าง → บน): แถวหลัก 4 เมนู + ☰ · ร้านค้า สินค้า โปรโมชั่น บริการ · ผู้ใช้ ตอบอัตโนมัติ ตั้งค่า Light mode */
-    #rail > :nth-child(-n+5) { order: 0; flex-basis: 20%; }
+    /* ลำดับ (บน → ล่าง): ร้านค้า สินค้า โปรโมชั่น บริการ · ผู้ใช้ ตอบอัตโนมัติ Light mode ⚙️ ตั้งค่า · แถวหลัก 4 เมนู + ☰ (ล่างสุด) */
+    #rail > :nth-child(-n+5) { order: 2; flex-basis: 20%; }
     #rail.more > :nth-child(n+6) { border-radius: 12px; }
     #app.open #topbar { display: none; } /* เปิดห้องแชทบนมือถือ = ซ่อนแถบบน ให้แชทเต็มจอ */
     #rail .end { margin-top: 0; }
@@ -588,8 +588,8 @@
     <button data-view="services" aria-pressed="false">🛡️<span>บริการ</span></button>
     <button data-view="users" aria-pressed="false">👤<span>ผู้ใช้</span></button>
     <button data-view="autoreply" aria-pressed="false">🤖<span>ตอบอัตโนมัติ</span></button>
-    <button id="soundBtn" class="end" type="button" aria-label="ตั้งค่า (เสียงแจ้งเตือน / ฟอนต์แชท)">⚙️<span>ตั้งค่า</span></button>
-    <button id="themeBtn" type="button" aria-label="สลับ Dark mode / Light mode"><b>🌙</b><span>Dark mode</span></button>
+    <button id="themeBtn" class="end" type="button" aria-label="สลับ Dark mode / Light mode"><b>🌙</b><span>Dark mode</span></button>
+    <button id="soundBtn" type="button" aria-label="ตั้งค่า (เสียงแจ้งเตือน / ฟอนต์แชท / จัดเมนู)">⚙️<span>ตั้งค่า</span></button>
   </nav>
 
   <aside id="side">
@@ -3508,14 +3508,14 @@ const showVol = () => { $('volVal').textContent = Number($('vol').value) ? $('vo
 $('soundBtn').onclick = () => { $('vol').value = soundVol(); showVol(); renderRailOrder(); $('soundDlg').showModal(); }; // ⚙️ ตั้งค่า (เสียง + ฟอนต์แชท + จัดเมนู)
 // ค่าที่จำในเครื่องนี้ (ฟอนต์แชท / จัดเมนู): pref(k) อ่าน · pref(k, v) เขียน · pref(k, null) ลบ
 const pref = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { return null; } };
-// 🧭 จัดเมนู: เรียงปุ่มเมนูซ้ายเอง (เก็บในเครื่องนี้) · 4 อันแรก = แถบล่างมือถือ (ปุ่ม ☰ ต้องอยู่ช่องที่ 5 ใน DOM) · ⚙️ / Light mode อยู่ล่างสุดเสมอ
+// 🧭 จัดเมนู: เรียงปุ่มเมนูซ้ายเอง (เก็บในเครื่องนี้) · 4 อันแรก = แถบล่างมือถือ (ปุ่ม ☰ ต้องอยู่ช่องที่ 5 ใน DOM) · Light mode → ⚙️ ตั้งค่า อยู่ท้ายสุดเสมอ
 const railKey = (el) => el.dataset.view ?? el.dataset.key;
 const railItems = () => [...$('rail').children].filter((el) => railKey(el)); // ปุ่มเมนูที่ย้ายได้
 const RAIL_DEFAULT = railItems().map(railKey);
 function applyRailOrder(keys) {
   const all = new Map(railItems().map((el) => [railKey(el), el]));
   const order = [...keys.filter((k) => all.has(k)), ...RAIL_DEFAULT.filter((k) => !keys.includes(k))]; // เมนูใหม่ที่ยังไม่เคยจัด = ต่อท้าย
-  order.forEach((k, i) => $('rail').insertBefore(all.get(k), i < 4 ? $('moreBtn') : $('soundBtn')));
+  order.forEach((k, i) => $('rail').insertBefore(all.get(k), i < 4 ? $('moreBtn') : $('themeBtn'))); // Light mode + ⚙️ ตั้งค่า อยู่ท้ายเสมอ
   return order;
 }
 function saveRailOrder(keys) {
