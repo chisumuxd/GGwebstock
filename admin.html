@@ -197,6 +197,7 @@
   .row .avatar, .row .spacer { width: 32px; flex: none; align-self: flex-start; }
   .bubble { min-width: 0; padding: 8px 12px; border-radius: 18px; background: var(--soft); white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
   .row.out .bubble { background: var(--green); color: #fff; }
+  .row.out.auto .bubble { background: var(--hover); color: var(--txt); border: 1px dashed var(--line); } /* 🤖 ระบบตอบอัตโนมัติ = เทา แยกจากแอดมินพิมพ์เอง */
   .stamp { flex: none; font-size: 10px; color: var(--muted); display: flex; flex-direction: column; align-items: flex-end; }
   .row.in .stamp { align-items: flex-start; }
   .row .read { display: none; }
@@ -1376,7 +1377,7 @@ $('ctxPeek').onclick = async () => {
       return slot;
     }
     const r = h('div', 'peek ' + m.direction);
-    r.append(h('small', '', `${m.direction === 'in' ? nameOf(m.sender ?? m.contact_id) : nameOf(m.sender, 'แอดมิน')} · ${when(m.created_at)}`));
+    r.append(h('small', '', `${m.auto ? '🤖 ระบบ' : m.direction === 'in' ? nameOf(m.sender ?? m.contact_id) : nameOf(m.sender, 'แอดมิน')} · ${when(m.created_at)}`));
     if (m.image_path) r.append(chatImg(m.image_path));
     const text = m.image_path && m.text === IMG_TEXT ? '' : m.text; // รูปอย่างเดียว = ไม่ต้องมีคำว่า "รูปภาพ" ซ้ำ
     if (text) r.append(h('div', '', text));
@@ -1664,11 +1665,11 @@ function addMsg(m) {
     $('msgs').scrollTop = $('msgs').scrollHeight;
     return;
   }
-  const row = h('div', 'row ' + m.direction);
+  const row = h('div', 'row ' + m.direction + (m.auto ? ' auto' : ''));
   row.dataset.at = m.created_at;
   // ชื่อคนพิมพ์อยู่นอกกรอบ เหนือข้อความแรกของแต่ละช่วง (เจ้าของห้อง / เพื่อนร่วมร้าน / แอดมินแต่ละคน)
-  const who = m.sender ?? (m.direction === 'in' ? m.contact_id : '');
-  const name = m.direction === 'out' ? names[who] || 'แอดมิน' : who === m.contact_id && !current.claim ? current.name : nameOf(who); // ห้องเคลม = ชื่อคนพิมพ์ ไม่ใช่ชื่อห้อง
+  const who = m.auto ? 'auto' : m.sender ?? (m.direction === 'in' ? m.contact_id : ''); // auto = 🤖 ข้อความตอบกลับอัตโนมัติ (update-57)
+  const name = m.auto ? '🤖 ระบบ' : m.direction === 'out' ? names[who] || 'แอดมิน' : who === m.contact_id && !current.claim ? current.name : nameOf(who); // ห้องเคลม = ชื่อคนพิมพ์ ไม่ใช่ชื่อห้อง
   const key = m.direction + who;
   const first = lastDir !== key;
   if (m.direction === 'in') row.append(first ? avatar({ id: who, name, shop_id: current.shop_id }, 'sm') : h('div', 'spacer'));

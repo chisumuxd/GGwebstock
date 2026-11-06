@@ -403,6 +403,7 @@
   .msg.out { align-self: flex-start; }
   .msg.in { align-self: flex-end; flex-direction: row-reverse; }
   .msg .bubble { min-width: 0; padding: 8px 12px; border-radius: 18px; background: var(--card2); white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
+  .msg.auto .bubble { border: 1px dashed var(--line); } /* 🤖 ระบบตอบอัตโนมัติ */
   .msg.in .bubble { background: var(--grad); color: var(--ink); }
   .msg.in .body { align-items: flex-end; }
   /* รูป / ข้อความที่ตอบกลับ (แอดมินส่งจากหน้าแอดมิน) */
@@ -2065,14 +2066,14 @@ function addMsg(m) {
   } else {
     // แอดมินแต่ละคน = ชื่อ + รูปของคนนั้น (ข้อความเก่าที่ไม่รู้ว่าใครตอบ = "แอดมิน" + ตัวอักษรร้าน)
     const out = m.direction === 'out';
-    const who = (out ? m.sender : m.sender ?? m.contact_id) ?? 'admin';
+    const who = m.auto ? 'auto' : (out ? m.sender : m.sender ?? m.contact_id) ?? 'admin'; // auto = 🤖 ข้อความตอบกลับอัตโนมัติ (update-57)
     const mine = !out && who === me;
-    const label = out ? dnames[who] || 'แอดมิน' : shortName(who);
-    const r = h('div', 'msg ' + (mine ? 'in' : 'out'));
+    const label = m.auto ? '🤖 ระบบ' : out ? dnames[who] || 'แอดมิน' : shortName(who);
+    const r = h('div', 'msg ' + (mine ? 'in' : 'out') + (m.auto ? ' auto' : ''));
     const body = h('div', 'body');
     if (!mine) {
       const first = lastWho !== m.direction + who;
-      r.append(!first ? h('div', 'spacer') : out && !pics[who] && !dnames[who] ? h('div', 'av', [...SHOP_NAME][0]) : av(who, label));
+      r.append(!first ? h('div', 'spacer') : m.auto ? h('div', 'av', '🤖') : out && !pics[who] && !dnames[who] ? h('div', 'av', [...SHOP_NAME][0]) : av(who, label));
       if (first) body.append(h('small', '', label));
     }
     const text = m.image_path && m.text === IMG_TEXT ? '' : m.text; // รูปอย่างเดียว = ไม่มีกรอบข้อความ
