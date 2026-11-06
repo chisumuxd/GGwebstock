@@ -294,18 +294,29 @@
   .c-pick span { display: inline-block; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card2); color: var(--txt); font-weight: 600; font-size: 13px; }
   .c-pick input:checked + span { background: var(--grad); color: var(--ink); border-color: transparent; }
   .c-pick input:focus-visible + span { outline: 2px solid var(--ac); outline-offset: 2px; }
-  /* 🛠 เคลมสินค้า (แท็บ) */
-  .cl-types { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0; max-width: 640px; }
-  .cl-type { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); cursor: pointer; }
+  /* 🛠 เคลมสินค้า (ป๊อปอัปกลางจอ) */
+  #clDlg { width: min(600px, calc(100% - 24px)); }
+  .cl-head { display: flex; align-items: center; gap: 8px; font-size: 18px; }
+  .cl-head button { margin-left: auto; }
+  .cl-types { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .cl-type { position: relative; gap: 2px !important; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--card2); cursor: pointer; }
   .cl-type input { position: absolute; opacity: 0; pointer-events: none; }
-  .cl-type b { font-size: 15px; }
-  .cl-type small { color: var(--muted); }
-  .cl-type:has(:checked) { border-color: var(--ac); box-shadow: inset 0 0 0 1px var(--ac); background: var(--card2); }
-  .cl-form { display: flex; flex-direction: column; gap: 12px; max-width: 640px; background: var(--card); border: 1px solid var(--edge); border-radius: 16px; padding: 16px; }
-  .cl-form label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+  .cl-type b { font-size: 15px; color: var(--txt); }
+  .cl-type:has(:checked) { border-color: var(--ac); box-shadow: inset 0 0 0 1px var(--ac); }
   .cl-group { display: flex; flex-direction: column; gap: 12px; }
   .cl-prev { max-width: 220px; max-height: 220px; border-radius: 12px; object-fit: contain; background: #111; }
-  .cl-form .btn { align-self: flex-start; }
+  /* คืนเครดิต: เลือกออเดอร์แบบการ์ด (รูปแอป · ชื่อ · อีเมล · วันที่ | ราคาขาย / ทุน) */
+  .cl-orders { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; }
+  .cl-ord { position: relative; flex-direction: row !important; align-items: center; gap: 12px !important; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card2); cursor: pointer; }
+  .cl-ord input { position: absolute; opacity: 0; pointer-events: none; }
+  .cl-ord:has(:checked) { border-color: var(--ac); box-shadow: inset 0 0 0 1px var(--ac); background: rgba(var(--ac-rgb), .08); }
+  .cl-ord .o-pic { width: 46px; height: 46px; }
+  .cl-ord .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .cl-ord .info b { color: var(--txt); font-size: 14px; }
+  .cl-ord .em { color: #60a5fa; font-family: ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+  .cl-ord .amt { flex: none; display: flex; flex-direction: column; align-items: flex-end; }
+  .cl-ord .amt b { color: #4ade80; font-size: 16px; }
+  .cl-none { color: var(--muted); padding: 10px 0; }
   .pw-form { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
   .pw-form .acts { display: flex; gap: 8px; justify-content: flex-end; }
   /* ป๊อปอัปดูรูป */
@@ -557,7 +568,7 @@
       <button data-tab="products" aria-pressed="true">🛒 สินค้า</button>
       <button data-tab="promos" aria-pressed="false">✨ โปรโมชั่น</button>
       <button data-tab="services" aria-pressed="false">🛡️ บริการแอดมิน</button>
-      <button data-tab="claim" aria-pressed="false">🛠 เคลมสินค้า</button>
+      <button type="button" id="claimBtn">🛠 เคลมสินค้า</button><!-- ไม่ใช่แท็บ: เปิดป๊อปอัป #clDlg -->
       <button data-tab="orders" aria-pressed="false">📜 ประวัติการซื้อ<span class="count" id="nOrders"></span></button>
     </nav>
   </header>
@@ -610,31 +621,6 @@
           <div id="svcUsers" class="list"></div>
         </div>
       </div>
-    </section>
-
-    <section id="tab-claim" hidden><!-- 🛠 เคลมสินค้า: 2 แบบ · บังคับแนบรูป (update-59) -->
-      <div class="svc-head">
-        <h2>🛠 เคลมสินค้า</h2>
-        <span class="muted">เลือกแบบเคลม · ต้องแนบรูปทุกครั้ง · ส่งแล้วคุยกับแอดมินต่อในห้องเคลม (💬 แชท → 🛠 ห้องเคลม)</span>
-      </div>
-      <div class="cl-types" role="radiogroup" aria-label="แบบเคลม">
-        <label class="cl-type"><input type="radio" name="clType" value="replace" checked><b>🔁 เปลี่ยนห้อง - เปลี่ยนเมล</b><small>ชื่อแอป · อีเมล · หมายเหตุ · รูป</small></label>
-        <label class="cl-type"><input type="radio" name="clType" value="refund"><b>↩ คืนเครดิต</b><small>เลือกออเดอร์ · หมายเหตุ · รูป</small></label>
-      </div>
-      <form id="clForm" class="cl-form">
-        <div data-for="replace" class="cl-group">
-          <label>ชื่อแอป *<input id="clApp" class="field" list="clApps" maxlength="40" required placeholder="เช่น Netflix / YouTube Premium" autocomplete="off"></label>
-          <datalist id="clApps"></datalist>
-          <label>อีเมล *<input id="clEmail" class="field" type="email" maxlength="200" required placeholder="อีเมลที่ใช้กับแอปนี้"></label>
-        </div>
-        <div data-for="refund" class="cl-group" hidden>
-          <label>เลือกออเดอร์ *<select id="clOrder" class="field" required></select></label>
-        </div>
-        <label>หมายเหตุ<textarea id="clNote" class="field" rows="3" maxlength="1000" placeholder="เช่น เข้าสู่ระบบไม่ได้ / จอขึ้นรหัสผิด / หมดอายุก่อนกำหนด"></textarea></label>
-        <label>รูปภาพแนบ * <small class="muted">ต้องแนบ เช่น แคปหน้าจอที่มีปัญหา</small><input id="clImg" type="file" accept="image/*" required></label>
-        <img id="clPrev" class="cl-prev" alt="รูปที่จะแนบ" hidden>
-        <button class="btn" id="clOk">🛠 ส่งเคลม</button>
-      </form>
     </section>
 
     <section id="tab-orders" hidden>
@@ -761,6 +747,33 @@
     <input id="pw1" class="field" type="password" placeholder="รหัสผ่านใหม่ (6 ตัวขึ้นไป)" minlength="6" autocomplete="new-password" required>
     <input id="pw2" class="field" type="password" placeholder="พิมพ์รหัสผ่านใหม่อีกครั้ง" minlength="6" autocomplete="new-password" required>
     <div class="acts"><button type="button" class="ghost" id="pwCancel">ยกเลิก</button><button class="btn">บันทึก</button></div>
+  </form>
+</dialog>
+
+<dialog id="clDlg" aria-label="เคลมสินค้า"><!-- 🛠 เคลมสินค้า: ป๊อปอัปกลางจอ · 2 แบบ · บังคับแนบรูป (update-59) -->
+  <form id="clForm">
+    <div class="cl-head"><b>🛠 เคลมสินค้า</b><button type="button" class="ghost" id="clX" aria-label="ปิด">✕</button></div>
+    <span class="muted">เลือกแบบเคลม · ต้องแนบรูปทุกครั้ง · ส่งแล้วคุยกับแอดมินต่อในห้องเคลม (💬 แชท → 🛠 ห้องเคลม)</span>
+    <div class="cl-types" role="radiogroup" aria-label="แบบเคลม">
+      <label class="cl-type"><input type="radio" name="clType" value="replace" checked><b>🔁 เปลี่ยนห้อง - เปลี่ยนเมล</b><small>ชื่อแอป · อีเมล · หมายเหตุ · รูป</small></label>
+      <label class="cl-type"><input type="radio" name="clType" value="refund"><b>↩ คืนเครดิต</b><small>เลือกออเดอร์ · หมายเหตุ · รูป</small></label>
+    </div>
+    <div data-for="replace" class="cl-group">
+      <label>ชื่อแอป *<input id="clApp" class="field" list="clApps" maxlength="40" required placeholder="เช่น Netflix / YouTube Premium" autocomplete="off"></label>
+      <datalist id="clApps"></datalist>
+      <label>อีเมล *<input id="clEmail" class="field" type="email" maxlength="200" required placeholder="อีเมลที่ใช้กับแอปนี้"></label>
+    </div>
+    <div data-for="refund" class="cl-group" hidden>
+      <label>เลือกออเดอร์ *<input id="clOrderQ" class="field" type="search" placeholder="🔍 ค้นหา เลขออเดอร์ / แอป / อีเมล" autocomplete="off"></label>
+      <div id="clOrders" class="cl-orders" role="radiogroup" aria-label="เลือกออเดอร์"></div>
+    </div>
+    <label>หมายเหตุ<textarea id="clNote" class="field" rows="3" maxlength="1000" placeholder="เช่น เข้าสู่ระบบไม่ได้ / จอขึ้นรหัสผิด / หมดอายุก่อนกำหนด"></textarea></label>
+    <label>รูปภาพแนบ * <small class="muted">ต้องแนบ เช่น แคปหน้าจอที่มีปัญหา</small><input id="clImg" type="file" accept="image/*" required></label>
+    <img id="clPrev" class="cl-prev" alt="รูปที่จะแนบ" hidden>
+    <div class="acts" style="justify-content: flex-end">
+      <button type="button" class="ghost" id="clCancel">ยกเลิก</button>
+      <button class="btn" id="clOk">🛠 ส่งเคลม</button>
+    </div>
   </form>
 </dialog>
 
@@ -989,13 +1002,12 @@ $('shopSel').onchange = () => {
   }
 };
 
-for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => setTab(b.dataset.tab);
+for (const b of document.querySelectorAll('.tabs button[data-tab]')) b.onclick = () => setTab(b.dataset.tab);
 function setTab(t) {
-  for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-pressed', b.dataset.tab === t);
+  for (const b of document.querySelectorAll('.tabs button[data-tab]')) b.setAttribute('aria-pressed', b.dataset.tab === t);
   for (const s of document.querySelectorAll('main > section')) s.hidden = s.id !== 'tab-' + t;
   if (t === 'promos') loadPromos(); // โหลดใหม่ทุกครั้งที่เปิด (แอดมินอาจเพิ่งเพิ่มรูป)
   if (t === 'services') loadServices();
-  if (t === 'claim') renderClaimForm();
 }
 
 // หน้าสรุปยอดขาย → เปิดร้านที่เลือกอยู่
@@ -1498,25 +1510,52 @@ async function renderOrders() {
 $('orderFilter').onchange = renderOrders;
 $('orderSearch').oninput = renderOrders;
 
-// ---------- 🛠 เคลมสินค้า (แท็บ): 🔁 เปลี่ยนห้อง-เปลี่ยนเมล (ไม่ผูกออเดอร์) / ↩ คืนเครดิต (เลือกออเดอร์) · บังคับแนบรูป (update-59) ----------
+// ---------- 🛠 เคลมสินค้า (ป๊อปอัป): 🔁 เปลี่ยนห้อง-เปลี่ยนเมล (ไม่ผูกออเดอร์) / ↩ คืนเครดิต (เลือกออเดอร์) · บังคับแนบรูป (update-59) ----------
 const clType = () => document.querySelector('[name="clType"]:checked').value;
+const clPicked = () => document.querySelector('[name="clOrd"]:checked')?.value;
+// รูปแอป: สินค้าที่ผูกกับออเดอร์ · ออเดอร์เก่าที่ไม่ผูก = เทียบชื่อสินค้าในร้าน
+const appPic = (o) => o.products?.image_url || products.find((p) => p.name === o.product_name)?.image_url;
+function clOrderRow(o, keep) {
+  const row = h('label', 'cl-ord');
+  row.dataset.q = `${ono(o)} ${o.product_name} ${o.option_name ?? ''} ${o.email ?? ''}`.toLowerCase();
+  const r = h('input');
+  Object.assign(r, { type: 'radio', name: 'clOrd', value: o.id, checked: String(o.id) === keep });
+  let pic = h('span', 'o-pic', '🛍️');
+  if (appPic(o)) Object.assign(pic = h('img', 'o-pic'), { src: appPic(o), alt: '', loading: 'lazy' });
+  const info = h('div', 'info');
+  info.append(h('b', '', o.product_name + (o.option_name ? ` (${o.option_name})` : '')));
+  if (o.email) info.append(h('span', 'em', '✉️ ' + o.email));
+  info.append(h('span', '', `📅 ${dateTH(o.created_at)} · ${ono(o)}`));
+  const amt = h('div', 'amt');
+  if (Number(o.sale_total) > 0) amt.append(h('b', '', '฿' + num(o.sale_total)));
+  amt.append(h('small', '', 'ทุน ฿' + num(o.total)));
+  row.append(r, pic, info, amt);
+  return row;
+}
+function filterClOrders() {
+  const s = $('clOrderQ').value.trim().toLowerCase();
+  for (const r of $('clOrders').querySelectorAll('.cl-ord')) r.hidden = !r.dataset.q.includes(s);
+}
 function renderClaimForm() {
   const t = clType();
+  // คืนเครดิต: ออเดอร์ที่ส่งมอบแล้ว และยังไม่เคยเคลม (1 ออเดอร์เคลมได้ครั้งเดียว)
+  const claimed = new Set(data.claims.map((c) => c.order_id));
+  const can = data.orders.filter((o) => o.status === 'done' && !claimed.has(o.id));
+  const keep = clPicked();
+  $('clOrders').replaceChildren(...(can.length ? can.map((o) => clOrderRow(o, keep)) : [h('p', 'cl-none', 'ไม่มีออเดอร์ที่ขอคืนเครดิตได้')]));
+  filterClOrders();
   for (const g of $('clForm').querySelectorAll('[data-for]')) {
     const on = g.dataset.for === t;
     g.hidden = !on;
     for (const i of g.querySelectorAll('input, select')) i.disabled = !on; // ช่องของอีกแบบ = ไม่บังคับกรอก
   }
-  // คืนเครดิต: ออเดอร์ที่ส่งมอบแล้ว และยังไม่เคยเคลม (1 ออเดอร์เคลมได้ครั้งเดียว)
-  const claimed = new Set(data.claims.map((c) => c.order_id));
-  const can = data.orders.filter((o) => o.status === 'done' && !claimed.has(o.id));
-  const keep = $('clOrder').value;
-  $('clOrder').replaceChildren(new Option(can.length ? '— เลือกออเดอร์ที่จะขอคืนเครดิต —' : 'ไม่มีออเดอร์ที่ขอคืนเครดิตได้', ''),
-    ...can.map((o) => new Option(`${ono(o)} · ${title(o)} · ฿${num(o.total)} · ${dateTH(o.created_at)}`, o.id)));
-  $('clOrder').value = can.some((o) => String(o.id) === keep) ? keep : '';
   $('clApps').replaceChildren(...[...new Set(products.map((p) => p.name))].map((n) => new Option(n))); // ชื่อแอปจากสินค้าในร้าน (พิมพ์เองได้)
 }
 for (const r of document.querySelectorAll('[name="clType"]')) r.onchange = renderClaimForm;
+$('clOrderQ').oninput = filterClOrders;
+$('claimBtn').onclick = () => { renderClaimForm(); $('clDlg').showModal(); };
+$('clX').onclick = $('clCancel').onclick = () => $('clDlg').close();
+$('clDlg').onclick = (e) => { if (e.target === $('clDlg')) $('clDlg').close(); }; // กดพื้นหลัง = ปิด (ข้อมูลที่กรอกยังอยู่)
 $('clImg').onchange = () => {
   const f = $('clImg').files[0];
   $('clPrev').hidden = !f;
@@ -1532,8 +1571,8 @@ $('clForm').onsubmit = async (e) => {
     const row = { shop_id: shop.id, wish: t, reason: $('clNote').value.trim() || (t === 'refund' ? 'ขอคืนเครดิต' : 'ขอเปลี่ยนห้อง / เปลี่ยนเมล') };
     if (t === 'replace') Object.assign(row, { app_type: $('clApp').value.trim().slice(0, 40), email: $('clEmail').value.trim() });
     else {
-      const o = data.orders.find((x) => String(x.id) === $('clOrder').value);
-      if (!o) throw new Error('เลือกออเดอร์ก่อน');
+      const o = data.orders.find((x) => String(x.id) === clPicked());
+      if (!o) throw new Error('เลือกออเดอร์ที่จะขอคืนเครดิตก่อน');
       Object.assign(row, { order_id: o.id, app_type: o.product_name.slice(0, 40) });
     }
     row.image_path = await upload(file);
@@ -1541,6 +1580,7 @@ $('clForm').onsubmit = async (e) => {
     if (error) throw error;
     $('clForm').reset();
     $('clPrev').hidden = true;
+    $('clDlg').close();
     toast('ส่งเคลมแล้ว — คุยกับแอดมินต่อได้ในห้องเคลม');
     await refresh();
     renderClaimForm();
