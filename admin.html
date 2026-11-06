@@ -725,7 +725,7 @@ let hits = [];           // ผลค้นหาในห้องแชท (Ra
 let hitIdx = -1;
 let view = 'chat';       // หน้าที่เปิดจากเมนูซ้าย
 let unreadChats = 0;
-let pendingTotal = 0;    // ออเดอร์ + แจ้งเติม + เคลม ที่รออยู่
+let pendingTotal = 0;    // ออเดอร์ + แจ้งเติม ที่รออยู่ (เคลมนับเป็นคนจาก #n-claims)
 let shops = [];
 let shopName = {};
 let orderRows = [];
@@ -1004,7 +1004,9 @@ async function loadClaimRooms() {
   claimRooms = [...open.data, ...done.data];
   claimDoneTotal = done.count ?? done.data.length;
   claimUnread = claimRooms.filter((c) => c.admin_unread > 0).length;
-  $('pendRoomCount').textContent = new Set(claimRooms.filter((c) => c.status === 'pending').map((c) => c.created_by)).size || ''; // ⏳ = จำนวนแชท (คน) แบบ bearplus · ค้างกี่ใบดูในแต่ละแถว
+  $('pendRoomCount').textContent = $('n-claims').textContent = // ⏳ รอเคลม + 🛠 เมนูซ้าย = จำนวนแชท (คน) แบบ bearplus · ค้างกี่ใบดูในแต่ละแถว
+    new Set(claimRooms.filter((c) => c.status === 'pending').map((c) => c.created_by)).size || '';
+  updateTitle();
   $('claimRoomCount').textContent = claimRooms.filter((c) => c.status !== 'pending' && c.admin_unread > 0).length || '';
   $('n-chat').textContent = unreadChats + claimUnread || '';
   const fresh = current?.claim && claimRooms.find((c) => c.id === current.claim.id);
@@ -2110,7 +2112,7 @@ function emptyIf(rows, text) {
   if (!rows.length) $('oList').append(h('p', 'o-empty', text));
 }
 function updateTitle() {
-  const n = unreadChats + pendingTotal;
+  const n = unreadChats + pendingTotal + (Number($('n-claims').textContent) || 0); // = ตัวเลขบนเมนูซ้ายรวมกัน (เคลมนับเป็นคน)
   document.title = (n ? `(${n}) ` : '') + 'GGplus Stock-chat';
 }
 
@@ -2183,7 +2185,7 @@ async function loadAvatars() {
 
 async function counts() {
   let total = 0;
-  for (const [t, st] of [['orders', ['pending', 'waiting']], ['topups', ['pending']], ['claims', ['pending']]]) {
+  for (const [t, st] of [['orders', ['pending', 'waiting']], ['topups', ['pending']]]) { // 🛠 เคลม = จำนวนคน ตั้งใน loadClaimRooms (ตรงกับแท็บ ⏳ รอเคลม)
     const { count } = await db.from(t).select('id', { count: 'exact', head: true }).in('status', st);
     $('n-' + t).textContent = count || '';
     total += count || 0;
