@@ -407,6 +407,9 @@
   .quote { max-width: 100%; background: var(--card2); border-left: 3px solid var(--ac); border-radius: 8px; padding: 4px 10px; font-size: 12px; color: var(--muted); cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .quote b { color: var(--txt); }
   .msg.flash .bubble, .msg.flash .chat-img { outline: 2px solid var(--warn); outline-offset: 2px; }
+  .slot.flash .ocard, .cl-card.flash { outline: 3px solid var(--warn); outline-offset: 3px; } /* กดข้อความแล้วเด้งมาการ์ดนี้ */
+  .bubble.jump { cursor: pointer; }
+  .bubble.jump:hover { text-decoration: underline; }
   .msg time { flex: none; font-size: 10px; color: var(--muted); }
   .msg .stamp { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-size: 10px; color: var(--muted); }
   .msg .read { display: none; }
@@ -723,7 +726,7 @@ const when = (iso) => new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium
 const title = (o) => `${o.product_name}${o.option_name ? ` (${o.option_name})` : ''} x${o.qty}`;
 const ORDER = { pending: ['🕐 รอดำเนินการ', 'st-pending'], waiting: ['⏳ รอส่งมอบ', 'st-waiting'], done: ['✅ ส่งมอบแล้ว', 'st-done'], cancelled: ['✖ ยกเลิก', 'st-cancel'] };
 const WISH = { replace: '🔁 เปลี่ยนห้องใหม่', refund: '↩ ขอคืนเครดิต' }; // สิ่งที่ร้านขอตอนแจ้งเคลม
-const CLAIM = { pending: ['รอตรวจสอบ', 'cl-pending'], refunded: ['คืนเครดิตแล้ว', 'cl-refunded'], replaced: ['เปลี่ยนสินค้าแล้ว', 'cl-replaced'], rejected: ['ไม่อนุมัติ', 'cl-rejected'], chat: ['แชทเก่า', ''] };
+const CLAIM = { pending: ['รอตรวจสอบ', 'cl-pending'], refunded: ['คืนเครดิตแล้ว', 'cl-refunded'], replaced: ['เคลมสำเร็จ', 'cl-replaced'], rejected: ['ไม่อนุมัติ', 'cl-rejected'], chat: ['แชทเก่า', ''] };
 const TOPUP = { pending: ['รอตรวจสอบ', 'pending'], approved: ['อนุมัติแล้ว', ''], rejected: ['ไม่อนุมัติ', 'bad'] };
 const KIND = { topup: 'เติมเครดิต', order: 'ซื้อสินค้า', refund: 'คืนเครดิต', adjust: 'ปรับโดยแอดมิน', service: 'บริการแอดมิน' };
 const ORDER_KIND = { new: '🆕 เบิกใหม่', renew: '🔁 ต่ออายุ' };
@@ -1729,7 +1732,7 @@ async function openClaimById(id) {
   setChat(true);
   if (!claimThreads.some((c) => c.id === id)) await loadClaimThreads();
   const c = claimThreads.find((x) => x.id === id);
-  if (c) openClaimThread(c);
+  if (c) await openClaimThread(c); // รอให้การ์ดหัวห้องขึ้นก่อน (กดข้อความ → เด้งไปการ์ด)
   else renderThreads();
 }
 
@@ -1760,7 +1763,7 @@ function claimCardEl(c) {
   if (c.image_path) el.append(chatImg(c.image_path));
   const box = h('div', 'cl-done' + (c.status === 'pending' ? ' wait' : c.status === 'rejected' ? ' bad' : ''));
   const by = c.decided_by ? ` · ${dnames[c.decided_by] || 'แอดมิน'}` : '';
-  const label = { pending: '⏳ รอแอดมินตรวจสอบ', refunded: `↩ คืนเครดิตแล้ว ${num(c.refund)} เครดิต`, replaced: '✅ ส่งข้อมูลใหม่ให้แล้ว', rejected: '❌ ไม่อนุมัติ' }[c.status];
+  const label = { pending: '⏳ รอแอดมินตรวจสอบ', refunded: `↩ คืนเครดิตแล้ว ${num(c.refund)} เครดิต`, replaced: '✅ เคลมสำเร็จ', rejected: '❌ ไม่อนุมัติ' }[c.status];
   const bh = h('small', '', label + by + (c.decided_at ? ' · ' + when(c.decided_at) : ''));
   if (c.reply) bh.append(chatCopy(c.reply, '📋 คัดลอก'));
   box.append(bh);
@@ -1905,6 +1908,27 @@ function dayLabel(d) {
   return d.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+// ข้อความที่อ้างถึงการ์ด: เคลม #เลข · ส่งมอบสินค้าแล้ว: ชื่อสินค้า — (แบบ bearplus) · ส่งมอบออเดอร์ OD… แล้ว
+const JUMP = /เคลม(?:สำเร็จ)? #(\d+)|ส่งมอบสินค้าแล้ว: (.+?) —|ส่งมอบออเดอร์ (\S+) แล้ว/;
+async function jumpTo(text, row) {
+  const [, claimId, product, orderNo] = text.match(JUMP) ?? [];
+  let el;
+  if (claimId) {
+    if (claimOpen?.id !== Number(claimId)) await openClaimById(Number(claimId)); // อยู่ห้องอื่น → เปิดห้องเคลมนั้น (การ์ดอยู่หัวห้อง)
+    if (claimOpen?.id !== Number(claimId)) return; // หาเคลมไม่เจอ
+    el = claimPinEl;
+  } else {
+    // การ์ดออเดอร์ "ด้านบน" ข้อความนี้ ที่ตรงเลขออเดอร์ / ชื่อสินค้า · ไม่ตรงเลย = การ์ดที่อยู่ใกล้ที่สุดด้านบน
+    const above = [...$('msgs').querySelectorAll('.slot')].filter((s) => s.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).reverse();
+    const key = (orderNo ?? product).trim();
+    el = above.find((s) => s.textContent.includes(key)) ?? above[0];
+  }
+  if (!el?.isConnected) return toast('การ์ดเก่าเกินกว่าที่โหลดไว้');
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1600);
+}
+
 // ของฉัน = ขวา · แอดมิน / เพื่อนร่วมร้าน = ซ้าย มีรูป+ชื่อ · มี order_id = การ์ดออเดอร์
 function addMsg(m) {
   if (shownIds.has(m.id)) return;
@@ -1939,7 +1963,15 @@ function addMsg(m) {
     msgById.set(m.id, { name: label, text: text || IMG_TEXT });
     if (m.reply_to) body.append(quoteEl(m.reply_to));
     if (m.image_path) body.append(chatImg(m.image_path));
-    if (text) body.append(h('div', 'bubble', text));
+    if (text) {
+      const b = h('div', 'bubble', text);
+      if (JUMP.test(text)) { // ข้อความที่พูดถึงการ์ด → กดแล้วเด้งไปการ์ดนั้น
+        b.classList.add('jump');
+        b.title = 'กดเพื่อไปที่การ์ด';
+        b.onclick = () => { if (!getSelection().toString()) jumpTo(text, r); }; // ลากคลุมคัดลอก = ไม่เด้ง
+      }
+      body.append(b);
+    }
     r.dataset.id = m.id;
     const time = h('time', '', d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }));
     if (m.direction === 'in') r.dataset.shop = '';

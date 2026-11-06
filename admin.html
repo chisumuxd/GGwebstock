@@ -225,6 +225,9 @@
   .row:hover .reply { visibility: visible; }
   @media (hover: none) { .row .reply { visibility: visible; } }
   .row.flash .bubble, .row.flash .chat-img { outline: 2px solid #ffb300; outline-offset: 2px; }
+  .chat-order.flash .ccard, .cl-card.flash { outline: 3px solid #ffb300; outline-offset: 3px; transition: outline-color .3s; } /* กดข้อความแล้วเด้งมาการ์ดนี้ */
+  .bubble.jump { cursor: pointer; }
+  .bubble.jump:hover { text-decoration: underline; }
   @media (max-width: 700px) { .send-bar .hint { display: none; } .send-bar .btn { margin-left: auto; } }
 
   /* ข้อมูลลูกค้า */
@@ -591,7 +594,7 @@
           </select>
           <select id="claimFilter" class="field">
             <option value="">📋 ทุกสถานะ</option><option value="pending">รอตรวจสอบ</option>
-            <option value="refunded">คืนเครดิตแล้ว</option><option value="replaced">เปลี่ยนสินค้าแล้ว</option><option value="rejected">ไม่อนุมัติ</option>
+            <option value="refunded">คืนเครดิตแล้ว</option><option value="replaced">เคลมสำเร็จ</option><option value="rejected">ไม่อนุมัติ</option>
           </select>
         </div>
         <div class="o-tools acts" data-for="shops">
@@ -1025,7 +1028,7 @@ function renderClaimList(q, shopF) {
 function openClaimRoom(c) {
   const contact = c.created_by ?? c.orders?.ordered_by;
   const base = contacts.find((x) => x.id === contact) ?? { id: contact, name: nameOf(contact), tags: [], created_at: c.created_at };
-  openChat({ ...base, id: contact, key: 'claim:' + c.id, shop_id: c.shop_id, claim: c, seen_at: c.shop_seen_at, unread: c.admin_unread,
+  return openChat({ ...base, id: contact, key: 'claim:' + c.id, shop_id: c.shop_id, claim: c, seen_at: c.shop_seen_at, unread: c.admin_unread,
     cleared_at: null, name: `${c.status === 'chat' ? '🗂 เคลมเก่า' : `🛠 เคลม #${c.id}`} · ${shopName[c.shop_id] ?? ''}`, person: base.name ?? nameOf(contact) });
 }
 function setFilter(f) {
@@ -1072,7 +1075,7 @@ function claimCardEl(c) {
   }
   if (c.status !== 'pending') {
     const box = h('div', 'cl-done' + (c.status === 'rejected' ? ' bad' : ''));
-    const label = { refunded: `↩ คืนเครดิตแล้ว ${num(c.refund)} เครดิต`, replaced: '✅ ส่งข้อมูลใหม่ให้แล้ว', rejected: '❌ ไม่อนุมัติ' }[c.status];
+    const label = { refunded: `↩ คืนเครดิตแล้ว ${num(c.refund)} เครดิต`, replaced: '✅ เคลมสำเร็จ', rejected: '❌ ไม่อนุมัติ' }[c.status];
     const bh = h('small', '', `${label} · ${c.decided_by ? names[c.decided_by] || 'แอดมิน' : 'แอดมิน'}${c.decided_at ? ' · ' + when(c.decided_at) : ''}`);
     if (c.reply) bh.append(copyButton(c.reply));
     box.append(bh);
@@ -1094,7 +1097,7 @@ function claimCardEl(c) {
   }, msg);
   const acts = h('div', 'acts');
   acts.append(
-    button('🔁 ส่งข้อมูลใหม่', c.wish === 'refund' ? 'gray' : '', () => (reply.value.trim() ? decide('replaced', 'ส่งข้อมูลใหม่แล้ว') : alert('ใส่ข้อมูลสินค้าใหม่ในช่องก่อน'))),
+    button('✅ เคลมสำเร็จ', c.wish === 'refund' ? 'gray' : '', () => (reply.value.trim() || confirm('ยังไม่ได้ใส่ข้อความถึงร้าน — กดเคลมสำเร็จเลยไหม?')) && decide('replaced', 'เคลมสำเร็จ — แจ้งเข้าแชทแล้ว')),
     refund,
     button('↩ คืนเครดิต', c.wish === 'refund' ? '' : 'gray', () => confirm(`คืน ${num(refund.value)} เครดิต ให้ ${shopName[c.shop_id]}?`) && decide('refunded', 'คืนเครดิตแล้ว')),
     button('✖ ไม่อนุมัติ', 'red', () => decide('rejected', 'ไม่อนุมัติแล้ว')));
@@ -1452,12 +1455,45 @@ function addMsg(m) {
   if (first) body.append(h('span', 'sender', name));
   if (m.reply_to) body.append(quoteEl(m.reply_to));
   if (m.image_path) body.append(chatImg(m.image_path));
-  if (text) body.append(h('div', 'bubble', text));
+  if (text) {
+    const b = h('div', 'bubble', text);
+    if (JUMP.test(text)) { // ข้อความที่พูดถึงการ์ด → กดแล้วเด้งไปการ์ดนั้น
+      b.classList.add('jump');
+      b.title = 'กดเพื่อไปที่การ์ด';
+      b.onclick = () => { if (!getSelection().toString()) jumpTo(text, row); }; // ลากคลุมคัดลอก = ไม่เด้ง
+    }
+    body.append(b);
+  }
   row.dataset.id = m.id;
   row.append(body, stamp);
   lastDir = key;
   $('msgs').append(row);
   $('msgs').scrollTop = $('msgs').scrollHeight;
+}
+
+// ข้อความที่อ้างถึงการ์ด: เคลม #เลข · ส่งมอบสินค้าแล้ว: ชื่อสินค้า — (แบบ bearplus) · ส่งมอบออเดอร์ OD… แล้ว
+const JUMP = /เคลม(?:สำเร็จ)? #(\d+)|ส่งมอบสินค้าแล้ว: (.+?) —|ส่งมอบออเดอร์ (\S+) แล้ว/;
+async function jumpTo(text, row) {
+  const [, claimId, product, orderNo] = text.match(JUMP) ?? [];
+  let el;
+  if (claimId) {
+    const id = Number(claimId);
+    if (current?.claim?.id !== id) { // อยู่ห้องอื่น → เปิดห้องเคลมนั้น (การ์ดอยู่หัวห้อง)
+      const c = claimRooms.find((x) => x.id === id) ?? (await db.from('claims').select(CLAIM_SEL).eq('id', id).maybeSingle()).data;
+      if (!c) return toast(`ไม่พบเคลม #${id}`);
+      await openClaimRoom(c);
+    }
+    el = claimPinEl;
+  } else {
+    // การ์ดออเดอร์ "ด้านบน" ข้อความนี้ ที่ตรงเลขออเดอร์ / ชื่อสินค้า · ไม่ตรงเลย = การ์ดที่อยู่ใกล้ที่สุดด้านบน
+    const above = [...$('msgs').querySelectorAll('.chat-order')].filter((s) => s.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).reverse();
+    const key = (orderNo ?? product).trim();
+    el = above.find((s) => s.textContent.includes(key)) ?? above[0];
+  }
+  if (!el?.isConnected) return toast('การ์ดเก่าเกินกว่าที่โหลดไว้ (200 ข้อความล่าสุด)');
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1600);
 }
 
 function renderSeen() {
@@ -1748,7 +1784,7 @@ const when = (iso) => new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium
 const title = (o) => `${o.product_name}${o.option_name ? ` (${o.option_name})` : ''} x${o.qty}`;
 const TITLES = { orders: '🧾 ออเดอร์', topups: '💰 แจ้งเติมเครดิต', claims: '🛠 เคลมสินค้า', shops: '🏪 ร้านค้า', users: '👤 ผู้ใช้', promos: '✨ โปรโมชั่น', services: '🛡️ บริการแอดมิน' };
 const ORDER = { pending: '🆕 ออเดอร์ใหม่', waiting: '⏳ รอส่งลูกค้า', done: '✅ ส่งมอบแล้ว', cancelled: '❌ ยกเลิก' };
-const CLAIM = { pending: ['รอตรวจสอบ', 'pending'], refunded: ['คืนเครดิตแล้ว', ''], replaced: ['เปลี่ยนสินค้าแล้ว', ''], rejected: ['ไม่อนุมัติ', 'bad'], chat: ['แชทเก่า', ''] };
+const CLAIM = { pending: ['รอตรวจสอบ', 'pending'], refunded: ['คืนเครดิตแล้ว', ''], replaced: ['เคลมสำเร็จ', ''], rejected: ['ไม่อนุมัติ', 'bad'], chat: ['แชทเก่า', ''] };
 const TOPUP = { pending: ['รอตรวจสอบ', 'pending'], approved: ['อนุมัติแล้ว', ''], rejected: ['ไม่อนุมัติ', 'bad'] };
 const KIND = { topup: 'เติม', order: 'ซื้อ', refund: 'คืน', adjust: 'ปรับ', service: 'บริการ' };
 
@@ -2294,7 +2330,7 @@ function renderClaims() {
     acts.append(
       refund,
       button('คืนเครดิต', c.wish === 'replace' ? 'gray' : '', () => confirm(`คืน ${num(refund.value)} เครดิต ให้ ${shopName[c.shop_id]}?`) && decide('refunded', 'คืนเครดิตแล้ว')),
-      button('เปลี่ยนสินค้า', c.wish === 'replace' ? '' : 'gray', () => (reply.value.trim() ? decide('replaced', 'ส่งสินค้าใหม่แล้ว') : alert('ใส่ข้อมูลสินค้าใหม่ในช่องคำตอบก่อน'))),
+      button('✅ เคลมสำเร็จ', c.wish === 'replace' ? '' : 'gray', () => (reply.value.trim() || confirm('ยังไม่ได้ใส่ข้อความถึงร้าน — กดเคลมสำเร็จเลยไหม?')) && decide('replaced', 'เคลมสำเร็จ — แจ้งเข้าแชทแล้ว')),
       button('ไม่อนุมัติ', 'red', () => decide('rejected', 'ไม่อนุมัติแล้ว')));
     el.append(reply, acts);
     return el;
