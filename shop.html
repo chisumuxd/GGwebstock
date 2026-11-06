@@ -508,6 +508,7 @@
           <button id="menuBtn" class="w-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="เมนูเพิ่มเติม" title="เมนูเพิ่มเติม">☰<span class="count" id="nTopups"></span></button>
           <div id="menuList" class="shop-list menu-list" role="menu" hidden>
             <button type="button" role="menuitem" data-go="credit">💰 เติมเครดิต</button>
+            <a id="adminLink" role="menuitem" href="admin.html" hidden>💬 ไปที่สต็อกแชท</a>
             <a id="salesLink" role="menuitem" href="sales.html">📊 เช็คยอดขาย</a>
             <button type="button" role="menuitem" data-go="services">🛡️ บริการเสริม</button>
             <button type="button" role="menuitem" id="menuName" class="m-only">✏️ ตั้งชื่อ</button>
@@ -798,6 +799,7 @@ async function start() {
   show('app');
   loadProducts();
   db.rpc('is_super').then(({ data }) => { $('arrangeBtn').hidden = !data; }); // ปุ่มจัดลำดับ = Superadmin เท่านั้น (ฐานข้อมูลเช็คซ้ำตอนบันทึก)
+  db.rpc('is_admin').then(({ data }) => { $('adminLink').hidden = !data; });  // ไปที่สต็อกแชท = แอดมิน + Superadmin (หน้า admin กันเองอยู่แล้ว)
   refresh();
   startChat(session);
   // ออเดอร์/เคลม/เติมเครดิต/แชท เปลี่ยน → อัปเดตเอง (RLS ส่งเฉพาะของเรา)
