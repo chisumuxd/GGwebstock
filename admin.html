@@ -53,7 +53,10 @@
   .count:empty { display: none; }
 
   /* รายการแชท */
-  #side { width: 340px; border-right: 1px solid var(--line); display: flex; flex-direction: column; flex: none; }
+  #side { width: 340px; border-right: 1px solid var(--line); display: flex; flex-direction: column; flex: none; position: relative; }
+  /* ลากขอบขวาเพื่อขยาย/ย่อรายการแชท (แบบ LINE OA) · ดับเบิลคลิก = กลับขนาดเดิม */
+  #sideGrip { position: absolute; top: 0; right: -4px; bottom: 0; width: 8px; cursor: col-resize; z-index: 5; touch-action: none; }
+  #sideGrip:hover, #sideGrip.drag { background: linear-gradient(to right, transparent 3px, var(--green) 3px, var(--green) 5px, transparent 5px); }
   .side-top { padding: 14px 16px 0; display: flex; flex-direction: column; gap: 12px; }
   .account { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; white-space: nowrap; }
   .acc-brand { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; line-height: 1.2; } /* โลโก้บน · ชื่อล่าง */
@@ -398,7 +401,8 @@
     #infoBtn, #pClose { display: inline-block; }
   }
   @media (max-width: 700px) {
-    #side { width: 100%; border: 0; }
+    #side { width: 100% !important; border: 0; }
+    #sideGrip { display: none; }
     #app.open #side, #app:not(.open) #chat { display: none; }
     #back { display: inline; }
     /* เมนูย้ายไปล่างจอ ซ่อนตอนเปิดห้องแชท · แถวล่าง = 4 เมนูหลัก + ☰ เมนู
@@ -472,6 +476,7 @@
       </div>
     </div>
     <div id="list"></div>
+    <div id="sideGrip" title="ลากเพื่อขยาย/ย่อ · ดับเบิลคลิก = ขนาดเดิม"></div>
   </aside>
 
   <main id="chat">
@@ -871,7 +876,7 @@ async function loadClaimRooms() {
   claimRooms = [...open.data, ...done.data];
   claimDoneTotal = done.count ?? done.data.length;
   claimUnread = claimRooms.filter((c) => c.admin_unread > 0).length;
-  $('pendRoomCount').textContent = claimRooms.filter((c) => c.status === 'pending').length || ''; // ⏳ = งานที่ต้องตรวจ
+  $('pendRoomCount').textContent = new Set(claimRooms.filter((c) => c.status === 'pending').map((c) => c.created_by)).size || ''; // ⏳ = จำนวนแชท (คน) แบบ bearplus · ค้างกี่ใบดูในแต่ละแถว
   $('claimRoomCount').textContent = claimRooms.filter((c) => c.status !== 'pending' && c.admin_unread > 0).length || '';
   $('n-chat').textContent = unreadChats + claimUnread || '';
   const fresh = current?.claim && claimRooms.find((c) => c.id === current.claim.id);
@@ -2691,6 +2696,26 @@ $('themeBtn').onclick = () => {
   renderThemeBtn();
 };
 renderThemeBtn();
+// ลากขอบรายการแชท: 280px ถึงครึ่งจอ · จำขนาดไว้ในเครื่อง
+{
+  const side = $('side'), grip = $('sideGrip');
+  const setW = (w) => { side.style.width = w ? Math.max(280, Math.min(w, innerWidth * 0.5)) + 'px' : ''; };
+  try { setW(Number(localStorage.getItem('sideW')) || 0); } catch {}
+  grip.onpointerdown = (e) => {
+    grip.setPointerCapture(e.pointerId);
+    grip.classList.add('drag');
+    document.body.style.userSelect = 'none';
+  };
+  grip.onpointermove = (e) => grip.classList.contains('drag') && setW(e.clientX - side.getBoundingClientRect().left);
+  grip.onpointerup = grip.onlostpointercapture = () => {
+    if (!grip.classList.contains('drag')) return;
+    grip.classList.remove('drag');
+    document.body.style.userSelect = '';
+    try { localStorage.setItem('sideW', parseInt(side.style.width) || ''); } catch {}
+  };
+  grip.ondblclick = () => { setW(0); try { localStorage.removeItem('sideW'); } catch {} };
+}
+
 $('logout').onclick = () => db.auth.signOut({ scope: 'local' }).then(() => location.reload());
 $('switchAcc').onclick = () => db.auth.signOut({ scope: 'local' }).then(() => location.reload());
 
