@@ -354,14 +354,13 @@
   .tabs .cnt { background: var(--orange); color: #fff; border-radius: 999px; padding: 0 6px; font-size: 11px; margin-left: 3px; }
   .tabs .cnt:empty { display: none; }
   .tabs .cnt.green { background: var(--green); }
-  /* ≡ ทั้งหมด ▾ (แบบ LINE OA): ทั้งหมด / ยังไม่อ่าน / รอดำเนินการ / เสร็จสิ้น / ปักหมุด */
+  /* ≡ ทั้งหมด ▾ (แบบ LINE OA): ทั้งหมด / ยังไม่อ่าน */
   .f-menu { position: fixed; z-index: 40; min-width: 230px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: 0 12px 32px rgba(0, 0, 0, .22); display: flex; flex-direction: column; gap: 2px; }
   .f-menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; border-radius: 8px; text-align: left; font-size: 14px; color: var(--txt); }
   .f-menu button:hover { background: var(--hover); }
   .f-menu button.on { background: var(--sel); font-weight: 700; }
   .f-menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
   .f-menu .n { background: var(--green); color: #fff; border-radius: 999px; min-width: 20px; padding: 0 6px; font-size: 11px; text-align: center; }
-  .f-menu .n.gray { background: var(--hover); color: var(--muted); }
   .grp-h { padding: 10px 16px 2px; font-size: 11px; font-weight: 700; color: var(--muted); }
   .grp-h.fold { cursor: pointer; padding-bottom: 10px; }
   .grp-h.fold:hover { color: var(--txt); }
@@ -519,6 +518,7 @@
       <div class="filters">
         <div class="tabs">
           <button id="fBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-pressed="true">≡ <span id="fLabel">💬 ทั้งหมด</span> ▾<span class="cnt green" id="fCount"></span></button>
+          <button data-f="waiting" aria-pressed="false">📦 รอดำเนินการ<span class="cnt" id="waitCount"></span></button>
           <button data-f="pending" aria-pressed="false">⏳ รอเคลม<span class="cnt" id="pendRoomCount"></span></button>
           <button data-f="claims" aria-pressed="false">🛠 เคลมแล้ว<span class="cnt" id="claimRoomCount"></span></button>
         </div>
@@ -593,7 +593,7 @@
         <div class="o-tools acts" data-for="orders">
           <input id="orderSearch" class="field" type="search" placeholder="ค้นหา ร้าน / สินค้า / ลูกค้า / #เลข">
           <select id="orderFilter" class="field">
-            <option value="open">ยังไม่ส่ง</option><option value="pending">ออเดอร์ใหม่</option><option value="waiting">รอส่งลูกค้า</option>
+            <option value="open">ยังไม่ส่ง</option><option value="pending">ออเดอร์ใหม่</option><option value="waiting">รอดำเนินการ</option>
             <option value="done">ส่งมอบแล้ว</option><option value="cancelled">ยกเลิก</option><option value="">ทั้งหมด</option>
           </select>
         </div>
@@ -784,6 +784,7 @@ async function start() {
   await Promise.all([loadAvatars(), loadShops()]); // รูปโปรไฟล์ + อีเมลสมาชิก ก่อนวาดรายการแชท
   loadContacts();
   loadClaimRooms();
+  loadWaiting(); // แท็บ 📦 รอดำเนินการ
   joinPresence();
   db.channel('oa')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tags' }, loadTags)
@@ -804,6 +805,7 @@ async function start() {
   db.channel('office')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, ({ new: o }) => {
       onChange('orders', loadOrders)();
+      loadWaiting(); // ออเดอร์เปลี่ยนสถานะ → แท็บ 📦 รอดำเนินการ อัปเดต
       if (chatSlots[o?.id]) fillChatCards([o.id]); // การ์ดในแชทที่เปิดอยู่อัปเดตตาม
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'topups' }, onChange('topups', loadTopups))
@@ -836,6 +838,7 @@ async function loadContacts() {
   if (fresh) { current.seen_at = fresh.seen_at; current.status = fresh.status; renderSeen(); renderHeadStatus(); }
   unreadChats = contacts.filter((c) => c.unread).length;
   $('fCount').textContent = unreadChats || '';
+  updateWaitCount(); // ห้องที่ตั้งสถานะ 🔄 รอดำเนินการ
   $('n-chat').textContent = unreadChats + claimUnread || '';
   updateTitle();
   renderList();
@@ -867,6 +870,7 @@ function renderList() {
   const q = $('search').value.trim().toLowerCase();
   const tag = $('tagFilter').value;
   const shopF = Number($('shopFilter').value);
+  if (filter === 'waiting') return renderWaitList(q, shopF);
   if (filter === 'claims' || filter === 'pending') return renderClaimList(q, shopF);
   const viewOk = VIEWS[filter]?.[1] ?? VIEWS.all[1];
   const shown = contacts.filter((c) => viewOk(c)
@@ -986,6 +990,56 @@ async function loadClaimRooms() {
   if (filter === 'claims' || filter === 'pending') renderList();
 }
 
+// ---------- 📦 รอดำเนินการ: ห้องที่มีการ์ดออเดอร์กด ⏳ รอดำเนินการ ไว้ · กดแล้วเปิดห้อง + เด้งไปการ์ด ----------
+let waitOrders = []; // ออเดอร์ status = waiting (เก่าสุดก่อน) + ห้องที่การ์ดอยู่
+async function loadWaiting() {
+  const { data, error } = await db.from('orders').select('id, order_no, product_name, option_name, shop_id, ordered_by, created_at')
+    .eq('status', 'waiting').order('created_at').limit(500);
+  if (error) return;
+  const ids = data.map((o) => o.id);
+  const { data: cards } = ids.length ? await db.from('messages').select('order_id, contact_id, created_at').in('order_id', ids).is('claim_id', null) : { data: [] };
+  const cardOf = new Map((cards ?? []).map((m) => [m.order_id, m]));
+  waitOrders = data.map((o) => ({ ...o, contact: cardOf.get(o.id)?.contact_id ?? o.ordered_by, at: cardOf.get(o.id)?.created_at ?? null }));
+  updateWaitCount();
+  if (filter === 'waiting') renderList();
+}
+// รอดำเนินการ = ห้องที่มีการ์ดกด ⏳ รอดำเนินการ ไว้ + ห้องที่ตั้งสถานะ 🔄 รอดำเนินการ (อันเดียวกัน)
+function waitRooms() {
+  const groups = new Map(); // ห้อง → ออเดอร์ที่รอ (เก่าสุดก่อน)
+  for (const o of waitOrders) { const k = roomKey(o.contact, o.shop_id); (groups.get(k) ?? groups.set(k, []).get(k)).push(o); }
+  for (const c of contacts) if (c.status === 'doing' && !groups.has(c.key)) groups.set(c.key, []);
+  return groups;
+}
+const updateWaitCount = () => { $('waitCount').textContent = waitRooms().size || ''; };
+function renderWaitList(q, shopF) {
+  const rows = [...waitRooms()].map(([key, list]) => {
+    const o = list[0];
+    const c = contacts.find((x) => x.key === key) ?? { id: o.contact, key, shop_id: o.shop_id, name: nameOf(o.contact), tags: [], created_at: o.created_at };
+    return { key, list, c };
+  }).filter(({ list, c }) => (!shopF || c.shop_id === shopF)
+    && (!q || `${c.name} ${shopName[c.shop_id] ?? ''} ${list.map((x) => `${x.order_no} ${x.product_name}`).join(' ')}`.toLowerCase().includes(q)))
+    // มีการ์ดรอ (รอนานสุดก่อน) → ห้องที่ตั้งสถานะไว้ (ข้อความล่าสุดก่อน)
+    .sort((a, b) => (!a.list.length - !b.list.length) || (a.list[0]?.created_at ?? '').localeCompare(b.list[0]?.created_at ?? '') || (b.c.last_at ?? '').localeCompare(a.c.last_at ?? ''));
+  $('list').replaceChildren(...rows.map(({ key, list, c }) => {
+    const o = list[0];
+    const el = h('div', 'item' + (c.unread ? ' unread' : '') + (current?.key === key ? ' active' : ''));
+    const body = h('div', 'body');
+    const top = h('div', 'top');
+    const bottom = h('div', 'bottom');
+    top.append(h('span', 'name', c.name), roomChip(c), h('time', '', listTime(o?.created_at ?? c.last_at)));
+    if (list.length) bottom.append(pill([`📦 รอ ${list.length} ใบ`, 'pending']));
+    bottom.append(h('span', 'preview', list.length ? list.map((x) => `${ono(x)} · ${x.product_name}${x.option_name ? ` (${x.option_name})` : ''}`).join(' · ') : c.last_message || ''));
+    if (STATUS[c.status]) bottom.append(h('span', 'st ' + c.status, STATUS[c.status]));
+    if (c.unread) bottom.append(h('span', 'badge', c.unread));
+    body.append(top, bottom);
+    el.append(avatar(c), body);
+    el.onclick = () => (o ? openChat(c, o.at, o.id) : openChat(c)); // มีการ์ดรอ = เด้งไปใบที่รอนานสุด
+    el.oncontextmenu = (e) => c.tid && openCtx(e, c);
+    return el;
+  }));
+  if (!rows.length) $('list').append(h('p', 'none', q || shopF ? 'ไม่พบ' : 'ไม่มีงานรอดำเนินการ 🎉'));
+}
+
 // แถวห้องเคลม (แท็บเคลม + ผลค้นหาในแท็บทั้งหมด)
 function claimRowEl(c, q) {
   const el = h('div', 'item' + (c.admin_unread ? ' unread' : '') + (current?.key === 'claim:' + c.id ? ' active' : '') + (viewers['claim:' + c.id] ? ' watched' : ''));
@@ -1066,29 +1120,24 @@ function setFilter(f) {
   renderList();
 }
 
-// ≡ ทั้งหมด ▾ แบบ LINE OA: มุมมองห้องคุย · ตัวเลข: ทั้งหมด/ยังไม่อ่าน = ยังไม่อ่าน · สถานะ/ปักหมุด = จำนวนห้อง
+// ≡ ทั้งหมด ▾ แบบ LINE OA: ทั้งหมด / ยังไม่อ่าน (ตัวเลข = ห้องที่ยังไม่อ่าน)
 const VIEWS = {
   all: ['💬 ทั้งหมด', () => true],
   unread: ['🔵 ยังไม่อ่าน', (c) => c.unread > 0],
-  doing: ['🔄 รอดำเนินการ', (c) => c.status === 'doing'],
-  done: ['✅ เสร็จสิ้น', (c) => c.status === 'done'],
-  pin: ['📌 ปักหมุด', (c) => pins.has(c.tid)],
 };
 function toggleFMenu(open = $('fMenu').hidden) {
   const m = $('fMenu');
   $('fBtn').setAttribute('aria-expanded', open);
   if (!open) return void (m.hidden = true);
   const item = (k) => {
-    const [label, ok] = VIEWS[k];
-    const n = k === 'all' || k === 'unread' ? unreadChats : contacts.filter(ok).length;
     const b = h('button', filter === k ? 'on' : '');
     b.type = 'button';
     b.setAttribute('role', 'menuitem');
-    b.append(h('span', '', label), n ? h('span', 'n' + (k === 'all' || k === 'unread' ? '' : ' gray'), n) : '');
+    b.append(h('span', '', VIEWS[k][0]), unreadChats ? h('span', 'n', unreadChats) : '');
     b.onclick = () => { toggleFMenu(false); setFilter(k); };
     return b;
   };
-  m.replaceChildren(item('all'), h('hr'), item('unread'), item('doing'), item('done'), item('pin'));
+  m.replaceChildren(item('all'), h('hr'), item('unread'));
   m.hidden = false;
   const r = $('fBtn').getBoundingClientRect(); // แถบแท็บเลื่อนซ้ายขวาได้ (overflow) → เมนูลอยแบบ fixed ไม่โดนตัด
   m.style.left = Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8)) + 'px';
@@ -1176,6 +1225,7 @@ async function setStatus(c, st) {
   const { error } = await db.from('threads').update({ status: st }).eq('id', c.tid);
   if (error) return alert('ตั้งสถานะไม่สำเร็จ: ' + error.message);
   for (const x of [c, current, contacts.find((y) => y.key === c.key)]) if (x?.key === c.key && !x.claim) x.status = st;
+  updateWaitCount();
   renderHeadStatus();
   renderList();
 }
@@ -1396,7 +1446,7 @@ function roomMsgs(c) {
   return mq;
 }
 
-async function openChat(c, since = null) { // since = โหลดย้อนถึงเวลานี้ด้วย (กดข้อความแล้วเด้งไปการ์ดเก่า)
+async function openChat(c, since = null, focus = null) { // since = โหลดย้อนถึงเวลานี้ด้วย · focus = ออเดอร์ที่จะเด้งไปการ์ด (แท็บ 📦 รอดำเนินการ)
   current = c;
   $('app').classList.add('open');
   $('empty').hidden = true;
@@ -1444,12 +1494,12 @@ async function openChat(c, since = null) { // since = โหลดย้อน�
   renderClaimPin(); // ห้องเคลม → การ์ดเคลมหัวห้อง
   rows.forEach(addMsg);
   // ค้นเจอออเดอร์ที่ไม่มีการ์ดในแชทนี้ (สั่งก่อนย้ายระบบ) → แสดงการ์ดนั้นหัวห้อง ค้นในแชทจะได้เจอ
-  const loneId = !since && $('search').value.trim() && hitOrder.get(c.key);
+  const loneId = focus ?? (!since && $('search').value.trim() && hitOrder.get(c.key));
   if (loneId && !chatSlots[loneId]) {
     const box = h('div', 'chat-order lone');
     const slot = h('div');
     slot.append(h('div', 'ccard', `📦 ออเดอร์ #${loneId} …`));
-    box.append(h('div', 'lone-h', '🔎 ออเดอร์ที่ค้นเจอ · ไม่มีการ์ดในแชทนี้ (สั่งก่อนย้ายระบบ)'), slot);
+    box.append(h('div', 'lone-h', `${focus ? '📦 ออเดอร์รอดำเนินการ' : '🔎 ออเดอร์ที่ค้นเจอ'} · ไม่มีการ์ดในแชทนี้ (สั่งก่อนย้ายระบบ)`), slot);
     (chatSlots[loneId] ??= []).push(slot);
     $('msgs').prepend(box);
   }
@@ -1457,8 +1507,12 @@ async function openChat(c, since = null) { // since = โหลดย้อน�
   await fillChatCards(); // รอการ์ดเติมข้อมูลก่อน ค้นหาในแชทจะได้เจอข้อมูลในการ์ด
   if (current !== c) return;
   $('notes').replaceChildren(...notes.data.map(noteEl));
-  // เปิดจากผลค้นหาข้อความ → ไฮไลต์คำนั้นในแชทเลย
-  if ((msgHits.has(c.key) || claimHits.has(c.claim?.id)) && $('search').value.trim()) openChatSearch($('search').value.trim());
+  const card = focus && chatSlots[focus]?.[0]?.closest('.chat-order');
+  if (card) { // จากแท็บ 📦 รอดำเนินการ → เด้งไปการ์ดใบนั้น
+    card.scrollIntoView({ block: 'center' });
+    card.classList.add('flash');
+    setTimeout(() => card.classList.remove('flash'), 1600);
+  } else if ((msgHits.has(c.key) || claimHits.has(c.claim?.id)) && $('search').value.trim()) openChatSearch($('search').value.trim()); // เปิดจากผลค้นหา → ไฮไลต์คำนั้น
   else $('text').focus();
   if (c.unread) markRead();
 }
@@ -1905,7 +1959,7 @@ const num = (n) => Number(n).toLocaleString('th-TH', { maximumFractionDigits: 2 
 const when = (iso) => new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
 const title = (o) => `${o.product_name}${o.option_name ? ` (${o.option_name})` : ''} x${o.qty}`;
 const TITLES = { orders: '🧾 ออเดอร์', topups: '💰 แจ้งเติมเครดิต', claims: '🛠 เคลมสินค้า', shops: '🏪 ร้านค้า', users: '👤 ผู้ใช้', promos: '✨ โปรโมชั่น', services: '🛡️ บริการแอดมิน' };
-const ORDER = { pending: '🆕 ออเดอร์ใหม่', waiting: '⏳ รอส่งลูกค้า', done: '✅ ส่งมอบแล้ว', cancelled: '❌ ยกเลิก' };
+const ORDER = { pending: '🆕 ออเดอร์ใหม่', waiting: '⏳ รอดำเนินการ', done: '✅ ส่งมอบแล้ว', cancelled: '❌ ยกเลิก' };
 const CLAIM = { pending: ['รอตรวจสอบ', 'pending'], refunded: ['คืนเครดิตแล้ว', ''], replaced: ['เคลมสำเร็จ', ''], rejected: ['ไม่อนุมัติ', 'bad'], chat: ['แชทเก่า', ''] };
 const TOPUP = { pending: ['รอตรวจสอบ', 'pending'], approved: ['อนุมัติแล้ว', ''], rejected: ['ไม่อนุมัติ', 'bad'] };
 const KIND = { topup: 'เติม', order: 'ซื้อ', refund: 'คืน', adjust: 'ปรับ', service: 'บริการ' };
@@ -2196,7 +2250,7 @@ function orderCard(o) {
       rpc('deliver_order', { p_id: o.id, p_delivery: text.value.trim() }, 'ส่งมอบแล้ว — แจ้งในแชทร้านแล้ว');
     }));
     if (o.status === 'pending') {
-      foot.append(button('⏳ รอส่ง', 'gray', () => rpc('mark_waiting', { p_id: o.id }, 'แจ้งร้านว่ากำลังเตรียมส่งแล้ว')));
+      foot.append(button('⏳ รอดำเนินการ', 'gray', () => rpc('mark_waiting', { p_id: o.id }, 'แจ้งร้านว่ากำลังเตรียมส่งแล้ว')));
     }
   }
   foot.append(h('span', 'grow'), link('💬 แชท', '', () => replyTo(o)));
@@ -2293,7 +2347,7 @@ function chatCard(o) {
       fillChatCards([o.id]);
     }));
     if (o.status === 'pending') {
-      acts.append(button('⏳ รอส่งลูกค้า', 'gray', async () => {
+      acts.append(button('⏳ รอดำเนินการ', 'gray', async () => {
         await rpc('mark_waiting', { p_id: o.id }, 'แจ้งร้านว่ากำลังเตรียมส่งแล้ว');
         fillChatCards([o.id]);
       }));
@@ -2302,7 +2356,7 @@ function chatCard(o) {
     more.type = 'button';
     more.onclick = () => goOrder(o);
     acts.append(more);
-    wait.append(h('small', '', o.status === 'waiting' ? '⏳ รอส่งลูกค้า — กรอกข้อมูลส่งมอบ' : '🟡 ออเดอร์ใหม่ — กรอกข้อมูลส่งมอบ'), text, acts);
+    wait.append(h('small', '', o.status === 'waiting' ? '⏳ รอดำเนินการ — กรอกข้อมูลส่งมอบ' : '🟡 ออเดอร์ใหม่ — กรอกข้อมูลส่งมอบ'), text, acts);
     el.append(wait);
   }
   return el;
