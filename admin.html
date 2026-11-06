@@ -69,6 +69,8 @@
   .tabs { display: flex; gap: 14px; flex: 1 0 100%; min-width: 0; box-shadow: inset 0 -1px var(--line); overflow: auto hidden; scrollbar-width: none; } /* แคบ = ปัดแท็บซ้ายขวา ไม่ล้นทับเมนู · เส้นล่าง = เงา (ขีดแท็บที่เลือกทับได้ ไม่โดนตัด) */
   .tabs::-webkit-scrollbar { display: none; }
   .f-right { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 5px 0; }
+  .tabs.tabs2 { flex: 1 1 0; gap: 10px; box-shadow: none; } /* แถวล่าง ข้างตัวกรอง: ⏳ รอเคลม · 🛠 เคลมแล้ว */
+  .tabs.tabs2 button { padding: 6px 0; font-size: 12px; }
   /* ตัวกรองร้าน: ปุ่ม → รายการร้านพร้อมรูป (แบบเดียวกับหน้า sales) */
   .shop-pick { position: relative; display: flex; min-width: 0; }
   #shopBtn { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); max-width: 140px; min-width: 0; padding: 2px 6px; border-radius: 6px; }
@@ -519,10 +521,12 @@
         <div class="tabs">
           <button id="fBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-pressed="true">≡ <span id="fLabel">💬 ทั้งหมด</span> ▾<span class="cnt green" id="fCount"></span></button>
           <button data-f="waiting" aria-pressed="false">📦 รอดำเนินการ<span class="cnt" id="waitCount"></span></button>
+        </div>
+        <div id="fMenu" class="f-menu" role="menu" hidden></div>
+        <div class="tabs tabs2"><!-- แถวล่าง: แท็บเคลม ซ้าย · ตัวกรองร้าน/แท็ก ขวา -->
           <button data-f="pending" aria-pressed="false">⏳ รอเคลม<span class="cnt" id="pendRoomCount"></span></button>
           <button data-f="claims" aria-pressed="false">🛠 เคลมแล้ว<span class="cnt" id="claimRoomCount"></span></button>
         </div>
-        <div id="fMenu" class="f-menu" role="menu" hidden></div>
         <span class="f-right"><span class="shop-pick"><button id="shopBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="กรองตามร้าน"></button><div id="shopList" class="shop-list" role="listbox" hidden></div></span><select id="shopFilter" aria-label="กรองตามร้าน" hidden><option value="">ทุกร้าน</option></select><select id="tagFilter" aria-label="กรองตามแท็ก"></select></span>
       </div>
     </div>
