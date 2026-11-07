@@ -231,6 +231,7 @@ let shopRows = [];    // ร้านให้เลือก [{ id (null = ท�
 let rows = [];        // แถวในชีต (รายวัน หรือรายเดือนในมุมมองปี)
 let dayCount = 0;
 let products = [];
+let catalog = [];     // สินค้าในร้าน (ชื่อ + รูป) — ให้ออเดอร์เก่าที่ไม่มีรูปยืมรูปแอปที่ชื่อใกล้กัน
 let group = 'app';
 
 // ---------- เข้าระบบ / เลือกร้าน ----------
@@ -239,7 +240,9 @@ async function start() {
   $('back').textContent = asAdmin ? '← กลับหน้าแอดมิน' : '← กลับหน้าร้าน';
   const { data: { session } } = await db.auth.getSession();
   if (!session) return gate(`เข้าสู่ระบบที่${asAdmin ? 'หน้าแอดมิน' : 'หน้าร้าน'}ก่อน แล้วกลับมาหน้านี้`);
-  const [{ data: shops }, { data: isAdmin }] = await Promise.all([db.from('shops').select('*'), db.rpc('is_admin')]); // * = มีรูปร้าน
+  const [{ data: shops }, { data: isAdmin }, { data: cat }] = await Promise.all([db.from('shops').select('*'), db.rpc('is_admin'), // * = มีรูปร้าน
+    db.from('products').select('name, image_url')]);
+  catalog = cat ?? [];
   if (!shops?.length) return gate('ยังไม่มีร้านที่ดูแล');
   shops.sort((a, b) => a.name.localeCompare(b.name, 'th', { numeric: true }));
   shopRows = [...(isAdmin ? [{ id: null, name: 'ทุกร้าน', pic: null }] : []), ...shops.map((s) => ({ id: s.id, name: s.name, pic: s.avatar_url }))];
@@ -410,15 +413,27 @@ function showTip(e, r) {
 }
 
 // ---------- สินค้าขายดี ----------
+// รูปแอปของชื่อที่ไม่มีรูป: ชื่อตรงกัน ("Netflix ( TV )" = "Netflix") → ชื่อซ้อนกัน ("Supergrok" ⊃ "Grok")
+// → มีคำหลักร่วมกัน ("Gemini PRO" ~ "Google Gemini") · คำทั่วไปอย่าง plus / premium / pro ไม่นับ
+const STOP = new Set(['plus', 'premium', 'pro', 'max', 'family', 'app', 'the', 'and', 'เดือน', 'แชร์']);
+const appKey = (n) => String(n ?? '').split('(')[0].toLowerCase().replace(/\s+/g, '');
+const appWords = (n) => String(n ?? '').split('(')[0].toLowerCase().split(/[^a-z0-9ก-๙]+/).filter((w) => w.length >= 3 && !STOP.has(w));
+function picFor(name, pool) {
+  const k = appKey(name);
+  const ws = appWords(name);
+  return pool.find((p) => p.key === k)?.img
+    ?? (k.length >= 3 ? pool.find((p) => p.key.length >= 3 && (k.includes(p.key) || p.key.includes(k)))?.img : null)
+    ?? pool.find((p) => p.words.some((w) => ws.includes(w)))?.img;
+}
 function renderTop() {
   const map = new Map();
-  // ไม่มีรูป (ออเดอร์เก่าที่ไม่ได้ผูกสินค้า) → ยืมรูปจากออเดอร์อื่นของแอปเดียวกัน: "Netflix ( TV )" ใช้รูปของ "Netflix"
-  const appKey = (n) => String(n ?? '').split('(')[0].toLowerCase().replace(/\s+/g, '');
-  const appImg = new Map();
-  for (const p of products) if (p.image_url && !appImg.has(appKey(p.product_name))) appImg.set(appKey(p.product_name), p.image_url);
+  // ไม่มีรูป (ออเดอร์เก่าที่ไม่ได้ผูกสินค้า) → ยืมรูปจากสินค้า/ออเดอร์ที่ชื่อใกล้กัน (ดู picFor)
+  const pool = [...products.map((p) => [p.product_name, p.image_url]), ...catalog.map((p) => [p.name, p.image_url])]
+    .filter(([, img]) => img).map(([n, img]) => ({ key: appKey(n), words: appWords(n), img }))
+    .sort((a, b) => b.key.length - a.key.length); // ชื่อซ้อนกัน = เอาอันที่ยาวสุด (ใกล้สุด)
   for (const p of products) {
     const key = group === 'app' ? p.product_name : `${p.product_name}${p.option_name ? ' · ' + p.option_name : ''}`;
-    const g = map.get(key) ?? { name: key, img: p.image_url ?? appImg.get(appKey(p.product_name)), orders: 0, sales: 0 };
+    const g = map.get(key) ?? { name: key, img: p.image_url ?? picFor(p.product_name, pool), orders: 0, sales: 0 };
     g.orders += p.orders;
     g.sales += +p.sales;
     g.img ??= p.image_url;
