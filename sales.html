@@ -33,14 +33,40 @@
   .plus { color: var(--ac); }
   .minus { color: var(--bad); }
 
-  header { position: sticky; top: 0; z-index: 5; background: rgba(7, 12, 9, .85); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  header { background: rgba(7, 12, 9, .85); border-bottom: 1px solid var(--line); }
+  /* เมนูซ้าย (แบบ bearplus): หัวข้อหมวดจาง · เมนูที่เปิดอยู่ = ปุ่มเขียวเต็ม · เลื่อนหน้าแล้วเมนูค้างอยู่ */
+  .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); align-items: start; }
+  #side { position: sticky; top: 0; height: 100dvh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 14px 12px 24px;
+    background: rgba(7, 12, 9, .7); border-right: 1px solid var(--line); }
+  #side h3 { font-size: 12px; font-weight: 500; color: var(--muted); margin: 14px 12px 4px; }
+  #side h3:first-child { margin-top: 2px; }
+  #side button { display: flex; align-items: center; gap: 10px; background: none; border: 0; border-radius: 12px; padding: 11px 14px; text-align: left; font-weight: 600; font-size: 15px; opacity: .82; }
+  #side button:hover { background: var(--card2); opacity: 1; }
+  #side button[aria-current="page"] { background: var(--grad); color: var(--ink); opacity: 1; box-shadow: 0 6px 18px rgba(34, 197, 94, .28); }
+  #viewTitle { font-size: 22px; }
+  .two:has(> [hidden]) { grid-template-columns: 1fr; } /* เหลือการ์ดเดียว = เต็มความกว้าง */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    #side { height: auto; z-index: 5; flex-direction: row; overflow-x: auto; scrollbar-width: thin; padding: 8px 10px; border-right: 0; border-bottom: 1px solid var(--line); background: rgba(7, 12, 9, .94); backdrop-filter: blur(10px); }
+    #side h3 { display: none; }
+    #side button { flex: none; white-space: nowrap; padding: 8px 12px; font-size: 14px; }
+  }
+  /* ตารางประวัติ: ข้อความชิดซ้าย ตัวเลขชิดขวา */
+  .hist td, .hist th { text-align: left; }
+  .hist .n { text-align: right; }
+  .hist td.wrap-txt { white-space: normal; min-width: 180px; max-width: 360px; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; background: var(--card2); color: var(--muted); }
+  .pill.ok { background: rgba(34, 197, 94, .14); color: #4ade80; }
+  .pill.wait { background: rgba(245, 158, 11, .14); color: #fbbf24; }
+  .pill.bad { background: rgba(244, 63, 94, .14); color: #fb7185; }
+  #histQ { width: min(260px, 100%); font-size: 13px; padding: 6px 10px; }
   .bar { padding: 10px 20px; display: flex; gap: 12px; align-items: center; }
   .bar h1 { font-size: 18px; margin-right: auto; display: flex; align-items: center; gap: 10px; }
   .bar h1 img { height: 30px; width: auto; flex: none; object-fit: contain; } /* ไม่ให้โลโก้ถูกบีบตอนจอแคบ */
   .back { color: var(--muted); text-decoration: none; font-size: 13px; white-space: nowrap; }
   .back:hover { color: var(--txt); }
   /* เต็มจอทุกส่วน */
-  main { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+  main { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
   .wrap { width: 100%; display: flex; flex-direction: column; gap: 14px; }
 
   .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -141,7 +167,26 @@
 
 <div id="gate" class="gate" hidden></div>
 
-<main id="app" hidden>
+<div id="app" class="layout" hidden>
+<!-- เมนูซ้าย (แบบ bearplus) · มือถือ = แถบเลื่อนแนวนอนด้านบน · การ์ดที่แสดงในแต่ละเมนู = data-in -->
+<nav id="side" aria-label="เมนูยอดขาย">
+  <h3>เช็คภาพรวมบัญชี</h3>
+  <button type="button" data-view="overview">📊 ภาพรวมบัญชี</button>
+  <h3>รายงาน</h3>
+  <button type="button" data-view="sheet">🧾 ชีตรวมยอดขาย</button>
+  <button type="button" data-view="expenses">💸 บันทึกรายจ่าย</button>
+  <h3>กราฟวิเคราะห์</h3>
+  <button type="button" data-view="top">🔥 กราฟสินค้าขายดี</button>
+  <button type="button" data-view="daily">📈 กราฟรายวัน</button>
+  <button type="button" data-view="monthly">📈 กราฟรายเดือน</button>
+  <button type="button" data-view="yearly">📈 กราฟรายปี</button>
+  <h3>ประวัติทำรายการ</h3>
+  <button type="button" data-view="topups">💎 ประวัติเติมเครดิต</button>
+  <button type="button" data-view="buys">🛒 ประวัติซื้อ</button>
+  <button type="button" data-view="renews">🔄 ประวัติต่ออายุ</button>
+  <button type="button" data-view="claims">🛠 ประวัติเคลม</button>
+</nav>
+<main>
  <div class="wrap">
   <div class="controls">
     <div class="shop-pick">
@@ -159,19 +204,19 @@
     <select id="yearSel" class="field" aria-label="เลือกปี" hidden></select>
     <button id="next" class="field" type="button" aria-label="ถัดไป">▶</button>
     <span class="spacer"></span>
-    <button id="csv" class="btn" type="button">⬇ โหลด Excel (CSV)</button>
+    <button id="csv" class="btn" type="button" data-in="sheet expenses">⬇ โหลด Excel (CSV)</button>
   </div>
-  <div id="period"></div>
+  <div><h2 id="viewTitle"></h2><div id="period"></div></div>
 
-  <div class="kpis" id="kpis"></div>
+  <div class="kpis" id="kpis" data-in="overview"></div>
 
   <div class="two">
-    <section class="card">
+    <section class="card" data-in="overview daily monthly yearly">
       <h2>📈 ยอดขาย<span class="muted">ชี้ที่แท่งเพื่อดูทุน · กำไร · ออเดอร์</span></h2>
       <div><div class="chart" id="chart"></div><div class="xlabels" id="xlabels"></div></div>
       <div class="stats" id="stats"></div>
     </section>
-    <section class="card">
+    <section class="card" data-in="overview top">
       <h2>🔥 สินค้าขายดี
         <span class="seg" id="groupBy" role="group" aria-label="จัดกลุ่ม">
           <button type="button" data-g="app" aria-pressed="true">รวมแอป</button>
@@ -183,11 +228,17 @@
   </div>
  </div>
 
-  <section class="card" id="sheetCard">
-    <h2>🧾 ชีตรวมยอดขาย<span class="muted" id="sheetNote"></span><button id="fullBtn" class="field" type="button">⛶ เต็มจอ</button></h2>
+  <section class="card" id="sheetCard" data-in="sheet expenses">
+    <h2><span id="sheetTitle"></span><span class="muted" id="sheetNote"></span><button id="fullBtn" class="field" type="button">⛶ เต็มจอ</button></h2>
     <div class="table-wrap"><table id="sheet"></table></div>
   </section>
+
+  <section class="card" data-in="topups buys renews claims">
+    <h2><span id="histSum"></span><input id="histQ" class="field" type="search" placeholder="🔍 ค้นหาในรายการ" autocomplete="off"></h2>
+    <div class="table-wrap"><table id="hist" class="hist"></table></div>
+  </section>
 </main>
+</div>
 
 <script>
 // หน้าเดียวใช้ได้ทั้งร้าน (ล็อกอินจาก shop.html) และแอดมิน (sales.html?admin=1 · ล็อกอินจาก admin.html)
@@ -218,7 +269,7 @@ const round2 = (n) => Math.round(n * 100) / 100;
 const pad = (n) => String(n).padStart(2, '0');
 const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const dayLabel = (s) => new Date(s + 'T00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
-const rowLabel = (r) => (r.month ? new Date(r.day + '-01T00:00').toLocaleDateString('th-TH', { month: 'long' }) : dayLabel(r.day));
+const rowLabel = (r) => (r.year ? `ปี ${+r.day + 543}` : r.month ? new Date(r.day + '-01T00:00').toLocaleDateString('th-TH', { month: 'long' }) : dayLabel(r.day));
 const short = (n) => (n >= 1e6 ? +(n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? +(n / 1e3).toFixed(1) + 'K' : String(Math.round(n)));
 
 const today = new Date();
@@ -233,6 +284,26 @@ let dayCount = 0;
 let products = [];
 let catalog = [];     // สินค้าในร้าน (ชื่อ + รูป) — ให้ออเดอร์เก่าที่ไม่มีรูปยืมรูปแอปที่ชื่อใกล้กัน
 let group = 'app';
+let view = 'overview'; // เมนูซ้ายที่เปิดอยู่ (data-view)
+let freeMode = 'month'; // ช่วงเวลาที่ผู้ใช้เลือกเอง (เมนูที่ไม่บังคับช่วง)
+// เมนูที่บังคับช่วงเวลา: กราฟรายวัน = ทั้งเดือน · รายเดือน = ทั้งปี · รายปี = ย้อนหลัง 5 ปี · บันทึกรายจ่าย = รายวันทั้งเดือน
+const FORCE = { expenses: 'month', daily: 'month', monthly: 'year', yearly: 'years' };
+const YEARS = 5;
+
+function setView(v) {
+  view = v;
+  mode = FORCE[v] ?? freeMode;
+  const btn = $('side').querySelector(`[data-view="${v}"]`);
+  for (const b of $('side').querySelectorAll('button')) b.toggleAttribute('aria-current', b === btn);
+  btn.setAttribute('aria-current', 'page');
+  $('side').scrollTo({ left: btn.offsetLeft - 10, behavior: 'smooth' }); // มือถือ: เลื่อนแถบเมนูให้เห็นอันที่เลือก
+  for (const el of document.querySelectorAll('[data-in]')) el.hidden = !el.dataset.in.split(' ').includes(v);
+  $('viewTitle').textContent = btn.textContent;
+  try { history.replaceState(null, '', '#' + v); } catch {} // รีเฟรชแล้วอยู่เมนูเดิม
+  scrollTo({ top: 0 });
+  load();
+}
+$('side').onclick = (e) => { const v = e.target.closest('[data-view]')?.dataset.view; if (v) setView(v); };
 
 // ---------- เข้าระบบ / เลือกร้าน ----------
 async function start() {
@@ -257,7 +328,8 @@ async function start() {
     return o;
   }));
   $('app').hidden = false;
-  load();
+  const hashView = location.hash.slice(1);
+  setView($('side').querySelector(`[data-view="${CSS.escape(hashView)}"]`) ? hashView : 'overview');
 }
 
 function gate(msg) {
@@ -271,6 +343,7 @@ function gate(msg) {
 function range() {
   if (mode === 'today') return [today, today];
   if (mode === '7d') return [new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6), today];
+  if (mode === 'years') return [new Date(today.getFullYear() - YEARS + 1, 0, 1), today];
   const end = mode === 'month' ? new Date(month.getFullYear(), month.getMonth() + 1, 0) : new Date(year, 11, 31);
   return [mode === 'month' ? month : new Date(year, 0, 1), end < today ? end : today]; // ไม่เกินวันนี้
 }
@@ -280,14 +353,16 @@ function periodText() {
   if (mode === 'today') return 'วันนี้ ' + dayLabel(iso(today));
   if (mode === '7d') return `7 วันล่าสุด · ${dayLabel(iso(from))} – ${dayLabel(iso(to))}`;
   if (mode === 'month') return 'เดือน' + month.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+  if (mode === 'years') return `รายปี · ย้อนหลังสูงสุด ${YEARS} ปี`;
   return `ปี ${year + 543}`;
 }
 
 function syncControls() {
   for (const b of $('modes').children) b.setAttribute('aria-pressed', b.dataset.mode === mode);
+  $('modes').hidden = !!FORCE[view];
   $('monthSel').hidden = mode !== 'month';
   $('yearSel').hidden = mode !== 'year';
-  $('prev').hidden = $('next').hidden = mode === 'today' || mode === '7d';
+  $('prev').hidden = $('next').hidden = mode !== 'month' && mode !== 'year';
   $('monthSel').value = iso(month).slice(0, 7);
   $('yearSel').value = year;
   $('next').disabled = mode === 'month' ? +month >= +new Date(today.getFullYear(), today.getMonth(), 1) : year >= today.getFullYear();
@@ -314,24 +389,36 @@ async function load() {
   $('period').textContent = periodText() + ' · ' + shopName();
   const ticket = ++loading;
   const [from, to] = range();
-  const args = { p_shop: shopId, p_from: iso(from), p_to: iso(to) };
-  const [d, p] = await Promise.all([db.rpc('sales_daily', args), db.rpc('sales_products', args)]);
+  if (HIST[view]) return loadHist(from, to, ticket);
+  // รายวันทีละปีปฏิทิน (API ส่งได้ครั้งละไม่เกิน 1000 แถว → กราฟรายปีหลายปีต้องแบ่งขอ)
+  const parts = [];
+  for (let y = from.getFullYear(); y <= to.getFullYear(); y++) {
+    parts.push(db.rpc('sales_daily', { p_shop: shopId, p_from: y === from.getFullYear() ? iso(from) : `${y}-01-01`,
+      p_to: y === to.getFullYear() ? iso(to) : `${y}-12-31` }));
+  }
+  const [p, ...ds] = await Promise.all([db.rpc('sales_products', { p_shop: shopId, p_from: iso(from), p_to: iso(to) }), ...parts]);
   if (ticket !== loading) return; // เปลี่ยนช่วง/ร้านระหว่างโหลด
-  if (d.error || p.error) return alert('โหลดยอดขายไม่สำเร็จ: ' + (d.error ?? p.error).message);
+  const err = p.error ?? ds.find((d) => d.error)?.error;
+  if (err) return alert('โหลดยอดขายไม่สำเร็จ: ' + err.message);
   // ทุกวันในช่วง (วันที่ไม่มีขาย = 0) · หัก GG-PLUS คิดรายวัน
-  const byDay = Object.fromEntries(d.data.map((r) => [r.day, r]));
-  const days = [];
+  const byDay = Object.fromEntries(ds.flatMap((d) => d.data).map((r) => [r.day, r]));
+  let days = [];
   for (const x = new Date(from); x <= to; x.setDate(x.getDate() + 1)) {
     const r = byDay[iso(x)] ?? {};
     days.push(derive({ day: iso(x), sales: +r.sales || 0, cost: +r.cost || 0, orders: r.orders || 0,
       ads_fb: +r.ads_fb || 0, ads_other: +r.ads_other || 0, staff: +r.staff || 0, other: +r.other || 0,
       fb_sales: +r.fb_sales || 0, extra: +r.extra || 0, topup: +r.topup || 0 })); // 3 ช่องหลัง = update-32
   }
+  if (mode === 'years') { // ปีก่อนเริ่มมีข้อมูล ไม่ต้องแสดง
+    const first = days.find((r) => r.sales || r.orders)?.day.slice(0, 4) ?? String(today.getFullYear());
+    days = days.filter((r) => r.day >= first);
+  }
   dayCount = days.length;
-  if (mode === 'year') { // มุมมองปี = รวมเป็นรายเดือน
-    const byMonth = {};
-    for (const r of days) (byMonth[r.day.slice(0, 7)] ??= []).push(r);
-    rows = Object.entries(byMonth).map(([m, list]) => total(list, { day: m, month: true }));
+  const cut = { year: 7, years: 4 }[mode]; // มุมมองปี = รวมรายเดือน · รายปี = รวมรายปี
+  if (cut) {
+    const by = {};
+    for (const r of days) (by[r.day.slice(0, cut)] ??= []).push(r);
+    rows = Object.entries(by).map(([k, list]) => total(list, { day: k, month: mode === 'year', year: mode === 'years' }));
   } else rows = days;
   products = p.data;
   renderKpis();
@@ -384,7 +471,7 @@ function renderChart() {
   });
   $('chart').replaceChildren(...(top ? grid : []), ...cols);
   const every = Math.ceil(rows.length / 10); // ป้ายวันที่ไม่เกิน ~10 อัน
-  $('xlabels').replaceChildren(...rows.map((r, i) => h('span', '', i % every ? '' : r.month ? rowLabel(r).slice(0, 3) : String(+r.day.slice(8)))));
+  $('xlabels').replaceChildren(...rows.map((r, i) => h('span', '', i % every ? '' : r.year ? String(+r.day + 543) : r.month ? rowLabel(r).slice(0, 3) : String(+r.day.slice(8)))));
   // สถิติ
   const best = rows.reduce((a, r) => (r.sales > a.sales ? r : a), rows[0]);
   const worst = rows.reduce((a, r) => (r.sales < a.sales ? r : a), rows[0]);
@@ -394,7 +481,7 @@ function renderChart() {
     el.append(h('small', '', label), h('b', '', value), h('small', '', sub));
     return el;
   };
-  const unit = mode === 'year' ? 'เดือน' : 'วัน';
+  const unit = mode === 'years' ? 'ปี' : mode === 'year' ? 'เดือน' : 'วัน';
   $('stats').replaceChildren(
     stat(`${unit}ที่ขายได้มากสุด`, baht(best.sales), rowLabel(best)),
     stat(`${unit}ที่ขายได้น้อยสุด`, baht(worst.sales), rowLabel(worst)),
@@ -441,7 +528,8 @@ function renderTop() {
   }
   const list = [...map.values()].sort((a, b) => b.sales - a.sales || b.orders - a.orders);
   const sum = list.reduce((a, g) => a + g.sales, 0);
-  $('top').replaceChildren(...list.slice(0, 10).map((g, i) => {
+  const max = view === 'top' ? list.length : 10; // เมนูกราฟสินค้าขายดี = แสดงครบทุกรายการ
+  $('top').replaceChildren(...list.slice(0, max).map((g, i) => {
     const pct = sum ? (g.sales / sum) * 100 : 0;
     const row = h('div', 'top-row');
     let pic = h('div', 'pic', '📦');
@@ -461,7 +549,7 @@ function renderTop() {
     row.append(h('span', 'rank', i + 1), pic, mid, amt);
     return row;
   }));
-  if (list.length > 10) $('top').append(h('p', 'muted', `และอีก ${list.length - 10} รายการ`));
+  if (list.length > max) $('top').append(h('p', 'muted', `และอีก ${list.length - max} รายการ · ดูครบที่เมนู 🔥 กราฟสินค้าขายดี`));
   if (!list.length) $('top').append(h('p', 'muted', 'ยังไม่มีการขายในช่วงนี้'));
 }
 
@@ -474,8 +562,13 @@ function fillRow(tr, r) {
   }
 }
 
+// 💸 บันทึกรายจ่าย = ชีตเดียวกัน เฉพาะคอลัมน์ค่าใช้จ่าย (กรอกแล้วชีตรวม/กำไรอัปเดตตาม)
+const EXP_COLS = COLS.filter(([k]) => [...EXP.map((e) => e[0]), 'exp', 'extra'].includes(k));
+const sheetCols = () => (view === 'expenses' ? EXP_COLS : COLS);
 function renderSheet() {
-  const editable = mode !== 'year' && shopId !== null;
+  const COLS = sheetCols();
+  const editable = mode !== 'year' && mode !== 'years' && shopId !== null; // กรอกได้เฉพาะแถวรายวันของร้านเดียว
+  $('sheetTitle').textContent = view === 'expenses' ? '💸 บันทึกรายจ่าย (รายวัน)' : '🧾 ชีตรวมยอดขาย';
   const head = h('tr');
   head.append(h('th', '', mode === 'year' ? 'เดือน' : 'วันที่'), ...COLS.map(([, label, note, cls = '']) => {
     const th = h('th', cls, label);
@@ -536,15 +629,96 @@ async function saveExpense(r, k, input, tr, foot) {
   renderKpis();
 }
 
+// ---------- ประวัติทำรายการ (ตามช่วงเวลาที่เลือก · ทุกร้าน = มีคอลัมน์ร้าน) ----------
+const when = (s) => new Date(s).toLocaleString('th-TH', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+const pill = ([text, cls]) => h('span', 'pill ' + cls, text);
+const ORDER_ST = { pending: ['🕐 รอดำเนินการ', 'wait'], waiting: ['⏳ รอส่งมอบ', 'wait'], done: ['✅ ส่งมอบแล้ว', 'ok'], cancelled: ['✖ ยกเลิก', 'bad'] };
+const CLAIM_ST = { pending: ['รอตรวจสอบ', 'wait'], refunded: ['คืนเครดิตแล้ว', 'ok'], replaced: ['เคลมสำเร็จ', 'ok'], rejected: ['ไม่อนุมัติ', 'bad'], chat: ['แชทเก่า', ''] };
+const WISH = { replace: '🔁 เปลี่ยนห้อง - เปลี่ยนเมล', refund: '↩ คืนเครดิต' };
+const sumOf = (list, f) => baht(round2(list.reduce((a, r) => a + f(r), 0)));
+const ORDER_SEL = 'id, shop_id, order_no, created_at, product_name, option_name, qty, email, customer, sale_total, total, status, renew_date';
+const orderCols = (renew) => [
+  ['เลขออเดอร์', (o) => o.order_no ?? '#' + o.id],
+  ['สินค้า', (o) => o.product_name + (o.option_name ? ` (${o.option_name})` : '') + (o.qty > 1 ? ` x${o.qty}` : ''), 'wrap-txt'],
+  ['อีเมล / ลูกค้า', (o) => o.email || o.customer || '—'],
+  ...(renew ? [['วันที่ต่ออายุ', (o) => (o.renew_date ? dayLabel(o.renew_date) : '—')]] : []),
+  ['ยอดขาย', (o) => baht(+o.sale_total), 'n'],
+  ['ทุน', (o) => baht(+o.total), 'n'],
+  ['สถานะ', (o) => pill(ORDER_ST[o.status] ?? [o.status, ''])]];
+const orderSum = (list) => {
+  const ok = list.filter((o) => o.status !== 'cancelled');
+  return `ยอดขาย ${sumOf(ok, (o) => +o.sale_total)} · ทุน ${sumOf(ok, (o) => +o.total)}`;
+};
+// q = ตาราง + เงื่อนไข · cols = [หัว, ค่า (ข้อความหรือ element), class] · sum = สรุปท้ายจำนวนรายการ
+const HIST = {
+  topups: { // เครดิตที่เข้าจริง (อนุมัติแล้ว + ที่ย้ายมาจากระบบเก่า) = ตัวเลขเดียวกับคอลัมน์ 📦 เติมเครดิต ในชีต
+    q: () => db.from('credit_logs').select('shop_id, amount, balance, note, created_at').eq('kind', 'topup'),
+    cols: [['จำนวน', (r) => h('span', 'plus', '+' + baht(+r.amount)), 'n'], ['คงเหลือหลังเติม', (r) => baht(+r.balance), 'n'], ['หมายเหตุ', (r) => r.note || '—', 'wrap-txt']],
+    sum: (list) => 'เติมรวม ' + sumOf(list, (r) => +r.amount),
+  },
+  buys: { q: () => db.from('orders').select(ORDER_SEL).eq('kind', 'new'), cols: orderCols(false), sum: orderSum },
+  renews: { q: () => db.from('orders').select(ORDER_SEL).eq('kind', 'renew'), cols: orderCols(true), sum: orderSum },
+  claims: {
+    q: () => db.from('claims').select('id, shop_id, created_at, app_type, wish, status, reason, refund, email, orders(order_no)'),
+    cols: [['เคลม', (c) => '#' + c.id], ['ออเดอร์', (c) => c.orders?.order_no ?? '—'], ['แอป', (c) => c.app_type || '—'],
+      ['แบบ', (c) => WISH[c.wish] ?? '—'], ['อีเมล', (c) => c.email || '—'], ['สถานะ', (c) => pill(CLAIM_ST[c.status] ?? [c.status, ''])],
+      ['คืนเครดิต', (c) => (+c.refund ? baht(+c.refund) : '—'), 'n'], ['เหตุผล', (c) => c.reason, 'wrap-txt']],
+    sum: (list) => 'คืนเครดิตแล้ว ' + sumOf(list.filter((c) => c.status === 'refunded'), (c) => +c.refund),
+  },
+};
+const LIMIT = 1000; // ต่อครั้งของ API
+async function loadHist(from, to, ticket) {
+  const cfg = HIST[view];
+  const end = new Date(to);
+  end.setDate(end.getDate() + 1);
+  let qb = cfg.q().gte('created_at', iso(from) + 'T00:00:00+07:00').lt('created_at', iso(end) + 'T00:00:00+07:00')
+    .order('created_at', { ascending: false }).limit(LIMIT);
+  if (shopId !== null) qb = qb.eq('shop_id', shopId);
+  const { data, error } = await qb;
+  if (ticket !== loading) return; // เปลี่ยนเมนู/ช่วง/ร้านระหว่างโหลด
+  if (error) return alert('โหลดประวัติไม่สำเร็จ: ' + error.message);
+  const cols = [['วันที่', (r) => when(r.created_at)], ...(shopId === null ? [['ร้าน', (r) => shopRows.find((s) => s.id === r.shop_id)?.name ?? '']] : []), ...cfg.cols];
+  const head = h('tr');
+  head.append(...cols.map(([label, , cls = '']) => h('th', cls, label)));
+  const thead = h('thead');
+  thead.append(head);
+  const tbody = h('tbody');
+  tbody.append(...data.map((r) => {
+    const tr = h('tr');
+    tr.append(...cols.map(([, val, cls = '']) => {
+      const td = h('td', cls);
+      td.append(val(r));
+      return td;
+    }));
+    return tr;
+  }));
+  if (!data.length) {
+    const td = h('td', 'muted', 'ไม่มีรายการในช่วงนี้');
+    td.colSpan = cols.length;
+    tbody.append(h('tr'));
+    tbody.lastChild.append(td);
+  }
+  $('hist').replaceChildren(thead, tbody);
+  $('histSum').textContent = `${data.length.toLocaleString('th-TH')} รายการ · ${cfg.sum(data)}`
+    + (data.length === LIMIT ? ` · แสดง ${LIMIT.toLocaleString('th-TH')} รายการล่าสุด (เลือกช่วงให้สั้นลงเพื่อดูครบ)` : '');
+  filterHist();
+}
+function filterHist() {
+  const s = $('histQ').value.trim().toLowerCase();
+  for (const tr of $('hist').tBodies[0]?.rows ?? []) tr.hidden = !!s && !tr.textContent.toLowerCase().includes(s);
+}
+$('histQ').oninput = filterHist;
+
 // ---------- โหลดเป็นไฟล์ (เปิดใน Excel ได้ ภาษาไทยไม่เพี้ยน) ----------
 $('csv').onclick = () => {
+  const COLS = sheetCols();
   const lines = [[mode === 'year' ? 'เดือน' : 'วันที่', ...COLS.map((c) => c[1])],
     ...rows.map((r) => [rowLabel(r), ...COLS.map(([k]) => r[k])]),
     ['รวม', ...COLS.map(([k]) => total(rows)[k])]];
   const csv = '﻿' + lines.map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
   const a = h('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = `ยอดขาย-${shopName()}-${periodText()}.csv`;
+  a.download = `${view === 'expenses' ? 'รายจ่าย' : 'ยอดขาย'}-${shopName()}-${periodText()}.csv`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
@@ -592,7 +766,7 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.shop-pick'))
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') toggleShopList(false); });
 
 // ---------- ตัวเลือก ----------
-for (const b of $('modes').children) b.onclick = () => { mode = b.dataset.mode; load(); };
+for (const b of $('modes').children) b.onclick = () => { mode = freeMode = b.dataset.mode; load(); };
 $('monthSel').onchange = () => {
   const [y, m] = $('monthSel').value.split('-').map(Number);
   if (y) month = new Date(Math.min(+new Date(y, m - 1, 1), +new Date(today.getFullYear(), today.getMonth(), 1))); // ไม่เกินเดือนนี้
