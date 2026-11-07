@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ร้านค้า</title>
 <link rel="icon" href="favicon.png"> <!-- ไอคอนแท็บต้องเป็นสี่เหลี่ยมจัตุรัส (logo.png กว้าง จะถูกบีบ) -->
+<!-- แอปมือถือ (PWA): ติดตั้งเป็นไอคอนบนหน้าจอ · ไอคอนแอป = icon-192/512.png -->
+<link rel="manifest" href="shop.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="GG-PLUS">
+<meta name="theme-color" content="#070c09">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -556,6 +561,7 @@
             <a id="adminLink" role="menuitem" href="admin.html" hidden>💬 ไปที่สต็อกแชท</a>
             <a id="salesLink" role="menuitem" href="sales.html">📊 เช็คยอดขาย</a>
             <button type="button" role="menuitem" id="menuName" class="m-only">✏️ ตั้งชื่อ</button>
+            <button type="button" role="menuitem" id="menuInstall">📲 ติดตั้งแอปลงมือถือ</button>
             <button type="button" role="menuitem" id="menuSound">🔔 เสียงแจ้งเตือน</button>
             <button type="button" role="menuitem" id="menuPw">🔑 เปลี่ยนรหัสผ่าน</button>
             <button type="button" role="menuitem" class="logout">🚪 ออกจากระบบ</button>
@@ -1811,6 +1817,16 @@ function playDing(force = false) {
   ding.play().catch(() => {}); // ยังไม่เคยคลิกอะไรในหน้า = เบราว์เซอร์ไม่ให้เล่นเสียง
 }
 const showVol = () => { $('volVal').textContent = Number($('vol').value) ? $('vol').value + '%' : 'ปิด'; };
+// 📲 ติดตั้งแอป (PWA): Chrome = ป๊อปอัปติดตั้งของเครื่อง · iPhone / อื่น ๆ = บอกวิธี · เปิดจากแอปอยู่แล้ว = ซ่อนปุ่ม
+let installEvt = null;
+addEventListener('beforeinstallprompt', (e) => { installEvt = e; });
+$('menuInstall').hidden = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+$('menuInstall').onclick = async () => {
+  try { if (installEvt) return await installEvt.prompt(); } catch {}
+  alert(/iphone|ipad/i.test(navigator.userAgent)
+    ? 'iPhone / iPad: เปิดหน้านี้ใน Safari → กดปุ่มแชร์ (สี่เหลี่ยมมีลูกศรขึ้น) → "เพิ่มไปยังหน้าจอโฮม"'
+    : 'เปิดหน้านี้ใน Chrome → กดเมนู ⋮ มุมขวาบน → "ติดตั้งแอป" หรือ "เพิ่มลงในหน้าจอหลัก"');
+};
 $('menuSound').onclick = () => { $('vol').value = soundVol(); showVol(); $('soundDlg').showModal(); };
 $('vol').oninput = () => { try { localStorage.setItem('notifyVol', $('vol').value); } catch {} showVol(); };
 $('vol').onchange = () => playDing(true); // ปล่อยแถบ = ลองฟังระดับนั้น

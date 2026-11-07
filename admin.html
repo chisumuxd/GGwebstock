@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GGplus Stock-chat</title>
 <link rel="icon" href="favicon.png"> <!-- ไอคอนแท็บ: เปลี่ยนรูปได้โดยเอารูปสี่เหลี่ยมจัตุรัสมาทับไฟล์ favicon.png -->
+<!-- แอปมือถือ (PWA): ติดตั้งเป็นไอคอนบนหน้าจอ · ไอคอนแอป = icon-192/512.png -->
+<link rel="manifest" href="admin.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="GG Admin">
+<meta name="theme-color" content="#12151a">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script src="slipbot.js?v=2"></script>
@@ -571,6 +576,7 @@
       <div id="acctMenu" class="acct-menu" role="menu" hidden>
         <div class="acct-head"><span id="acctAv2"></span><div><b id="acctName2"></b><small id="acctEmail" class="muted"></small><span id="acctRole"></span></div></div>
         <hr>
+        <button id="install" type="button" role="menuitem">📲 ติดตั้งแอปลงมือถือ</button>
         <button id="logout" type="button" role="menuitem">🚪 ออกจากระบบ</button>
       </div>
     </div>
@@ -3610,6 +3616,17 @@ renderThemeBtn();
 }
 
 $('logout').onclick = () => db.auth.signOut({ scope: 'local' }).then(() => location.reload());
+// 📲 ติดตั้งแอป (PWA): Chrome = ป๊อปอัปติดตั้งของเครื่อง · iPhone / อื่น ๆ = บอกวิธี · เปิดจากแอปอยู่แล้ว = ซ่อนปุ่ม
+let installEvt = null;
+addEventListener('beforeinstallprompt', (e) => { installEvt = e; });
+$('install').hidden = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+$('install').onclick = async () => {
+  toggleAcct(false);
+  try { if (installEvt) return await installEvt.prompt(); } catch {}
+  alert(/iphone|ipad/i.test(navigator.userAgent)
+    ? 'iPhone / iPad: เปิดหน้านี้ใน Safari → กดปุ่มแชร์ (สี่เหลี่ยมมีลูกศรขึ้น) → "เพิ่มไปยังหน้าจอโฮม"'
+    : 'เปิดหน้านี้ใน Chrome → กดเมนู ⋮ มุมขวาบน → "ติดตั้งแอป" หรือ "เพิ่มลงในหน้าจอหลัก"');
+};
 // บัญชีที่ล็อกอิน (แถบบนขวา แบบ LINE OA): รูป + ชื่อ ▾ → ชื่อ / อีเมล / บทบาท · 🚪 ออกจากระบบ
 function renderAcct() {
   const name = names[myId] || myEmail.split('@')[0] || 'แอดมิน';

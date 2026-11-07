@@ -1,0 +1,16 @@
+{
+  "id": "shop.html",
+  "name": "GG-PLUS Stock",
+  "short_name": "GG-PLUS",
+  "description": "ระบบเบิกสต็อค GG-PLUS สำหรับร้านค้า",
+  "lang": "th",
+  "start_url": "shop.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#070c09",
+  "theme_color": "#070c09",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
