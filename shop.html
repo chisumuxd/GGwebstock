@@ -52,10 +52,11 @@
   #brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
   #brand img { height: 48px; width: auto; }
   /* ---------- หน้าเข้าสู่ระบบ (animation แบบระบบเดิม) ---------- */
-  .login { position: relative; min-height: 100dvh; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #04120a; }
+  .login { position: relative; min-height: 100dvh; overflow: hidden; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(1100px 520px at 78% -10%, rgba(34, 197, 94, .16), transparent 60%), radial-gradient(800px 460px at -10% 110%, rgba(34, 197, 94, .10), transparent 60%),
+      linear-gradient(135deg, #071a10, #0a2417, #04120a); }
   .lg-bg, .lg-flow, .lg-tint, .lg-grid, .lg-fall { position: absolute; inset: 0; pointer-events: none; }
-  .lg-bg { background: radial-gradient(900px 600px at 20% 30%, rgba(34, 197, 94, .35), transparent 60%), radial-gradient(800px 600px at 85% 75%, rgba(22, 163, 74, .30), transparent 60%);
-    animation: lgKen 36s ease-in-out infinite alternate; } /* พื้นซูม-เลื่อนช้า ๆ */
+  .lg-bg { background: url(login-bg.jpg) center / cover no-repeat; opacity: .16; animation: lgKen 36s ease-in-out infinite alternate; } /* รูปน้ำตก (จากระบบเดิม) ซูม-เลื่อนช้า ๆ */
   .lg-flow { background: repeating-linear-gradient(180deg, rgba(255, 255, 255, .05) 0 2px, transparent 2px 9px); background-size: 100% 260px; opacity: .06; animation: lgFlow 2.6s linear infinite; } /* เส้นไหลลง */
   .lg-tint { background: linear-gradient(135deg, rgba(7, 26, 16, .62), rgba(4, 18, 10, .72)); }
   .lg-grid { background-image: linear-gradient(rgba(34, 197, 94, .05) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 197, 94, .05) 1px, transparent 1px); background-size: 46px 46px; }
@@ -73,7 +74,7 @@
     border: 1px solid rgba(34, 197, 94, .16); border-radius: 14px; padding: 16px 22px; font-size: 15px; font-weight: 800; }
   .lg-card { position: relative; width: 420px; max-width: 92vw; display: flex; flex-direction: column; background: rgba(10, 14, 12, .72); backdrop-filter: blur(10px);
     border: 1px solid rgba(34, 197, 94, .28); border-radius: 26px; padding: 40px 36px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5); animation: lgRise .5s .08s ease both; }
-  .lg-logo { align-self: center; height: 110px; width: auto; margin-bottom: 18px; animation: lgLogoWave 16s ease-in-out infinite, lgSway 4.5s ease-in-out infinite; } /* โลโก้เรืองแสงเปลี่ยนสี + โยก */
+  .lg-logo { align-self: center; height: 140px; width: auto; margin-bottom: 18px; animation: lgLogoWave 16s ease-in-out infinite, lgSway 4.5s ease-in-out infinite; } /* โลโก้เรืองแสงเปลี่ยนสี + โยก */
   .lg-title { text-align: center; font-size: 28px; font-weight: 800; color: #fff; margin: 0 0 4px; }
   .lg-subtitle { text-align: center; font-size: 14px; color: rgba(255, 255, 255, .5); margin: 0 0 26px; }
   .lg-lab { font-size: 12px; letter-spacing: 1.5px; color: rgba(34, 197, 94, .85); margin-bottom: 7px; font-weight: 700; }
@@ -627,7 +628,7 @@
       <div class="lg-brands"><span style="color: #e50914">NETFLIX</span><span style="color: #fff">▶ YouTube</span><span style="color: #4f9dff">Disney+</span><span style="color: #39c7d4">prime video</span><span style="color: #38d96b">iQIYI</span></div>
     </div>
     <form id="authForm" class="lg-card">
-      <img class="lg-logo" src="favicon.png" alt="GG-PLUS">
+      <img class="lg-logo" src="logo-text.png" alt="GG-PLUS">
       <h2 class="lg-title">เข้าสู่ระบบ</h2>
       <p class="lg-subtitle">สำหรับร้านค้าที่เป็นสมาชิกเท่านั้น</p>
       <label class="lg-lab" for="email">ไอดี / อีเมล</label>
@@ -1066,7 +1067,7 @@ $('authForm').onsubmit = async (e) => {
 for (let i = 0; i < 24; i++) {
   const im = h('img');
   const d = 15 + Math.random() * 11;
-  im.src = 'favicon.png';
+  im.src = 'logo-text.png';
   im.alt = '';
   Object.assign(im.style, { left: (Math.random() * 95).toFixed(1) + '%', width: (90 * (0.6 + Math.random() * 1.1)).toFixed(0) + 'px',
     opacity: (0.09 + Math.random() * 0.09).toFixed(2), animationDuration: d.toFixed(2) + 's', animationDelay: (-Math.random() * d).toFixed(2) + 's' });
