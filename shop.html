@@ -50,9 +50,55 @@
   header { position: sticky; top: 0; z-index: 5; background: rgba(7, 12, 9, .97); border-bottom: 1px solid var(--line); } /* พื้นทึบแทนเบลอ (เบลอทุกครั้งที่เลื่อน = แลค) */
   .bar { margin: auto; padding: 10px 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   #brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
-  .auth-logo { height: 34px; width: auto; }
   #brand img { height: 48px; width: auto; }
-  .auth-logo { height: 64px; align-self: center; }
+  /* ---------- หน้าเข้าสู่ระบบ (animation แบบระบบเดิม) ---------- */
+  .login { position: relative; min-height: 100dvh; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #04120a; }
+  .lg-bg, .lg-flow, .lg-tint, .lg-grid, .lg-fall { position: absolute; inset: 0; pointer-events: none; }
+  .lg-bg { background: radial-gradient(900px 600px at 20% 30%, rgba(34, 197, 94, .35), transparent 60%), radial-gradient(800px 600px at 85% 75%, rgba(22, 163, 74, .30), transparent 60%);
+    animation: lgKen 36s ease-in-out infinite alternate; } /* พื้นซูม-เลื่อนช้า ๆ */
+  .lg-flow { background: repeating-linear-gradient(180deg, rgba(255, 255, 255, .05) 0 2px, transparent 2px 9px); background-size: 100% 260px; opacity: .06; animation: lgFlow 2.6s linear infinite; } /* เส้นไหลลง */
+  .lg-tint { background: linear-gradient(135deg, rgba(7, 26, 16, .62), rgba(4, 18, 10, .72)); }
+  .lg-grid { background-image: linear-gradient(rgba(34, 197, 94, .05) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 197, 94, .05) 1px, transparent 1px); background-size: 46px 46px; }
+  .lg-fall { overflow: hidden; }
+  .lg-fall img { position: absolute; top: -12%; height: auto; will-change: transform; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .45));
+    animation-name: lgFall; animation-timing-function: linear; animation-iteration-count: infinite; }
+  .lg-wrap { position: relative; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 48px; width: 100%; max-width: 1160px; padding: 32px 40px; flex-wrap: wrap; }
+  .lg-hero { flex: 1 1 360px; max-width: 520px; animation: lgRise .5s ease both; }
+  .lg-chip { display: inline-flex; gap: 8px; background: rgba(34, 197, 94, .12); border: 1px solid rgba(34, 197, 94, .4); color: var(--ac); font-size: 12px; font-weight: 800;
+    letter-spacing: 1.5px; padding: 7px 15px; border-radius: 99px; margin-bottom: 22px; }
+  .lg-h1 { font-size: clamp(30px, 4.4vw, 52px); font-weight: 900; line-height: 1.15; margin: 0 0 18px; color: #fff; }
+  .lg-h1 b { display: block; width: fit-content; color: #22c55e; animation: lgTextWave 16s ease-in-out infinite, lgSway 4.5s ease-in-out infinite; } /* เปลี่ยนสี + โยกเบา ๆ */
+  .lg-sub { color: rgba(255, 255, 255, .62); font-size: 14px; line-height: 1.7; margin: 0 0 26px; max-width: 430px; }
+  .lg-brands { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; background: rgba(255, 255, 255, .03);
+    border: 1px solid rgba(34, 197, 94, .16); border-radius: 14px; padding: 16px 22px; font-size: 15px; font-weight: 800; }
+  .lg-card { position: relative; width: 420px; max-width: 92vw; display: flex; flex-direction: column; background: rgba(10, 14, 12, .72); backdrop-filter: blur(10px);
+    border: 1px solid rgba(34, 197, 94, .28); border-radius: 26px; padding: 40px 36px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5); animation: lgRise .5s .08s ease both; }
+  .lg-logo { align-self: center; height: 110px; width: auto; margin-bottom: 18px; animation: lgLogoWave 16s ease-in-out infinite, lgSway 4.5s ease-in-out infinite; } /* โลโก้เรืองแสงเปลี่ยนสี + โยก */
+  .lg-title { text-align: center; font-size: 28px; font-weight: 800; color: #fff; margin: 0 0 4px; }
+  .lg-subtitle { text-align: center; font-size: 14px; color: rgba(255, 255, 255, .5); margin: 0 0 26px; }
+  .lg-lab { font-size: 12px; letter-spacing: 1.5px; color: rgba(34, 197, 94, .85); margin-bottom: 7px; font-weight: 700; }
+  .lg-inp { width: 100%; background: rgba(0, 0, 0, .35); border: 1px solid rgba(34, 197, 94, .28); border-radius: 12px; padding: 15px 16px; color: #fff; font-size: 16px;
+    outline: none; margin-bottom: 16px; transition: border-color .15s, box-shadow .15s; }
+  .lg-inp:focus { border-color: var(--ac); box-shadow: 0 0 0 3px rgba(34, 197, 94, .18); }
+  .lg-btn { width: 100%; margin-top: 6px; padding: 17px; background: linear-gradient(135deg, #22c55e, #16a34a); border: 0; border-radius: 12px; color: #04170c; font-size: 17px;
+    font-weight: 800; box-shadow: 0 10px 28px rgba(34, 197, 94, .4); transition: transform .15s, box-shadow .15s; }
+  .lg-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(34, 197, 94, .55); }
+  .lg-btn:disabled { opacity: .6; }
+  .lg-secure { text-align: center; font-size: 12px; color: rgba(34, 197, 94, .75); line-height: 1.7; margin: 18px 0 0; }
+  .lg-foot { text-align: center; font-size: 11px; color: rgba(255, 255, 255, .32); margin: 14px 0 0; letter-spacing: .4px; }
+  @keyframes lgKen { 0% { transform: scale(1.06) translate(0, 0); } 100% { transform: scale(1.16) translate(-2.2%, -2%); } }
+  @keyframes lgFlow { 0% { background-position: 0 0; } 100% { background-position: 0 260px; } }
+  @keyframes lgFall { 0% { transform: translateY(-14vh) rotate(0deg); } 100% { transform: translateY(118vh) rotate(360deg); } }
+  @keyframes lgHue { 0%, 100% { filter: hue-rotate(0deg) saturate(1); } 14%, 44% { filter: hue-rotate(-65deg) saturate(1.5) brightness(1.15); } 58% { filter: hue-rotate(25deg) saturate(1.6); }
+    73% { filter: hue-rotate(75deg) saturate(1.7); } 87% { filter: hue-rotate(15deg) saturate(1.6); } }
+  @keyframes lgLogoWave { 0%, 100% { filter: hue-rotate(0deg) drop-shadow(0 0 30px rgba(34, 197, 94, .6)); } 14%, 44% { filter: hue-rotate(-65deg) saturate(1.55) brightness(1.18) drop-shadow(0 0 30px rgba(214, 225, 87, .8)); }
+    58% { filter: hue-rotate(25deg) saturate(1.6) drop-shadow(0 0 30px rgba(45, 212, 191, .75)); } 73% { filter: hue-rotate(75deg) saturate(1.7) drop-shadow(0 0 34px rgba(56, 140, 235, .8)); }
+    87% { filter: hue-rotate(15deg) saturate(1.6) drop-shadow(0 0 30px rgba(45, 212, 150, .72)); } }
+  @keyframes lgTextWave { 0%, 100% { color: #22c55e; } 14%, 44% { color: #eaff6b; } 58% { color: #2dd4bf; } 73% { color: #4fa0ff; } 87% { color: #34d48c; } }
+  @keyframes lgSway { 0%, 50%, 100% { transform: translateX(0) rotate(0deg); } 25% { transform: translateX(-7px) rotate(-2.6deg); } 75% { transform: translateX(7px) rotate(2.6deg); } }
+  @keyframes lgRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  @media (max-width: 900px) { .lg-hero { display: none; } .lg-wrap { padding: 24px 16px; } .lg-card { padding: 32px 22px; } }
+  @media (prefers-reduced-motion: reduce) { .lg-fall { display: none; } .lg-bg, .lg-flow, .lg-logo, .lg-h1 b { animation: none; } }
   #logo { font-weight: 800; font-size: 28px; letter-spacing: .3px; white-space: nowrap; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
   /* รูปร้าน + ช่องเลือกร้าน อยู่ในกรอบเดียวกัน */
   .shop-pick { position: relative; }
@@ -566,16 +612,33 @@
 </style>
 </head>
 <body>
-<div id="auth" class="center" hidden>
-  <form id="authForm" class="auth">
-    <img class="auth-logo" src="logo.png" alt="" onerror="this.remove()">
-    <h1 id="authTitle">เข้าสู่ระบบ</h1>
-    <span class="muted">สำหรับร้านค้าที่เป็นสมาชิก</span>
-    <input id="email" class="field" type="text" placeholder="ไอดี หรือ อีเมล" autocomplete="username" autocapitalize="off" spellcheck="false" required>
-    <input id="password" class="field" type="password" placeholder="รหัสผ่าน (6 ตัวขึ้นไป)" autocomplete="current-password" minlength="6" required>
-    <button id="authBtn" class="btn">เข้าสู่ระบบ</button>
-    <button type="button" id="authSwitch" class="link">ยังไม่มีบัญชี? สมัครสมาชิก</button>
-  </form>
+<!-- หน้าเข้าสู่ระบบ (animation แบบระบบเดิม): พื้นซูมช้า · เส้นไหล · กริด · โลโก้ร่วงหมุน · โลโก้/ตัวอักษรเปลี่ยนสี · ไม่มีสมัครสมาชิก (แอดมินสร้างบัญชีให้) -->
+<div id="auth" class="login" hidden>
+  <div class="lg-bg" aria-hidden="true"></div>
+  <div class="lg-flow" aria-hidden="true"></div>
+  <div class="lg-tint" aria-hidden="true"></div>
+  <div class="lg-grid" aria-hidden="true"></div>
+  <div class="lg-fall" id="lgFall" aria-hidden="true"></div>
+  <div class="lg-wrap">
+    <div class="lg-hero">
+      <div class="lg-chip">● GGPLUS · MANAGEMENT SYSTEM</div>
+      <h1 class="lg-h1">ระบบเบิกสต็อคสินค้า<b>Stock Manager</b></h1>
+      <p class="lg-sub">จัดการเบิก-จ่ายสต็อกสินค้าของสาขา · ครบ จบ ในระบบเดียว</p>
+      <div class="lg-brands"><span style="color: #e50914">NETFLIX</span><span style="color: #fff">▶ YouTube</span><span style="color: #4f9dff">Disney+</span><span style="color: #39c7d4">prime video</span><span style="color: #38d96b">iQIYI</span></div>
+    </div>
+    <form id="authForm" class="lg-card">
+      <img class="lg-logo" src="favicon.png" alt="GG-PLUS">
+      <h2 class="lg-title">เข้าสู่ระบบ</h2>
+      <p class="lg-subtitle">สำหรับร้านค้าที่เป็นสมาชิกเท่านั้น</p>
+      <label class="lg-lab" for="email">ไอดี / อีเมล</label>
+      <input id="email" class="lg-inp" type="text" placeholder="ไอดี หรือ อีเมล" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+      <label class="lg-lab" for="password">รหัสผ่าน</label>
+      <input id="password" class="lg-inp" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" minlength="6" required>
+      <button id="authBtn" class="lg-btn">→ เข้าสู่ระบบ</button>
+      <p class="lg-secure">🔒 ระบบปลอดภัย ข้อมูลของคุณได้รับการปกป้อง<br>ยังไม่มีบัญชี? ติดต่อแอดมินเพื่อเปิดบัญชีให้</p>
+      <p class="lg-foot">© 2026 GG-PLUS Stock</p>
+    </form>
+  </div>
 </div>
 
 <div id="noshop" class="center" hidden>
@@ -903,7 +966,6 @@ let arranging = false; // โหมด ✋ จัดลำดับ (Superadmin)
 const rank = (n) => n ?? Infinity; // ยังไม่จัดลำดับ = ต่อท้าย
 let buying = null;         // { p, i } ในหน้าต่างซื้อ
 let claimOrder = null;
-let signup = false;
 let channel = null;
 
 $('logo').textContent = $('heroName').textContent = document.title = SHOP_NAME;
@@ -989,22 +1051,28 @@ async function start() {
     .subscribe();
 }
 
+// เข้าสู่ระบบอย่างเดียว (ไม่มีสมัครสมาชิก — แอดมินสร้างบัญชีให้ในหน้าแอดมิน → 👤 ผู้ใช้)
 $('authForm').onsubmit = async (e) => {
   e.preventDefault();
   const id = $('email').value.trim();
-  if (signup && !id.includes('@')) return alert('สมัครสมาชิกใช้อีเมลจริง (ไอดีแบบไม่มี @ ใช้ได้เฉพาะบัญชีที่แอดมินสร้างให้)');
   const creds = { email: id.includes('@') ? id : id.toLowerCase() + '@gg.biz', password: $('password').value }; // ไอดีเดิม (เช่น odin) = odin@gg.biz
-  const { data: res, error } = signup ? await db.auth.signUp(creds) : await db.auth.signInWithPassword(creds);
-  if (error) return alert(error.message);
-  if (signup && !res.session) return alert('สมัครแล้ว — กดยืนยันในอีเมลก่อน แล้วแจ้งอีเมลนี้ให้แอดมินเพิ่มเข้าร้าน');
+  $('authBtn').disabled = true;
+  const { error } = await db.auth.signInWithPassword(creds);
+  $('authBtn').disabled = false;
+  if (error) return alert(/invalid login/i.test(error.message) ? 'ไอดีหรือรหัสผ่านไม่ถูกต้อง' : error.message);
   start();
 };
-$('authSwitch').onclick = () => {
-  signup = !signup;
-  $('authTitle').textContent = $('authBtn').textContent = signup ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ';
-  $('authSwitch').textContent = signup ? 'มีบัญชีแล้ว? เข้าสู่ระบบ' : 'ยังไม่มีบัญชี? สมัครสมาชิก';
-  $('password').autocomplete = signup ? 'new-password' : 'current-password';
-};
+// โลโก้ร่วงหมุน 24 อัน (สุ่มตำแหน่ง/ขนาด/ความเร็ว · ครึ่งหนึ่งเปลี่ยนสี) — ตั้งค่าเครื่องให้ลดการเคลื่อนไหว = ซ่อนด้วย CSS
+for (let i = 0; i < 24; i++) {
+  const im = h('img');
+  const d = 15 + Math.random() * 11;
+  im.src = 'favicon.png';
+  im.alt = '';
+  Object.assign(im.style, { left: (Math.random() * 95).toFixed(1) + '%', width: (90 * (0.6 + Math.random() * 1.1)).toFixed(0) + 'px',
+    opacity: (0.09 + Math.random() * 0.09).toFixed(2), animationDuration: d.toFixed(2) + 's', animationDelay: (-Math.random() * d).toFixed(2) + 's' });
+  if (i % 2 === 0) Object.assign(im.style, { animationName: 'lgFall, lgHue', animationDuration: `${d.toFixed(2)}s, 16s`, animationTimingFunction: 'linear, ease-in-out' });
+  $('lgFall').append(im);
+}
 for (const b of document.querySelectorAll('.logout')) b.onclick = () => db.auth.signOut({ scope: 'local' }).then(() => location.reload());
 
 // รูปร้านที่เลือกอยู่ (แอดมินตั้งให้) ข้างช่องเลือกร้าน
