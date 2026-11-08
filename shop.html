@@ -71,7 +71,8 @@
   .lg-h1 b { display: block; width: fit-content; color: #22c55e; animation: lgTextWave 16s ease-in-out infinite, lgSway 4.5s ease-in-out infinite; } /* เปลี่ยนสี + โยกเบา ๆ */
   .lg-sub { color: rgba(255, 255, 255, .62); font-size: 14px; line-height: 1.7; margin: 0 0 26px; max-width: 430px; }
   .lg-brands { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; background: rgba(255, 255, 255, .03);
-    border: 1px solid rgba(34, 197, 94, .16); border-radius: 14px; padding: 16px 22px; font-size: 15px; font-weight: 800; }
+    border: 1px solid rgba(34, 197, 94, .16); border-radius: 14px; padding: 16px 22px; font-size: 15px; font-weight: 800; color: #fff; }
+  .lg-brands img { width: auto; max-width: 100%; object-fit: contain; } /* ความสูงแต่ละโลโก้ตั้งให้ดูเท่ากันด้วยตา */
   .lg-card { position: relative; width: 420px; max-width: 92vw; display: flex; flex-direction: column; background: rgba(10, 14, 12, .72); backdrop-filter: blur(10px);
     border: 1px solid rgba(34, 197, 94, .28); border-radius: 26px; padding: 40px 36px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5); animation: lgRise .5s .08s ease both; }
   .lg-logo { align-self: center; height: 140px; width: auto; margin-bottom: 18px; animation: lgLogoWave 16s ease-in-out infinite, lgSway 4.5s ease-in-out infinite; } /* โลโก้เรืองแสงเปลี่ยนสี + โยก */
@@ -625,7 +626,14 @@
       <div class="lg-chip">● GGPLUS · MANAGEMENT SYSTEM</div>
       <h1 class="lg-h1">ระบบเบิกสต็อคสินค้า<b>Stock Manager</b></h1>
       <p class="lg-sub">จัดการเบิก-จ่ายสต็อกสินค้าของสาขา · ครบ จบ ในระบบเดียว</p>
-      <div class="lg-brands"><span style="color: #e50914">NETFLIX</span><span style="color: #fff">▶ YouTube</span><span style="color: #4f9dff">Disney+</span><span style="color: #39c7d4">prime video</span><span style="color: #38d96b">iQIYI</span></div>
+      <!-- โลโก้แอป (brands/ จาก Wikimedia Commons · ตัวหนังสือสีเข้มแก้เป็นสีขาวให้เห็นบนพื้นเข้ม) · โหลดไม่ขึ้น = แสดงชื่อแทน -->
+      <div class="lg-brands">
+        <img src="brands/netflix.svg" alt="NETFLIX" style="height: 22px">
+        <img src="brands/youtube.svg" alt="YouTube" style="height: 22px">
+        <img src="brands/disney.svg" alt="Disney+" style="height: 34px">
+        <img src="brands/prime.svg" alt="prime video" style="height: 26px">
+        <img src="brands/iqiyi.svg" alt="iQIYI" style="height: 20px"><!-- ตัดตัวจีน 爱奇艺 ออก (viewBox ครึ่งซ้าย) ให้แถวเดียวพอดี -->
+      </div>
     </div>
     <form id="authForm" class="lg-card">
       <img class="lg-logo" src="logo-text.png" alt="GG-PLUS">
