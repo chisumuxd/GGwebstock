@@ -73,6 +73,9 @@
   .lg-brands { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; background: rgba(255, 255, 255, .03);
     border: 1px solid rgba(34, 197, 94, .16); border-radius: 14px; padding: 16px 22px; font-size: 15px; font-weight: 800; color: #fff; }
   .lg-brands img { width: auto; max-width: 100%; object-fit: contain; } /* ความสูงแต่ละโลโก้ตั้งให้ดูเท่ากันด้วยตา */
+  .lg-gpt { display: inline-flex; align-items: center; gap: 5px; font-size: 15px; font-weight: 700; letter-spacing: -.2px; }
+  @media (max-width: 1100px) { .lg-brands { justify-content: center; } } /* จอแคบ โลโก้ขึ้น 2 แถว = จัดกลาง */
+  .lg-gpt img { border-radius: 5px; }
   .lg-card { position: relative; width: 420px; max-width: 92vw; display: flex; flex-direction: column; background: rgba(10, 14, 12, .72); backdrop-filter: blur(10px);
     border: 1px solid rgba(34, 197, 94, .28); border-radius: 26px; padding: 40px 36px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5); animation: lgRise .5s .08s ease both; }
   .lg-logo { align-self: center; height: 140px; width: auto; margin-bottom: 18px; animation: lgLogoWave 16s ease-in-out infinite, lgSway 4.5s ease-in-out infinite; } /* โลโก้เรืองแสงเปลี่ยนสี + โยก */
@@ -627,11 +630,11 @@
       <p class="lg-sub">จัดการเบิก-จ่ายสต็อกสินค้าของสาขา · ครบ จบ ในระบบเดียว</p>
       <!-- โลโก้แอป (brands/ จาก Wikimedia Commons · ตัวหนังสือสีเข้มแก้เป็นสีขาวให้เห็นบนพื้นเข้ม) · โหลดไม่ขึ้น = แสดงชื่อแทน -->
       <div class="lg-brands">
-        <img src="brands/netflix.svg" alt="NETFLIX" style="height: 22px">
-        <img src="brands/youtube.svg" alt="YouTube" style="height: 22px">
-        <img src="brands/disney.svg" alt="Disney+" style="height: 34px">
-        <img src="brands/prime.svg" alt="prime video" style="height: 26px">
-        <img src="brands/iqiyi.svg" alt="iQIYI" style="height: 20px"><!-- ตัดตัวจีน 爱奇艺 ออก (viewBox ครึ่งซ้าย) ให้แถวเดียวพอดี -->
+        <img src="brands/netflix.svg" alt="NETFLIX" style="height: 20px">
+        <img src="brands/youtube.svg" alt="YouTube" style="height: 20px">
+        <img src="brands/spotify.svg" alt="Spotify" style="height: 22px">
+        <span class="lg-gpt"><img src="brands/chatgpt.svg" alt="" style="height: 20px">ChatGPT</span><!-- ไฟล์มีแค่ไอคอน → เติมชื่อเอง -->
+        <img src="brands/capcut.png" alt="CapCut" style="height: 16px"><!-- ไฟล์เดิมดำล้วน → ทำเป็นสีขาว -->
       </div>
     </div>
     <form id="authForm" class="lg-card">
