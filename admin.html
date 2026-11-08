@@ -39,8 +39,6 @@
   .field { width: 100%; background: var(--bg); border: 1px solid var(--field); border-radius: 6px; padding: 8px 10px; outline: none; }
   .field:focus { border-color: var(--green); }
 
-  #notAdmin { margin: auto; display: flex; flex-direction: column; gap: 10px; width: 300px; text-align: center; }
-  #notAdmin a { text-decoration: none; }
   /* ---------- หน้าเข้าสู่ระบบแอดมิน (animation แบบ stock-chat เดิม · โทนแดง) ---------- */
   .al { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; overflow: auto; background: #0a0303; color: #fff;
     font-family: 'LINE Seed Sans TH', 'Segoe UI', system-ui, sans-serif; }
@@ -68,6 +66,8 @@
     box-shadow: 0 10px 28px rgba(234, 179, 8, .4); transition: transform .12s, box-shadow .12s; }
   .al-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(234, 179, 8, .55); }
   .al-btn:disabled { opacity: .6; }
+  .al-err { margin: -4px 0 14px; padding: 11px 14px; border-radius: 12px; background: rgba(229, 9, 20, .16); border: 1px solid rgba(229, 9, 20, .5); color: #fecaca;
+    font-size: 15px; text-align: center; line-height: 1.5; }
   @keyframes alBob { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-10px) rotate(-1.5deg); } }
   @keyframes alLogoGlow { 0%, 100% { filter: drop-shadow(0 0 22px rgba(229, 9, 20, .7)); } 50% { filter: drop-shadow(0 0 44px rgba(255, 60, 60, 1)); } }
   @keyframes alSway { 0%, 100% { transform: translateX(-6px) rotate(-2.4deg); } 50% { transform: translateX(6px) rotate(2.4deg); } }
@@ -589,12 +589,6 @@
 </style>
 </head>
 <body>
-<div id="notAdmin" hidden>
-  <h2>ไม่มีสิทธิ์เข้าหลังร้าน</h2>
-  <p class="muted">บัญชีนี้เป็นผู้ใช้ร้านค้า ใช้งานได้ที่หน้าร้าน</p>
-  <a class="btn" href="shop.html">🛍 ไปหน้าร้าน</a>
-  <button id="switchAcc" class="btn gray" type="button">เข้าสู่ระบบด้วยบัญชีอื่น</button>
-</div>
 
 <!-- หน้าเข้าสู่ระบบแอดมิน (animation แบบ stock-chat เดิม · โทนแดง): Stock / chat ลอยขึ้นลง · โลโก้เรืองแสง + โยก · การ์ดเรืองแสงเป็นจังหวะ -->
 <div id="login" class="al" hidden>
@@ -612,6 +606,7 @@
       <input id="email" class="al-inp" type="text" placeholder="admin" autocomplete="username" autocapitalize="off" spellcheck="false" required>
       <label class="al-lab" for="password">PASSWORD</label>
       <input id="password" class="al-inp" type="password" placeholder="••••••" autocomplete="current-password" required>
+      <p id="loginErr" class="al-err" role="alert" hidden></p>
       <button id="loginBtn" class="al-btn">→ เข้าสู่ระบบ</button>
     </form>
   </div>
@@ -958,21 +953,29 @@ function listTime(iso) {
   return label === 'เมื่อวาน' ? label : d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 }
 
+// หน้าเข้าสู่ระบบ + ข้อความแจ้งบนการ์ด (ไม่มีข้อความ = ซ่อน)
+function showLogin(msg = '') {
+  $('app').hidden = true;
+  $('login').hidden = false;
+  $('loginErr').textContent = msg;
+  $('loginErr').hidden = !msg;
+}
 async function start() {
   const { data: { session } } = await db.auth.getSession();
-  $('login').hidden = !!session;
-  $('app').hidden = !session;
-  if (!session) return;
+  if (!session) return showLogin();
+  // ไม่ใช่แอดมิน = ปฏิเสธตั้งแต่หน้าเข้าสู่ระบบ: ออกจากระบบทันที ไม่เปิดหน้าแอดมินเลย (ร้านค้าใช้หน้าร้าน)
+  const { data: isAdmin, error: adminErr } = await db.rpc('is_admin');
+  if (adminErr) return showLogin('ตรวจสิทธิ์ไม่สำเร็จ ลองใหม่อีกครั้ง: ' + adminErr.message); // เน็ตหลุด = ไม่ออกจากระบบ
+  if (!isAdmin) {
+    await db.auth.signOut({ scope: 'local' });
+    return showLogin('⛔ บัญชีนี้ไม่ใช่แอดมิน — หน้านี้เข้าได้เฉพาะแอดมินเท่านั้น');
+  }
+  $('login').hidden = true;
+  $('app').hidden = false;
   myId = session.user.id;
   myEmail = session.user.email ?? '';
   // ช่องสดแบบ private ("กำลังพิมพ์…") ต้องเข้าด้วย token ผู้ใช้ — supabase-js ใส่ให้ช้า (หลังช่องแรกเชื่อมต่อแล้ว)
   await db.realtime.setAuth(session.access_token).catch(() => {});
-  const { data: isAdmin } = await db.rpc('is_admin');
-  if (!isAdmin) { // ผู้ใช้ร้านค้าเข้าหลังร้านไม่ได้
-    $('app').hidden = true;
-    $('notAdmin').hidden = false;
-    return;
-  }
   Promise.all([db.rpc('is_super'), db.rpc('is_owner')]).then(([s, o]) => { amSuper = !!s.data; amOwner = !!o.data; renderAcct(); }); // เมนู 🗑 ลบแชท = Superadmin เท่านั้น · บทบาทที่แถบบน
   loadTags();
   await Promise.all([loadAvatars(), loadShops()]); // รูปโปรไฟล์ + อีเมลสมาชิก ก่อนวาดรายการแชท
@@ -3754,16 +3757,16 @@ const toggleAcct = (open = $('acctMenu').hidden) => { $('acctMenu').hidden = !op
 $('acctBtn').onclick = (e) => { e.stopPropagation(); toggleAcct(); };
 document.addEventListener('click', (e) => { if (!e.target.closest('.acct')) toggleAcct(false); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') toggleAcct(false); });
-$('switchAcc').onclick = () => db.auth.signOut({ scope: 'local' }).then(() => location.reload());
 
 $('loginForm').onsubmit = async (e) => {
   e.preventDefault();
   const id = $('email').value.trim();
   $('loginBtn').disabled = true;
+  $('loginErr').hidden = true;
   const { error } = await db.auth.signInWithPassword({ email: id.includes('@') ? id : id.toLowerCase() + '@gg.biz', password: $('password').value }); // ไอดีเดิม = ไอดี@gg.biz
+  if (error) showLogin(/invalid login/i.test(error.message) ? 'ไอดีหรือรหัสผ่านไม่ถูกต้อง' : error.message);
+  else await start(); // ตรวจว่าเป็นแอดมินไหม — ไม่ใช่ = ออกจากระบบ + แจ้งบนการ์ดนี้
   $('loginBtn').disabled = false;
-  if (error) return alert(/invalid login/i.test(error.message) ? 'ไอดีหรือรหัสผ่านไม่ถูกต้อง' : error.message);
-  start();
 };
 
 start();
