@@ -39,9 +39,44 @@
   .field { width: 100%; background: var(--bg); border: 1px solid var(--field); border-radius: 6px; padding: 8px 10px; outline: none; }
   .field:focus { border-color: var(--green); }
 
-  #login, #notAdmin { margin: auto; display: flex; flex-direction: column; gap: 10px; width: 300px; text-align: center; }
+  #notAdmin { margin: auto; display: flex; flex-direction: column; gap: 10px; width: 300px; text-align: center; }
   #notAdmin a { text-decoration: none; }
-  #login h1 { color: var(--green); text-align: center; margin-bottom: 8px; }
+  /* ---------- หน้าเข้าสู่ระบบแอดมิน (animation แบบ stock-chat เดิม · โทนแดง) ---------- */
+  .al { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; overflow: auto; background: #0a0303; color: #fff;
+    font-family: 'LINE Seed Sans TH', 'Segoe UI', system-ui, sans-serif; }
+  .al-bg { position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(900px 620px at 28% 52%, rgba(229, 9, 20, .30), transparent 62%), radial-gradient(700px 520px at 88% 12%, rgba(229, 9, 20, .18), transparent 60%),
+      linear-gradient(rgba(6, 2, 2, .66), rgba(8, 1, 1, .82)); }
+  .al-wrap { position: relative; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 5vw; width: 100%; max-width: 1400px; padding: 24px 40px; margin: auto; }
+  .al-hero { flex: 1 1 40%; min-width: 0; max-width: 600px; animation: alRise .5s ease both; }
+  .al-chip { display: inline-flex; gap: 8px; background: rgba(229, 9, 20, .14); border: 1px solid rgba(229, 9, 20, .45); color: #ff2b2b; font-size: 15px; font-weight: 800;
+    letter-spacing: 1.5px; padding: 9px 18px; border-radius: 99px; margin-bottom: 24px; }
+  .al-h1 { font-size: clamp(48px, 7vw, 100px); font-weight: 900; line-height: 1.02; margin: 0 0 10px; color: #fff; }
+  .al-h1sm { display: block; font-size: clamp(22px, 3.2vw, 40px); font-weight: 800; color: rgba(255, 255, 255, .88); margin-bottom: 6px; }
+  .al-cs { display: flex; flex-wrap: wrap; gap: .25em; }
+  .al-cs span { display: inline-block; animation: alBob 2.4s ease-in-out infinite; } /* Stock / chat ลอยขึ้นลงสลับจังหวะ */
+  .al-cs .cs-b { color: #ff3b3b; animation-delay: .3s; text-shadow: 0 0 28px rgba(229, 9, 20, .75); }
+  .al-card { position: relative; flex: 0 0 auto; width: 520px; max-width: 92vw; display: flex; flex-direction: column; background: rgba(14, 4, 4, .8); backdrop-filter: blur(12px);
+    border: 1px solid rgba(229, 9, 20, .5); border-radius: 30px; padding: 40px 44px; animation: alRise .5s .05s ease both, alCardGlow 3s ease-in-out infinite; }
+  .al-logo { align-self: center; height: clamp(120px, 20vh, 200px); width: auto; margin-bottom: 20px; animation: alLogoGlow 4.5s ease-in-out infinite, alSway 5s ease-in-out infinite; }
+  .al-title { text-align: center; font-size: 34px; font-weight: 800; margin: 0 0 4px; }
+  .al-subtitle { text-align: center; font-size: 18px; color: rgba(255, 255, 255, .55); margin: 0 0 30px; }
+  .al-lab { font-size: 14px; letter-spacing: 2px; color: rgba(234, 179, 8, .85); margin-bottom: 7px; font-weight: 700; }
+  .al-inp { width: 100%; background: rgba(0, 0, 0, .4); border: 1px solid rgba(229, 9, 20, .35); border-radius: 14px; padding: 16px 20px; color: #fff; font-size: 18px; outline: none;
+    margin-bottom: 20px; transition: border-color .15s, box-shadow .15s; }
+  .al-inp:focus { border-color: #ff2b2b; box-shadow: 0 0 0 3px rgba(234, 179, 8, .18); }
+  .al-btn { width: 100%; margin-top: 6px; padding: 18px; background: linear-gradient(135deg, #ff2b2b, #e50914); border-radius: 16px; color: #fff; font-size: 21px; font-weight: 800;
+    box-shadow: 0 10px 28px rgba(234, 179, 8, .4); transition: transform .12s, box-shadow .12s; }
+  .al-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(234, 179, 8, .55); }
+  .al-btn:disabled { opacity: .6; }
+  @keyframes alBob { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-10px) rotate(-1.5deg); } }
+  @keyframes alLogoGlow { 0%, 100% { filter: drop-shadow(0 0 22px rgba(229, 9, 20, .7)); } 50% { filter: drop-shadow(0 0 44px rgba(255, 60, 60, 1)); } }
+  @keyframes alSway { 0%, 100% { transform: translateX(-6px) rotate(-2.4deg); } 50% { transform: translateX(6px) rotate(2.4deg); } }
+  @keyframes alCardGlow { 0%, 100% { box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 30px rgba(229, 9, 20, .28), 0 0 0 1px rgba(255, 80, 80, .12) inset; }
+    50% { box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 52px rgba(229, 9, 20, .55), 0 0 0 1px rgba(255, 80, 80, .2) inset; } }
+  @keyframes alRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  @media (max-width: 900px) { .al-hero { display: none; } .al-wrap { padding: 20px 14px; } .al-card { padding: 30px 22px; border-radius: 24px; } }
+  @media (prefers-reduced-motion: reduce) { .al-cs span, .al-logo, .al-card { animation: none; } }
 
   #app { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
   #appBody { display: flex; flex: 1; min-width: 0; min-height: 0; }
@@ -562,13 +597,26 @@
   <button id="switchAcc" class="btn gray" type="button">เข้าสู่ระบบด้วยบัญชีอื่น</button>
 </div>
 
-<form id="login" hidden>
-  <img class="acc-logo" src="favicon.png" alt="" style="width: 64px; height: 64px; align-self: center">
-  <h1>GGplus Stock-chat</h1>
-  <input id="email" class="field" type="text" placeholder="ไอดี หรือ อีเมล" autocomplete="username" autocapitalize="off" spellcheck="false" required>
-  <input id="password" class="field" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" required>
-  <button class="btn">เข้าสู่ระบบ</button>
-</form>
+<!-- หน้าเข้าสู่ระบบแอดมิน (animation แบบ stock-chat เดิม · โทนแดง): Stock / chat ลอยขึ้นลง · โลโก้เรืองแสง + โยก · การ์ดเรืองแสงเป็นจังหวะ -->
+<div id="login" class="al" hidden>
+  <div class="al-bg" aria-hidden="true"></div>
+  <div class="al-wrap">
+    <div class="al-hero">
+      <div class="al-chip">● GGPLUS · ADMIN CHAT SYSTEM</div>
+      <h1 class="al-h1"><span class="al-h1sm">ระบบ แชทแอดมินหลังบ้าน</span><b class="al-cs"><span class="cs-a">Stock</span> <span class="cs-b">chat</span></b></h1>
+    </div>
+    <form id="loginForm" class="al-card">
+      <img class="al-logo" src="logo-text-red.png" alt="GG-PLUS">
+      <h2 class="al-title">เข้าสู่ระบบ</h2>
+      <p class="al-subtitle">สำหรับแอดมินเท่านั้น</p>
+      <label class="al-lab" for="email">ADMIN ID</label>
+      <input id="email" class="al-inp" type="text" placeholder="admin" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+      <label class="al-lab" for="password">PASSWORD</label>
+      <input id="password" class="al-inp" type="password" placeholder="••••••" autocomplete="current-password" required>
+      <button id="loginBtn" class="al-btn">→ เข้าสู่ระบบ</button>
+    </form>
+  </div>
+</div>
 
 <div id="app" hidden data-view="chat">
   <header id="topbar"><!-- แถบบน: สถานะแอดมินออนไลน์ · บัญชีที่ล็อกอิน (กด = เมนู ออกจากระบบ) แบบ LINE OA -->
@@ -3709,11 +3757,13 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.acct')) togg
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') toggleAcct(false); });
 $('switchAcc').onclick = () => db.auth.signOut({ scope: 'local' }).then(() => location.reload());
 
-$('login').onsubmit = async (e) => {
+$('loginForm').onsubmit = async (e) => {
   e.preventDefault();
   const id = $('email').value.trim();
+  $('loginBtn').disabled = true;
   const { error } = await db.auth.signInWithPassword({ email: id.includes('@') ? id : id.toLowerCase() + '@gg.biz', password: $('password').value }); // ไอดีเดิม = ไอดี@gg.biz
-  if (error) return alert(error.message);
+  $('loginBtn').disabled = false;
+  if (error) return alert(/invalid login/i.test(error.message) ? 'ไอดีหรือรหัสผ่านไม่ถูกต้อง' : error.message);
   start();
 };
 
