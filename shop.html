@@ -257,14 +257,14 @@
   .w-stats small { color: var(--muted); font-size: 12px; }
   .w-stats b { font-size: 20px; }
   .cr-wait { color: var(--warn); }
-  .cr-main { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; align-items: start; } /* ซ้าย-ขวากว้างเท่ากัน */
+  .cr-main { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(0, 3.6fr); gap: 12px; margin-top: 12px; align-items: start; } /* ซ้ายแคบ ~1 : ขวา ~3.6 (แบบระบบเดิม) */
   .cr-steps { display: flex; flex-direction: column; gap: 10px; } /* ไม่ทำ sticky: มีรูป QR แล้วสูงเกินจอ = เลื่อนไม่ถึงปุ่มส่ง */
   .cr-step { background: var(--card); border: 1px solid var(--edge); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
   .cr-no { color: var(--muted); font-size: 13px; }
-  #payBox { display: flex; flex-direction: column; gap: 6px; }
-  .pay-img { align-self: flex-start; max-width: 100%; max-height: 240px; object-fit: contain; background: #fff; border-radius: 10px; cursor: zoom-in; } /* กว้างตามรูป ไม่มีแถบขาวยาว */
-  .pay-no { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .pay-no span { font-family: ui-monospace, Consolas, monospace; font-size: 18px; letter-spacing: .5px; }
+  #payBox { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; } /* รูป + เลขบัญชีอยู่กลาง (แบบระบบเดิม) */
+  .pay-img { max-width: 100%; max-height: 240px; object-fit: contain; background: #fff; border-radius: 10px; cursor: zoom-in; } /* กว้างตามรูป ไม่มีแถบขาวยาว */
+  .pay-no { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .pay-no span { font-family: ui-monospace, Consolas, monospace; font-size: 22px; font-weight: 700; letter-spacing: 1px; }
   .cr-amt { font-size: 28px; font-weight: 700; padding: 8px 14px; }
   .cr-quick { display: flex; flex-wrap: wrap; gap: 6px; }
   .cr-quick button { background: var(--card2); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; }
