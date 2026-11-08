@@ -94,10 +94,10 @@
 
   /* ตัวเลขหลัก */
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-  @media (min-width: 1100px) { .kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); } .kpi b { font-size: 26px !important; } } /* จอกว้าง: 5 ใบแถวเดียว */
-  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+  @media (min-width: 1100px) { .kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); } } /* จอกว้าง: 5 ใบแถวเดียว */
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; container-type: inline-size; min-width: 0; }
   .kpi small { color: var(--muted); font-size: 12px; }
-  .kpi b { font-size: 22px; font-variant-numeric: tabular-nums; }
+  .kpi b { font-size: clamp(14px, 10.5cqi, 26px); font-variant-numeric: tabular-nums; white-space: nowrap; } /* ขนาดตามความกว้างการ์ด: ยอดหลักล้านก็ไม่ทะลุกรอบ */
   .kpi.hero { border: 1px solid transparent; background: linear-gradient(var(--card), var(--card)) padding-box, var(--grad) border-box; }
 
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
