@@ -511,6 +511,10 @@
   .u-top .u-info { flex: 1; min-width: 0; }
   .pw code { background: var(--hover); border-radius: 6px; padding: 3px 8px; font-size: 13px; }
   .u-top b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* หน้า 👤 ผู้ใช้: แถวย่อ (ข้อมูล · บทบาท · ✏️ แก้ไข) · กางแล้วค่อยเห็นส่วนแก้ไข */
+  .u-row .u-info .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .u-row .u-edit { flex: none; padding: 5px 12px; font-size: 13px; }
+  .u-row[open] .u-edit { border-color: var(--green); color: var(--green); }
   .o-card select.field { width: auto; }
   dialog { margin: auto; background: var(--bg); color: var(--txt); border: 0; border-radius: 12px; padding: 0; width: min(440px, calc(100% - 24px)); }
   dialog::backdrop { background: rgba(0, 0, 0, .4); }
@@ -2330,7 +2334,7 @@ function setView(v) {
   for (const b of document.querySelectorAll('#rail [data-view]')) b.setAttribute('aria-pressed', b.dataset.view === v);
   for (const el of document.querySelectorAll('#office [data-for]')) el.hidden = el.dataset.for !== v;
   $('oTitle').textContent = TITLES[v] ?? '';
-  $('oList').className = { shops: 'grid', users: 'grid' }[v] ?? '';
+  $('oList').className = { shops: 'grid' }[v] ?? ''; // ผู้ใช้ = แถวย่อเรียงลงมา (แบบออเดอร์) กางแล้วไม่ดันการ์ดข้าง ๆ
   if (v !== 'chat') reloadOffice();
 }
 for (const b of document.querySelectorAll('#rail [data-view]')) b.onclick = () => { $('rail').classList.remove('more'); setView(b.dataset.view); };
@@ -3337,23 +3341,35 @@ function passwordRow(u) {
 }
 
 const shopsOf = (uid) => shops.filter((s) => s.shop_members.some((m) => m.user_id === uid));
+const openUsers = new Set(); // ผู้ใช้ที่กางแก้ไขอยู่ (ค้างไว้หลังบันทึก/โหลดใหม่)
 
+// แถวย่อ: รูป · ชื่อ · อีเมล · เข้าล่าสุด · ร้านที่ดูแล | บทบาท · ✏️ แก้ไข → กางส่วนแก้ไข (ชื่อ / รูป / รหัส / บทบาท / ร้าน / ลบ)
 function renderUsers() {
   const s = $('userSearch').value.trim().toLowerCase();
   const shown = users.filter((u) => !s || `${names[u.id] ?? ''} ${u.email} ${shopsOf(u.id).map((x) => x.name).join(' ')}`.toLowerCase().includes(s));
   $('oList').replaceChildren(...shown.map((u) => {
-    const el = h('div', 'o-card');
+    const el = h('details', 'o-card c-fold u-row');
+    const head = h('summary');
     const top = h('div', 'u-top');
     const info = h('div', 'u-info');
+    const mine = shopsOf(u.id);
     const seen = u.last_sign_in_at ? `เข้าล่าสุด ${when(u.last_sign_in_at)}` : 'ยังไม่เคยเข้าระบบ';
-    info.append(h('b', '', names[u.id] || '(ยังไม่ได้ตั้งชื่อ)'), h('div', 'muted', `${u.email} · ${seen}`));
-    top.append(avatar({ id: u.id, name: names[u.id] || u.email }), info);
-    top.append(pill(u.is_super ? ['Superadmin', 'pending'] : u.is_admin ? ['แอดมิน', ''] : ['ผู้ใช้', 'user']));
+    info.append(h('b', '', names[u.id] || '(ยังไม่ได้ตั้งชื่อ)'), h('div', 'muted', `${u.email} · ${seen}`),
+      h('div', 'muted', '🏪 ' + (mine.length ? mine.map((x) => x.name).join(', ') : 'ยังไม่ได้รับผิดชอบร้านไหน')));
+    const edit = h('span', 'btn gray u-edit'); // ทั้งแถวกดกาง/ย่อได้ ปุ่มนี้บอกให้รู้
+    top.append(avatar({ id: u.id, name: names[u.id] || u.email }), info,
+      pill(u.is_super ? ['Superadmin', 'pending'] : u.is_admin ? ['แอดมิน', ''] : ['ผู้ใช้', 'user']), edit);
+    head.append(top);
+    const body = h('div', 'c-body');
+    el.append(head, body);
+    const sync = () => { edit.textContent = el.open ? '▲ ย่อ' : '✏️ แก้ไข'; };
+    el.open = openUsers.has(u.id);
+    sync();
+    el.ontoggle = () => { (el.open ? openUsers.add(u.id) : openUsers.delete(u.id)); sync(); };
     // แอดมินทั่วไปแตะบัญชีแอดมินคนอื่นไม่ได้ (ฐานข้อมูลกันไว้แล้ว ซ่อนปุ่มให้ตรงกัน)
     const manageable = amOwner || u.id === myId || !u.is_admin || (amSuper && !u.is_super);
 
     // ร้านที่รับผิดชอบ: × เอาออก / เลือกเพิ่ม
-    const mine = shopsOf(u.id);
     const chips = h('div', 'chips');
     chips.append(...mine.map((shop) => {
       const chip = h('span', 'chip', shop.name);
@@ -3433,11 +3449,10 @@ function renderUsers() {
       };
       roleRow.append('👑 บทบาท', sel);
     }
-    el.append(top);
-    if (manageable) el.append(passwordRow(u));
-    else el.append(h('div', 'muted', u.is_super ? '🔒 บัญชี Superadmin — ดู/ตั้งรหัส/บทบาท ได้เฉพาะเจ้าของระบบ' : '🔒 บัญชีแอดมิน — ดู/ตั้งรหัส/ลบ ได้เฉพาะ Superadmin'));
-    if (roleRow) el.append(roleRow);
-    el.append(chips, add, acts);
+    if (manageable) body.append(passwordRow(u));
+    else body.append(h('div', 'muted', u.is_super ? '🔒 บัญชี Superadmin — ดู/ตั้งรหัส/บทบาท ได้เฉพาะเจ้าของระบบ' : '🔒 บัญชีแอดมิน — ดู/ตั้งรหัส/ลบ ได้เฉพาะ Superadmin'));
+    if (roleRow) body.append(roleRow);
+    body.append(chips, add, acts);
     return el;
   }));
   emptyIf(shown, users.length ? 'ไม่พบผู้ใช้' : 'ยังไม่มีผู้ใช้ — กด "+ เพิ่มผู้ใช้"');
