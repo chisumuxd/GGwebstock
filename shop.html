@@ -257,7 +257,8 @@
   .w-stats small { color: var(--muted); font-size: 12px; }
   .w-stats b { font-size: 20px; }
   .cr-wait { color: var(--warn); }
-  .cr-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+  .cr-main { display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); gap: 12px; margin-top: 12px; align-items: start; }
+  .cr-steps { display: flex; flex-direction: column; gap: 10px; } /* ไม่ทำ sticky: มีรูป QR แล้วสูงเกินจอ = เลื่อนไม่ถึงปุ่มส่ง */
   .cr-step { background: var(--card); border: 1px solid var(--edge); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
   .cr-no { color: var(--muted); font-size: 13px; }
   #payBox { display: flex; flex-direction: column; gap: 6px; }
@@ -268,18 +269,29 @@
   .cr-quick { display: flex; flex-wrap: wrap; gap: 6px; }
   .cr-quick button { background: var(--card2); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; }
   .cr-quick button:hover { border-color: var(--ac); }
-  .cr-drop { position: relative; flex: 1; min-height: 130px; border: 2px dashed var(--line); border-radius: 12px; display: grid; place-items: center; text-align: center;
+  .cr-drop { position: relative; min-height: 120px; border: 2px dashed var(--line); border-radius: 12px; display: grid; place-items: center; text-align: center;
     color: var(--muted); font-size: 13px; padding: 10px; cursor: pointer; overflow: hidden; }
   .cr-drop:hover, .cr-drop.over { border-color: var(--ac); color: var(--txt); }
   .cr-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; } /* ทับทั้งกรอบ = กดเลือก/ลากวางได้ในตัว */
   .cr-drop img { max-width: 100%; max-height: 170px; border-radius: 8px; object-fit: contain; }
-  .cr-go { grid-column: 1 / -1; padding: 13px; font-size: 16px; }
+  .cr-go { padding: 13px; font-size: 16px; }
   .cr-hist { background: var(--card); border: 1px solid var(--edge); border-radius: 14px; overflow: hidden; }
   .cr-tabs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 10px 12px; border-bottom: 1px solid var(--line); }
   .cr-tabs button { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 600; color: var(--muted); }
   .cr-tabs button[aria-pressed="true"] { background: rgba(var(--ac-rgb), .14); border-color: var(--ac); color: #4ade80; }
-  .cr-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
-  .cr-filter button { font-weight: 400; padding: 4px 12px; }
+  .cr-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  .cr-filter { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cr-filter button { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; color: var(--muted); }
+  .cr-filter button[aria-pressed="true"] { background: rgba(var(--ac-rgb), .14); border-color: var(--ac); color: #4ade80; }
+  #crMonth { width: auto; padding: 5px 10px; }
+  /* 📅 ใช้รายวัน / 🗓 รายเดือน: ตาราง + แถบความยาวตามยอดที่ใช้ */
+  .cr-sum { overflow-x: auto; }
+  .cr-tbl { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cr-tbl th, .cr-tbl td { padding: 9px 14px; text-align: right; border-top: 1px solid var(--line); }
+  .cr-tbl th { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--card2); border-top: 0; }
+  .cr-tbl th:first-child, .cr-tbl td:first-child { text-align: left; }
+  .cr-tbl tfoot td { font-weight: 700; background: var(--card2); }
+  .cr-bar { display: block; height: 4px; margin-top: 4px; margin-left: auto; border-radius: 2px; background: #fb7185; opacity: .7; }
   #nWait:empty { display: none; }
   #nWait { background: var(--warn); color: #111; border-radius: 999px; padding: 0 7px; font-size: 11px; margin-left: 2px; }
   .cr-day { padding: 8px 14px 6px; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--card2); border-top: 1px solid var(--line); }
@@ -290,7 +302,7 @@
   .cr-log .amt { text-align: right; font-weight: 700; }
   .cr-log .muted { font-size: 12px; }
   #topups { padding: 12px; }
-  @media (max-width: 760px) { .cr-steps { grid-template-columns: minmax(0, 1fr); } .cr-filter { margin-left: 0; } }
+  @media (max-width: 900px) { .cr-main { grid-template-columns: minmax(0, 1fr); } }
 
   dialog { margin: auto; background: var(--card); color: var(--txt); border: 1px solid var(--line); border-radius: 14px; padding: 0; width: min(440px, calc(100% - 24px)); max-height: calc(100dvh - 24px); }
   /* หน้าต่างเบิก: หัวสินค้า + การ์ดแพ็กเกจ (ราคาขาย / ทุน) + สรุปยอด-ทุน-กำไร */
@@ -685,6 +697,7 @@
           <div><small>รอแอดมินตรวจ</small><b id="wWait" class="cr-wait"></b></div>
         </div>
       </div>
+      <div class="cr-main"><!-- ซ้าย: ขั้นตอน 1-2-3 · ขวา: ประวัติ / สรุปใช้เครดิตรายวัน-รายเดือน -->
       <form id="topupForm" class="cr-steps">
         <div class="cr-step"><b class="cr-no">1 · โอนเข้าบัญชี</b><div id="payBox"></div></div>
         <div class="cr-step">
@@ -702,11 +715,19 @@
       <div class="cr-hist">
         <div class="cr-tabs">
           <button type="button" data-h="logs" aria-pressed="true">📜 ประวัติเครดิต</button>
+          <button type="button" data-h="day" aria-pressed="false">📅 ใช้รายวัน</button>
+          <button type="button" data-h="month" aria-pressed="false">🗓 ใช้รายเดือน</button>
           <button type="button" data-h="topups" aria-pressed="false">🧾 รายการแจ้งเติม <span id="nWait"></span></button>
+        </div>
+        <div class="cr-sub" id="crSub">
           <span class="cr-filter" id="logFilter" role="group" aria-label="กรองประเภท"><button type="button" data-k="" aria-pressed="true">ทั้งหมด</button><button type="button" data-k="topup" aria-pressed="false">💎 เติม</button><button type="button" data-k="order" aria-pressed="false">🛒 ซื้อ</button><button type="button" data-k="refund" aria-pressed="false">↩️ คืน</button></span>
+          <input id="crMonth" class="field" type="month" aria-label="เลือกเดือน" hidden>
+          <span id="crNote" class="muted"></span>
         </div>
         <div id="logs"></div>
+        <div id="crSum" class="cr-sum" hidden></div>
         <div id="topups" class="list" hidden></div>
+      </div>
       </div>
     </section>
 
@@ -1809,12 +1830,85 @@ for (const b of $('logFilter').children) b.onclick = () => {
   for (const x of $('logFilter').children) x.setAttribute('aria-pressed', x === b);
   renderLogs();
 };
-// สลับ 📜 ประวัติเครดิต / 🧾 รายการแจ้งเติม
+// แท็บขวา: 📜 ประวัติ / 📅 ใช้รายวัน / 🗓 ใช้รายเดือน / 🧾 รายการแจ้งเติม
+let crView = 'logs';
 for (const b of document.querySelectorAll('.cr-tabs [data-h]')) b.onclick = () => {
+  crView = b.dataset.h;
   for (const x of document.querySelectorAll('.cr-tabs [data-h]')) x.setAttribute('aria-pressed', x === b);
-  $('logs').hidden = $('logFilter').hidden = b.dataset.h !== 'logs';
-  $('topups').hidden = b.dataset.h !== 'topups';
+  const sum = crView === 'day' || crView === 'month';
+  $('logs').hidden = $('logFilter').hidden = crView !== 'logs';
+  $('topups').hidden = crView !== 'topups';
+  $('crSub').hidden = crView === 'topups';
+  $('crSum').hidden = !sum;
+  $('crMonth').hidden = crView !== 'day';
+  $('crNote').textContent = '';
+  if (sum) loadCrSum();
 };
+$('crMonth').onchange = () => loadCrSum();
+
+// สรุปเครดิตรายวัน (เดือนที่เลือก) / รายเดือน (12 เดือนล่าสุด) — รวมจาก credit_logs ทีละ 1000 แถว (API ส่งได้ครั้งละไม่เกิน 1000)
+// เติม = แจ้งเติมที่อนุมัติ · ใช้ไป = ทุกรายการที่หัก (ซื้อ / บริการ / ปรับลด) · คืน/ปรับ = เครดิตเข้าอื่น ๆ · คงเหลือ = ยอดหลังรายการสุดท้ายของช่วง
+const pad2 = (n) => String(n).padStart(2, '0');
+async function loadCrSum() {
+  const id = shop.id;
+  const view = crView;
+  const now = new Date();
+  if (!$('crMonth').value) $('crMonth').value = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+  $('crMonth').max = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+  const [y, m] = $('crMonth').value.split('-').map(Number);
+  const [from, to] = view === 'day' ? [new Date(y, m - 1, 1), new Date(y, m, 1)]
+    : [new Date(now.getFullYear(), now.getMonth() - 11, 1), new Date(now.getFullYear(), now.getMonth() + 1, 1)];
+  $('crSum').replaceChildren(h('p', 'empty', 'กำลังโหลด…'));
+  const rows = [];
+  for (let i = 0; ; i += 1000) {
+    const page = await q(db.from('credit_logs').select('amount, kind, balance, created_at').eq('shop_id', id)
+      .gte('created_at', from.toISOString()).lt('created_at', to.toISOString()).order('created_at').order('id').range(i, i + 999));
+    if (!page) return;
+    rows.push(...page);
+    if (page.length < 1000) break;
+  }
+  if (shop.id !== id || crView !== view || (view === 'day' && $('crMonth').value !== `${y}-${pad2(m)}`)) return; // เปลี่ยนระหว่างโหลด
+  const groups = new Map(); // key → ยอดรวม (เรียงเก่า → ใหม่)
+  for (const l of rows) {
+    const d = new Date(l.created_at);
+    const k = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}` + (view === 'day' ? '-' + pad2(d.getDate()) : '');
+    const g = groups.get(k) ?? { k, d, add: 0, out: 0, back: 0, n: 0, bal: 0 };
+    const a = Number(l.amount);
+    if (l.kind === 'topup') g.add += a;
+    else if (a < 0) g.out -= a;
+    else g.back += a;
+    if (l.kind === 'order') g.n++;
+    g.bal = Number(l.balance);
+    groups.set(k, g);
+  }
+  const list = [...groups.values()].reverse(); // ใหม่สุดก่อน
+  if (!list.length) return $('crSum').replaceChildren(h('p', 'empty', view === 'day' ? 'เดือนนี้ยังไม่มีรายการ' : 'ยังไม่มีรายการ'));
+  const max = Math.max(...list.map((g) => g.out));
+  const label = (g) => (view === 'day' ? g.d.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })
+    : g.d.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' }));
+  const tr = (cells) => {
+    const r = h('tr');
+    r.append(...cells.map((c) => (c instanceof Node ? c : h('td', '', c))));
+    return r;
+  };
+  const outCell = (v) => {
+    const td = h('td', 'minus', v ? '−' + num(v) : '—');
+    if (v && max) { const bar = h('i', 'cr-bar'); bar.style.width = Math.max(4, (v / max) * 100) + '%'; td.append(bar); }
+    return td;
+  };
+  const head = h('thead');
+  head.append(tr([view === 'day' ? 'วันที่' : 'เดือน', '💎 เติม', '🛒 ใช้ไป', 'ออเดอร์', '↩️ คืน / ปรับ', 'คงเหลือ'].map((t) => h('th', '', t))));
+  const body = h('tbody');
+  body.append(...list.map((g) => tr([label(g), h('td', 'plus', g.add ? '+' + num(g.add) : '—'), outCell(g.out), g.n ? String(g.n) : '—',
+    h('td', 'plus', g.back ? '+' + num(g.back) : '—'), num(g.bal)])));
+  const t = list.reduce((a, g) => ({ add: a.add + g.add, out: a.out + g.out, back: a.back + g.back, n: a.n + g.n }), { add: 0, out: 0, back: 0, n: 0 });
+  const foot = h('tfoot');
+  foot.append(tr(['รวม', h('td', 'plus', '+' + num(t.add)), h('td', 'minus', '−' + num(t.out)), String(t.n), h('td', 'plus', '+' + num(t.back)), '']));
+  const table = h('table', 'cr-tbl');
+  table.append(head, body, foot);
+  $('crSum').replaceChildren(table);
+  $('crNote').textContent = view === 'day' ? `เฉลี่ยใช้วันละ ${num(Math.round(t.out / list.length))} (เฉพาะวันที่มีรายการ)` : `12 เดือนล่าสุด · เฉลี่ยใช้เดือนละ ${num(Math.round(t.out / list.length))}`;
+}
 
 function renderCredit() {
   // กระเป๋าเงิน: สรุปเดือนนี้
@@ -1828,6 +1922,7 @@ function renderCredit() {
   $('nWait').textContent = wait.length || '';
   renderPay();
   renderLogs();
+  if (crView === 'day' || crView === 'month') loadCrSum(); // มีรายการใหม่ (ซื้อ / อนุมัติเติม) → สรุปอัปเดตตาม
   $('topups').replaceChildren(...data.topups.map((t) => {
     const el = h('div', 'item');
     el.append(row(h('b', 'plus', `+${num(t.amount)} เครดิต`), pill(TOPUP[t.status])));
