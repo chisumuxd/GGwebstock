@@ -86,6 +86,9 @@
     font-weight: 800; box-shadow: 0 10px 28px rgba(34, 197, 94, .4); transition: transform .15s, box-shadow .15s; }
   .lg-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(34, 197, 94, .55); }
   .lg-btn:disabled { opacity: .6; }
+  .lg-admin { display: block; margin-top: 12px; padding: 13px; border: 1px solid rgba(34, 197, 94, .35); border-radius: 12px; text-align: center; text-decoration: none;
+    color: #4ade80; font-size: 15px; font-weight: 700; background: rgba(34, 197, 94, .06); transition: background .15s, border-color .15s; }
+  .lg-admin:hover { background: rgba(34, 197, 94, .14); border-color: #22c55e; }
   .lg-foot { text-align: center; font-size: 11px; color: rgba(255, 255, 255, .32); margin: 18px 0 0; letter-spacing: .4px; }
   @keyframes lgKen { 0% { transform: scale(1.06) translate(0, 0); } 100% { transform: scale(1.16) translate(-2.2%, -2%); } }
   @keyframes lgFlow { 0% { background-position: 0 0; } 100% { background-position: 0 260px; } }
@@ -643,6 +646,7 @@
       <label class="lg-lab" for="password">รหัสผ่าน</label>
       <input id="password" class="lg-inp" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" minlength="6" required>
       <button id="authBtn" class="lg-btn">→ เข้าสู่ระบบ</button>
+      <a class="lg-admin" href="admin.html">🛠 สำหรับ Admin-stock</a><!-- แอดมินเข้าหน้าแอดมิน (ล็อกอินแยกที่ admin.html) -->
       <p class="lg-foot">© 2026 GG-PLUS Stock</p>
     </form>
   </div>
