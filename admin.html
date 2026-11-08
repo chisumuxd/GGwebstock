@@ -44,9 +44,8 @@
   /* ---------- หน้าเข้าสู่ระบบแอดมิน (animation แบบ stock-chat เดิม · โทนแดง) ---------- */
   .al { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; overflow: auto; background: #0a0303; color: #fff;
     font-family: 'LINE Seed Sans TH', 'Segoe UI', system-ui, sans-serif; }
-  .al-bg { position: fixed; inset: 0; pointer-events: none;
-    background: radial-gradient(900px 620px at 28% 52%, rgba(229, 9, 20, .30), transparent 62%), radial-gradient(700px 520px at 88% 12%, rgba(229, 9, 20, .18), transparent 60%),
-      linear-gradient(rgba(6, 2, 2, .66), rgba(8, 1, 1, .82)); }
+  .al-bg { position: fixed; inset: 0; pointer-events: none; /* รูปพื้นหลัง (จากหน้า stock-chat เดิม) + ชั้นดำทับให้อ่านง่าย */
+    background: linear-gradient(rgba(6, 2, 2, .66), rgba(8, 1, 1, .82)), url(admin-login-bg.jpg) center / cover no-repeat; }
   .al-wrap { position: relative; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 5vw; width: 100%; max-width: 1400px; padding: 24px 40px; margin: auto; }
   .al-hero { flex: 1 1 40%; min-width: 0; max-width: 600px; animation: alRise .5s ease both; }
   .al-chip { display: inline-flex; gap: 8px; background: rgba(229, 9, 20, .14); border: 1px solid rgba(229, 9, 20, .45); color: #ff2b2b; font-size: 15px; font-weight: 800;
