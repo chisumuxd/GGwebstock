@@ -199,6 +199,8 @@
   .ro-row button:disabled { visibility: hidden; }
   .set-title { font-size: 16px; }
   .sound-form .grow { flex: 1; } /* ปุ่ม "เสร็จ" ชิดขวา */
+  .pay-f { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--label); }
+  .pay-pic { align-self: flex-start; max-width: 220px; max-height: 220px; border-radius: 10px; object-fit: contain; background: #fff; border: 1px solid var(--field); }
   .set-hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
   .font-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .font-row .seg { display: flex; gap: 6px; }
@@ -691,6 +693,7 @@
         </div>
         <div class="o-tools acts" data-for="topups">
           <select id="topupFilter" class="field"><option value="pending">รอตรวจสอบ</option><option value="">ทั้งหมด</option></select>
+          <button id="payBtn" class="btn gray" type="button">🏦 บัญชีรับโอน</button>
         </div>
         <div class="o-tools acts" data-for="claims">
           <input id="claimSearch" class="field" type="search" placeholder="ค้นหา ร้าน / สินค้า / #เลข">
@@ -771,6 +774,20 @@
     <div id="railOrder" class="rail-order"></div>
     <div class="acts"><button type="button" class="btn gray" id="railReset">↺ ค่าเริ่มต้น</button></div>
     <div class="acts"><span class="grow"></span><button class="btn">เสร็จ</button></div>
+  </form>
+</dialog>
+
+<dialog id="payDlg"><!-- 🏦 บัญชีรับโอน (update-60): ร้านเห็นในหน้าเติมเครดิต ขั้นที่ 1 -->
+  <form id="payForm" class="sound-form">
+    <b class="set-title">🏦 บัญชีรับโอน <small class="muted">ทุกร้านเห็นในหน้าเติมเครดิต ขั้นที่ 1</small></b>
+    <label class="pay-f">ธนาคาร<input id="payBank" class="field" maxlength="60" placeholder="เช่น กสิกรไทย / พร้อมเพย์"></label>
+    <label class="pay-f">เลขบัญชี / เบอร์พร้อมเพย์<input id="payNo" class="field" maxlength="40" placeholder="เช่น 123-4-56789-0"></label>
+    <label class="pay-f">ชื่อบัญชี<input id="payName" class="field" maxlength="120" placeholder="ชื่อเจ้าของบัญชี"></label>
+    <b>🖼 รูป <small class="muted">เช่น QR พร้อมเพย์ / หน้าสมุดบัญชี · ร้านกดรูปเพื่อดูเต็มได้</small></b>
+    <img id="payPic" class="pay-pic" alt="รูปบัญชีรับโอน" hidden>
+    <div class="acts"><label class="btn gray">📷 เลือกรูป<input id="payFile" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>
+      <button type="button" class="btn gray" id="payDel">🗑 ลบรูป</button></div>
+    <div class="acts"><span class="grow"></span><button type="button" class="btn gray" id="payCancel">ยกเลิก</button><button class="btn" id="payOk">บันทึก</button></div>
   </form>
 </dialog>
 
@@ -2638,6 +2655,55 @@ async function loadTopups() {
   }
 }
 $('topupFilter').onchange = loadTopups;
+
+// --- 🏦 บัญชีรับโอน (update-60) — แถวเดียว ทุกร้านเห็นในหน้าเติมเครดิต · รูปเก็บใน bucket promos ---
+let payRow = null;
+let payImg = null; // null = ไม่เปลี่ยนรูป · '' = ลบรูป · File = รูปใหม่
+const showPayPic = (src) => { $('payPic').hidden = !src; if (src) $('payPic').src = src; };
+$('payBtn').onclick = async () => {
+  const { data, error } = await db.from('pay_account').select().maybeSingle();
+  if (error) return alert('เปิดไม่ได้ (รัน update-60.sql แล้วหรือยัง?): ' + error.message);
+  payRow = data ?? { bank: '', number: '', name: '', image_url: '' };
+  $('payBank').value = payRow.bank;
+  $('payNo').value = payRow.number;
+  $('payName').value = payRow.name;
+  $('payFile').value = '';
+  payImg = null;
+  showPayPic(payRow.image_url);
+  $('payDlg').showModal();
+};
+$('payFile').onchange = () => {
+  const f = $('payFile').files[0];
+  if (!f) return;
+  if (!PIC_EXT[f.type]) return alert('ใช้ได้เฉพาะรูป JPG / PNG / WEBP');
+  payImg = f;
+  showPayPic(URL.createObjectURL(f));
+};
+$('payDel').onclick = () => { payImg = ''; $('payFile').value = ''; showPayPic(''); };
+$('payCancel').onclick = () => $('payDlg').close();
+$('payForm').onsubmit = async (e) => {
+  e.preventDefault();
+  $('payOk').disabled = true;
+  try {
+    let image_url = payImg === '' ? '' : payRow.image_url;
+    if (payImg) {
+      const path = `pay/${crypto.randomUUID()}.webp`;
+      const { error } = await db.storage.from('promos').upload(path, await shrinkImg(payImg, 1000), { contentType: 'image/webp' });
+      if (error) throw error;
+      image_url = promoUrl(path);
+    }
+    const row = { id: 1, bank: $('payBank').value.trim(), number: $('payNo').value.trim(), name: $('payName').value.trim(), image_url, updated_at: new Date().toISOString() };
+    if (!(await okDone(db.from('pay_account').upsert(row)))) return;
+    const old = payRow.image_url.split('/promos/')[1];
+    if (old && image_url !== payRow.image_url) db.storage.from('promos').remove([old]); // ponytail: ลบไม่สำเร็จ = แค่ค้างใน storage
+    $('payDlg').close();
+    toast('บันทึกบัญชีรับโอนแล้ว — ร้านเห็นทันที');
+  } catch (err) {
+    alert('บันทึกไม่สำเร็จ: ' + err.message);
+  } finally {
+    $('payOk').disabled = false;
+  }
+};
 
 const slipChecks = {};          // topup id → Promise ผลตรวจ
 let slipQueue = Promise.resolve();

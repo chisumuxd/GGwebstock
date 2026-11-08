@@ -245,19 +245,52 @@
   .o-body { border-top: 1px solid var(--line); padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 6px; }
   .empty { color: var(--muted); text-align: center; padding: 40px 0; }
 
-  .balance { background: linear-gradient(135deg, rgba(34, 197, 94, .28), rgba(163, 230, 53, .10)), var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
   #bal { font-size: 40px; font-weight: 700; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  #topupForm { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
-  #topupForm label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
-  .bot { flex-basis: 100%; font-size: 13px; color: var(--muted); }
+  .bot { font-size: 13px; color: var(--muted); }
   .bot.ok { color: #4ade80; }
   .bot.warn { color: var(--warn); }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
-  .cols h3 { font-size: 15px; margin-bottom: 8px; }
-  .log { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 10px 14px; border-top: 1px solid var(--line); }
-  .log:first-child { border-top: 0; }
-  .log .amt { text-align: right; font-weight: 600; }
-  .log .muted { font-size: 12px; }
+  /* 💰 เติมเครดิต (แบบ A): กระเป๋าเงิน + 3 ขั้นตอน + ประวัติ */
+  .wallet { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; padding: 20px; border-radius: 16px; border: 1px solid var(--edge);
+    background: linear-gradient(135deg, rgba(34, 197, 94, .28), rgba(163, 230, 53, .10)), var(--card); }
+  .w-stats { display: flex; gap: 28px; flex-wrap: wrap; }
+  .w-stats div { display: flex; flex-direction: column; }
+  .w-stats small { color: var(--muted); font-size: 12px; }
+  .w-stats b { font-size: 20px; }
+  .cr-wait { color: var(--warn); }
+  .cr-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+  .cr-step { background: var(--card); border: 1px solid var(--edge); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .cr-no { color: var(--muted); font-size: 13px; }
+  #payBox { display: flex; flex-direction: column; gap: 6px; }
+  .pay-img { width: 100%; max-height: 200px; object-fit: contain; background: #fff; border-radius: 10px; cursor: zoom-in; }
+  .pay-no { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pay-no span { font-family: ui-monospace, Consolas, monospace; font-size: 18px; letter-spacing: .5px; }
+  .cr-amt { font-size: 28px; font-weight: 700; padding: 8px 14px; }
+  .cr-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cr-quick button { background: var(--card2); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; }
+  .cr-quick button:hover { border-color: var(--ac); }
+  .cr-drop { position: relative; flex: 1; min-height: 130px; border: 2px dashed var(--line); border-radius: 12px; display: grid; place-items: center; text-align: center;
+    color: var(--muted); font-size: 13px; padding: 10px; cursor: pointer; overflow: hidden; }
+  .cr-drop:hover, .cr-drop.over { border-color: var(--ac); color: var(--txt); }
+  .cr-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; } /* ทับทั้งกรอบ = กดเลือก/ลากวางได้ในตัว */
+  .cr-drop img { max-width: 100%; max-height: 170px; border-radius: 8px; object-fit: contain; }
+  .cr-go { grid-column: 1 / -1; padding: 13px; font-size: 16px; }
+  .cr-hist { background: var(--card); border: 1px solid var(--edge); border-radius: 14px; overflow: hidden; }
+  .cr-tabs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .cr-tabs button { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .cr-tabs button[aria-pressed="true"] { background: rgba(var(--ac-rgb), .14); border-color: var(--ac); color: #4ade80; }
+  .cr-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  .cr-filter button { font-weight: 400; padding: 4px 12px; }
+  #nWait:empty { display: none; }
+  #nWait { background: var(--warn); color: #111; border-radius: 999px; padding: 0 7px; font-size: 11px; margin-left: 2px; }
+  .cr-day { padding: 8px 14px 6px; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--card2); border-top: 1px solid var(--line); }
+  .cr-log { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 1px 12px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); }
+  .cr-ic { grid-row: span 2; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 17px; background: var(--card2); }
+  .cr-ic.in { background: rgba(var(--ac-rgb), .14); }
+  .cr-ic.out { background: rgba(244, 63, 94, .12); }
+  .cr-log .amt { text-align: right; font-weight: 700; }
+  .cr-log .muted { font-size: 12px; }
+  #topups { padding: 12px; }
+  @media (max-width: 760px) { .cr-steps { grid-template-columns: minmax(0, 1fr); } .cr-filter { margin-left: 0; } }
 
   dialog { margin: auto; background: var(--card); color: var(--txt); border: 1px solid var(--line); border-radius: 14px; padding: 0; width: min(440px, calc(100% - 24px)); max-height: calc(100dvh - 24px); }
   /* หน้าต่างเบิก: หัวสินค้า + การ์ดแพ็กเกจ (ราคาขาย / ทุน) + สรุปยอด-ทุน-กำไร */
@@ -505,7 +538,6 @@
     .hero span { display: none; }
     .hero button { font-size: 11px; padding: 6px 8px; }
     #search { flex: 1 1 0; }
-    .cols { grid-template-columns: 1fr; }
     #brand { flex-basis: 100%; }
     #brand img { height: 40px; }
     #logo { font-size: 22px; }
@@ -644,19 +676,37 @@
     </section>
 
 
-    <section id="tab-credit" hidden>
-      <div class="balance">
+    <section id="tab-credit" hidden><!-- 💰 เติมเครดิต (แบบ A): กระเป๋าเงิน + 3 ขั้นตอน (โอน → ยอด → สลิป) + ประวัติ -->
+      <div class="wallet">
         <div><span class="muted">เครดิตคงเหลือ</span><div id="bal"></div></div>
-        <form id="topupForm">
-          <label>จำนวนที่โอน<input id="tAmount" class="field" type="number" min="1" step="any" required style="width: 140px"></label>
-          <label>สลิปโอนเงิน<input id="tSlip" type="file" accept="image/*" required></label>
-          <button class="btn" id="tBtn">แจ้งเติมเครดิต</button>
-          <div id="tBot" class="bot" hidden></div>
-        </form>
+        <div class="w-stats">
+          <div><small>เติมเดือนนี้</small><b id="wIn" class="plus"></b></div>
+          <div><small>ใช้ไปเดือนนี้</small><b id="wOut" class="minus"></b></div>
+          <div><small>รอแอดมินตรวจ</small><b id="wWait" class="cr-wait"></b></div>
+        </div>
       </div>
-      <div class="cols">
-        <div><h3>รายการแจ้งเติม</h3><div id="topups" class="list"></div></div>
-        <div><h3>ประวัติเครดิต</h3><div id="logs" class="item" style="padding: 0; gap: 0"></div></div>
+      <form id="topupForm" class="cr-steps">
+        <div class="cr-step"><b class="cr-no">1 · โอนเข้าบัญชี</b><div id="payBox"></div></div>
+        <div class="cr-step">
+          <b class="cr-no">2 · ยอดที่โอน</b>
+          <input id="tAmount" class="field cr-amt" type="number" min="1" step="any" required placeholder="0" inputmode="decimal" aria-label="ยอดที่โอน (บาท)">
+          <div id="tQuick" class="cr-quick" role="group" aria-label="เลือกยอดเร็ว"><button type="button">300</button><button type="button">500</button><button type="button">1000</button><button type="button">2000</button><button type="button">5000</button></div>
+        </div>
+        <div class="cr-step">
+          <b class="cr-no">3 · แนบสลิป</b>
+          <label class="cr-drop" id="tDrop"><input id="tSlip" type="file" accept="image/*" required aria-label="สลิปโอนเงิน"><img id="tPrev" alt="สลิปที่เลือก" hidden><span id="tDropTxt">📷 ลากสลิปมาวาง<br>หรือกดเพื่อเลือกรูป</span></label>
+          <div id="tBot" class="bot" hidden></div>
+        </div>
+        <button class="btn cr-go" id="tBtn">แจ้งเติมเครดิต</button>
+      </form>
+      <div class="cr-hist">
+        <div class="cr-tabs">
+          <button type="button" data-h="logs" aria-pressed="true">📜 ประวัติเครดิต</button>
+          <button type="button" data-h="topups" aria-pressed="false">🧾 รายการแจ้งเติม <span id="nWait"></span></button>
+          <span class="cr-filter" id="logFilter" role="group" aria-label="กรองประเภท"><button type="button" data-k="" aria-pressed="true">ทั้งหมด</button><button type="button" data-k="topup" aria-pressed="false">💎 เติม</button><button type="button" data-k="order" aria-pressed="false">🛒 ซื้อ</button><button type="button" data-k="refund" aria-pressed="false">↩️ คืน</button></span>
+        </div>
+        <div id="logs"></div>
+        <div id="topups" class="list" hidden></div>
       </div>
     </section>
 
@@ -1175,14 +1225,22 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('chat
 async function refresh() {
   const id = shop.id;
   // ponytail: ดึงล่าสุด 200 รายการ — เพิ่มแบ่งหน้าเมื่อประวัติยาวมาก
-  const [s, orders, claims, topups, logs] = await Promise.all([
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const [s, orders, claims, topups, logs, month, pay] = await Promise.all([
     q(db.from('shops').select('id, credit')), // ทุกร้านที่ดูแล (ใช้ตอนเลือกร้านในหน้าต่างซื้อ)
     q(db.from('orders').select('*, products(image_url)').eq('shop_id', id).order('created_at', { ascending: false }).limit(200)),
     q(db.from('claims').select('*').eq('shop_id', id).neq('status', 'chat').order('created_at', { ascending: false }).limit(200)), // chat = ห้องแชทเคลมเก่า
     q(db.from('topups').select().eq('shop_id', id).order('created_at', { ascending: false }).limit(50)),
     q(db.from('credit_logs').select().eq('shop_id', id).order('created_at', { ascending: false }).limit(200)),
+    // สรุปเดือนนี้ (เติม / ใช้ไป) แยกจากรายการ 200 อันล่าสุด — ร้านที่ขายเยอะ 200 อันไม่ครบเดือน
+    q(db.from('credit_logs').select('amount, kind').eq('shop_id', id).gte('created_at', monthStart.toISOString()).limit(5000)),
+    db.from('pay_account').select().maybeSingle().then(({ data }) => data), // 🏦 บัญชีรับโอน (update-60) · ยังไม่รัน = ไม่แสดง
   ]);
   if (shop.id !== id) return; // เปลี่ยนร้านระหว่างโหลด
+  payAcc = pay;
+  monthLogs = month ?? [];
   for (const x of s ?? []) {
     const t = shops.find((y) => y.id === x.id);
     if (t) t.credit = Number(x.credit);
@@ -1634,6 +1692,9 @@ $('claimForm').onsubmit = async (e) => {
 };
 
 // ---------- เครดิต ----------
+let payAcc = null;   // 🏦 บัญชีรับโอน (แอดมินตั้งในหน้าแอดมิน)
+let monthLogs = [];  // รายการเครดิตเดือนนี้ (สรุปบนกระเป๋าเงิน)
+let logKind = '';    // กรองประวัติ: '' ทั้งหมด / topup / order (+บริการ) / refund
 // 🤖 อ่านสลิปทันทีที่เลือกรูป → ใส่ยอดให้ + เตือนถ้ายอดไม่ตรงกับที่กรอก
 let slipRead = null; // Promise ผลอ่านสลิปรูปที่เลือกอยู่ (null = อ่านไม่ได้)
 function showSlip(r) {
@@ -1644,8 +1705,14 @@ function showSlip(r) {
     : `🤖 ${r.amount != null ? `ยอดในสลิป ฿\u202F${num(r.amount)}` : 'อ่านยอดไม่ได้'} · ${r.ref ? `เลขอ้างอิง ${r.ref}` : 'ไม่พบเลขอ้างอิง'}`
       + (bad ? ` — ไม่ตรงกับที่กรอก (฿\u202F${num(typed)})` : '');
 }
+function showSlipPrev(f) { // รูปสลิปในกรอบ (ไม่มี = ข้อความชวนลากวาง)
+  $('tPrev').hidden = !f;
+  $('tDropTxt').hidden = !!f;
+  if (f) $('tPrev').src = URL.createObjectURL(f);
+}
 $('tSlip').onchange = () => {
   const f = $('tSlip').files[0];
+  showSlipPrev(f);
   $('tBot').hidden = !f;
   if (!f) return void (slipRead = null);
   $('tBot').className = 'bot';
@@ -1653,11 +1720,16 @@ $('tSlip').onchange = () => {
   const p = (slipRead = SlipBot.read(f).catch(() => null));
   p.then((r) => {
     if (p !== slipRead) return; // เปลี่ยนรูประหว่างอ่าน
-    if (r?.amount != null && !$('tAmount').value) $('tAmount').value = r.amount;
+    if (r?.amount != null && !$('tAmount').value) { $('tAmount').value = r.amount; goLabel(); }
     showSlip(r);
   });
 };
-$('tAmount').oninput = () => slipRead?.then(showSlip);
+// ปุ่มส่งบอกยอด · ปุ่มยอดเร็ว · ลากสลิปมาวาง (input ทับกรอบอยู่แล้ว แค่ไฮไลต์กรอบ)
+const goLabel = () => { $('tBtn').textContent = 'แจ้งเติมเครดิต' + (Number($('tAmount').value) > 0 ? ` ฿${num(Number($('tAmount').value))}` : ''); };
+$('tAmount').oninput = () => { goLabel(); slipRead?.then(showSlip); };
+for (const b of $('tQuick').children) b.onclick = () => { $('tAmount').value = b.textContent; $('tAmount').oninput(); };
+$('tSlip').ondragenter = () => $('tDrop').classList.add('over');
+$('tSlip').ondragleave = $('tSlip').ondrop = () => $('tDrop').classList.remove('over');
 
 $('topupForm').onsubmit = async (e) => {
   e.preventDefault();
@@ -1673,6 +1745,8 @@ $('topupForm').onsubmit = async (e) => {
     $('topupForm').reset();
     slipRead = null;
     $('tBot').hidden = true;
+    showSlipPrev(null);
+    goLabel();
     toast('แจ้งเติมแล้ว รอแอดมินตรวจสอบ');
     refresh();
   } catch (err) {
@@ -1682,7 +1756,78 @@ $('topupForm').onsubmit = async (e) => {
   }
 };
 
+// 🏦 ขั้นที่ 1: รูป (กดดูเต็ม) · ธนาคาร · เลขบัญชี + คัดลอก (ตัวเลขล้วน วางในแอปธนาคารได้) · ชื่อบัญชี
+function renderPay() {
+  const p = payAcc;
+  if (!p || !(p.number || p.image_url)) return $('payBox').replaceChildren(h('p', 'muted', 'แอดมินยังไม่ได้ตั้งบัญชีรับโอน — สอบถามเลขบัญชีในแชท 💬'));
+  const els = [];
+  if (p.image_url) {
+    const img = h('img', 'pay-img');
+    Object.assign(img, { src: p.image_url, alt: 'รูปบัญชีรับโอน (กดเพื่อดูเต็ม)', loading: 'lazy' });
+    img.onclick = () => viewImg(p.image_url);
+    els.push(img);
+  }
+  if (p.bank) els.push(h('b', '', '🏦 ' + p.bank));
+  if (p.number) {
+    const row = h('div', 'pay-no');
+    const copy = h('button', 'ghost', '📋 คัดลอก');
+    copy.type = 'button';
+    copy.onclick = () => navigator.clipboard.writeText(p.number.replace(/[\s-]/g, '')).then(() => toast('คัดลอกเลขบัญชีแล้ว'));
+    row.append(h('span', '', p.number), copy);
+    els.push(row);
+  }
+  if (p.name) els.push(h('span', 'muted', 'ชื่อบัญชี ' + p.name));
+  $('payBox').replaceChildren(...els);
+}
+
+// ประวัติเครดิต: แบ่งตามวัน · ไอคอนตามประเภท · กรองได้ (ซื้อ = ซื้อสินค้า + บริการแอดมิน)
+const LOG_IC = { topup: '💎', order: '🛒', refund: '↩️', adjust: '⚙️', service: '🛡️' };
+const dayKey = (iso) => new Date(iso).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+function renderLogs() {
+  const list = data.logs.filter((l) => !logKind || l.kind === logKind || (logKind === 'order' && l.kind === 'service'));
+  const today = dayKey(new Date());
+  const yest = dayKey(Date.now() - 864e5);
+  const els = [];
+  let day = '';
+  for (const l of list) {
+    const d = dayKey(l.created_at);
+    if (d !== day) els.push(h('div', 'cr-day', (d === today ? 'วันนี้ · ' : d === yest ? 'เมื่อวาน · ' : '') + (day = d)));
+    const amt = Number(l.amount);
+    const el = h('div', 'cr-log');
+    el.append(h('span', 'cr-ic ' + (amt > 0 ? 'in' : 'out'), LOG_IC[l.kind] ?? '•'),
+      h('span', '', KIND[l.kind] + (l.note && l.kind !== 'topup' ? ' · ' + l.note : '')),
+      h('span', 'amt ' + (amt > 0 ? 'plus' : 'minus'), (amt > 0 ? '+' : '') + num(amt)),
+      h('span', 'muted', new Date(l.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })),
+      h('span', 'muted amt', 'คงเหลือ ' + num(l.balance)));
+    els.push(el);
+  }
+  $('logs').replaceChildren(...els);
+  if (!list.length) $('logs').append(h('p', 'empty', logKind ? 'ไม่มีรายการประเภทนี้' : 'ยังไม่มีรายการ'));
+}
+for (const b of $('logFilter').children) b.onclick = () => {
+  logKind = b.dataset.k;
+  for (const x of $('logFilter').children) x.setAttribute('aria-pressed', x === b);
+  renderLogs();
+};
+// สลับ 📜 ประวัติเครดิต / 🧾 รายการแจ้งเติม
+for (const b of document.querySelectorAll('.cr-tabs [data-h]')) b.onclick = () => {
+  for (const x of document.querySelectorAll('.cr-tabs [data-h]')) x.setAttribute('aria-pressed', x === b);
+  $('logs').hidden = $('logFilter').hidden = b.dataset.h !== 'logs';
+  $('topups').hidden = b.dataset.h !== 'topups';
+};
+
 function renderCredit() {
+  // กระเป๋าเงิน: สรุปเดือนนี้
+  const sum = (f) => monthLogs.filter(f).reduce((a, l) => a + Number(l.amount), 0);
+  const wait = data.topups.filter((t) => t.status === 'pending');
+  const tIn = sum((l) => l.kind === 'topup');
+  const tOut = Math.abs(sum((l) => Number(l.amount) < 0));
+  $('wIn').textContent = (tIn ? '+' : '') + num(tIn);
+  $('wOut').textContent = (tOut ? '−' : '') + num(tOut);
+  $('wWait').textContent = wait.length ? `${wait.length} รายการ · ฿${num(wait.reduce((a, t) => a + Number(t.amount), 0))}` : '—';
+  $('nWait').textContent = wait.length || '';
+  renderPay();
+  renderLogs();
   $('topups').replaceChildren(...data.topups.map((t) => {
     const el = h('div', 'item');
     el.append(row(h('b', 'plus', `+${num(t.amount)} เครดิต`), pill(TOPUP[t.status])));
@@ -1691,17 +1836,6 @@ function renderCredit() {
     return el;
   }));
   if (!data.topups.length) $('topups').append(h('p', 'empty', 'ยังไม่เคยแจ้งเติม'));
-
-  $('logs').replaceChildren(...data.logs.map((l) => {
-    const el = h('div', 'log');
-    const amt = Number(l.amount);
-    el.append(h('span', '', KIND[l.kind] + (l.note && l.kind !== 'topup' ? ' · ' + l.note : '')),
-      h('span', 'amt ' + (amt > 0 ? 'plus' : 'minus'), (amt > 0 ? '+' : '') + num(amt)),
-      h('span', 'muted', when(l.created_at)),
-      h('span', 'muted amt', 'คงเหลือ ' + num(l.balance)));
-    return el;
-  }));
-  if (!data.logs.length) $('logs').append(h('p', 'empty', 'ยังไม่มีรายการ'));
 }
 
 // ---------- แชท: ห้องของฉัน + ห้องของคนในร้านเดียวกัน (ซื้อแล้วการ์ดออเดอร์ขึ้นเอง) ----------
