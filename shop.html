@@ -455,6 +455,9 @@
   #popClose { width: 34px; height: 34px; flex: none; display: grid; place-items: center; padding: 0; border-radius: 50%;
     background: var(--bad); border: 0; color: #fff; box-shadow: 0 2px 10px rgba(244, 63, 94, .4); }
   #popClose:hover { filter: brightness(1.12); }
+  #chatPick { margin: 0 auto 0 14px; min-width: 0; } /* เลือกร้านที่หัวแชท */
+  #chatShopBtn { padding: 3px 10px 3px 3px; max-width: 100%; }
+  #chatShopBtn .spic { width: 26px; height: 26px; border-radius: 7px; font-size: 12px; }
   #chatBox { flex: 1; min-height: 0; display: flex; }
   #threads { width: 270px; flex: none; border-right: 1px solid var(--line); overflow-y: auto; }
   .thread { display: flex; gap: 10px; align-items: center; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--line); }
@@ -553,7 +556,16 @@
   .quote { max-width: 100%; background: var(--card2); border-left: 3px solid var(--ac); border-radius: 8px; padding: 4px 10px; font-size: 12px; color: var(--muted); cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .quote b { color: var(--txt); }
   .msg.flash .bubble, .msg.flash .chat-img { outline: 2px solid var(--warn); outline-offset: 2px; }
-  .slot.flash, .cl-card.flash { outline: 3px solid var(--warn); outline-offset: 1px; } /* กดข้อความแล้วเด้งมาการ์ดนี้ */
+  .slot.flash, .cl-card.flash, .op-claim.flash { outline: 3px solid var(--warn); outline-offset: 1px; } /* กดข้อความแล้วเด้งมาการ์ดนี้ */
+  /* แจ้งสถานะจากแอดมินกลางแชท: กดแล้วเด้งไปการ์ดในแผงขวา */
+  .notice { align-self: center; max-width: 92%; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 2px 8px; margin: 6px 0; padding: 6px 14px;
+    border-radius: 14px; border: 1px solid var(--line); background: var(--card2); font-size: 13px; line-height: 1.45; }
+  .notice:hover { filter: brightness(1.2); }
+  .notice.ok { border-color: rgba(var(--ac-rgb), .45); background: rgba(var(--ac-rgb), .1); }
+  .notice.wait { border-color: rgba(245, 158, 11, .5); background: rgba(245, 158, 11, .1); }
+  .notice.bad { border-color: rgba(244, 63, 94, .5); background: rgba(244, 63, 94, .1); }
+  .notice time { color: var(--muted); font-size: 10px; }
+  .notice em { font-style: normal; color: var(--muted); font-size: 11px; }
   .bubble.jump { cursor: pointer; }
   .bubble.jump:hover { text-decoration: underline; }
   .msg time { flex: none; font-size: 10px; color: var(--muted); }
@@ -862,7 +874,7 @@
 
   <button id="chatFab" type="button" aria-label="เปิดแชทกับแอดมิน" aria-expanded="false">💬<span class="count" id="nChat"></span></button>
   <section id="chatPop" hidden aria-label="แชทกับแอดมิน">
-    <div id="popHead"><b>💬 แชทกับแอดมิน</b><button id="popClose" type="button" aria-label="ปิดแชท"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
+    <div id="popHead"><b>💬 แชทกับแอดมิน</b><div id="chatPick" class="shop-pick"><button id="chatShopBtn" class="shop-box" type="button" aria-haspopup="listbox" aria-expanded="false" title="เลือกร้าน"></button><div id="chatShopList" class="shop-list" role="listbox" hidden></div></div><button id="popClose" type="button" aria-label="ปิดแชท"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
       <div id="chatBox">
         <aside id="threads"><div id="tTabs" class="t-tabs"><button type="button" data-t="chat" aria-pressed="true">📦 เบิกสินค้า</button><button type="button" data-t="claims" aria-pressed="false">🛠 ห้องเคลม<i id="nClaimRooms"></i></button></div><div id="tList"></div></aside>
         <div id="conv">
@@ -1203,7 +1215,15 @@ function showShopPic() {
   $('shopBtn').replaceChildren(shopPic(shop), txt);
   $('shopBtn').title = shop.name; // ชื่อยาวถูกตัด … → ชี้เมาส์ดูชื่อเต็ม
   $('shopBtn').disabled = shops.length < 2;
-  $('shopList').replaceChildren(...shops.map((s) => {
+  $('shopList').replaceChildren(...shopOptions(toggleShopList));
+  // หัวแชท: เลือกร้านได้โดยไม่ต้องปิดแชท
+  $('chatShopBtn').replaceChildren(shopPic(shop), h('span', 'nm', shop.name), h('span', 'caret', '▾'));
+  $('chatShopBtn').title = shop.name;
+  $('chatShopBtn').disabled = shops.length < 2;
+  $('chatShopList').replaceChildren(...shopOptions(toggleChatShops));
+}
+function shopOptions(toggle) { // แถวเลือกร้าน (ใช้ทั้งหัวเว็บและหัวแชท)
+  return shops.map((s) => {
     const on = s.id === shop.id;
     const b = h('button', 'shop-opt' + (on ? ' on' : ''));
     b.type = 'button';
@@ -1211,19 +1231,24 @@ function showShopPic() {
     b.setAttribute('aria-selected', on);
     b.append(h('span', 'tick', on ? '✓' : ''), shopPic(s), h('span', '', s.name));
     b.onclick = () => {
-      toggleShopList(false);
+      toggle(false);
       if (on) return;
       $('shopSel').value = s.id;
       $('shopSel').dispatchEvent(new Event('change'));
     };
     return b;
-  }));
+  });
 }
 function toggleShopList(open = $('shopList').hidden) {
   $('shopList').hidden = !open;
   $('shopBtn').setAttribute('aria-expanded', open);
 }
+function toggleChatShops(open = $('chatShopList').hidden) {
+  $('chatShopList').hidden = !open;
+  $('chatShopBtn').setAttribute('aria-expanded', open);
+}
 $('shopBtn').onclick = (e) => { e.stopPropagation(); toggleShopList(); };
+$('chatShopBtn').onclick = (e) => { e.stopPropagation(); toggleChatShops(); };
 // ☰ เมนูซ่อนในกรอบเครดิต
 function toggleMenu(open = $('menuList').hidden) {
   $('menuList').hidden = !open;
@@ -1236,7 +1261,7 @@ $('menuList').onclick = (e) => {
   if (go) setTab(go);
 };
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.shop-pick')) toggleShopList(false);
+  if (!e.target.closest('.shop-pick')) { toggleShopList(false); toggleChatShops(false); }
   if (!e.target.closest('.w-menu')) toggleMenu(false);
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { toggleShopList(false); toggleMenu(false); } });
@@ -2479,6 +2504,7 @@ function renderOpClaims() { // เคลมของคนในห้องน�
     const b = h('button', 'op-claim');
     b.type = 'button';
     b.append(h('span', '', `#${c.id} · ${c.orders?.product_name || c.app_type || 'เคลม'}`), pill(CLAIM[c.status] ?? ['', '']));
+    b.dataset.claim = c.id;
     b.onclick = () => openClaimById(c.id);
     return b;
   }));
@@ -2814,6 +2840,9 @@ async function jumpTo(text, row) {
     el = await findOrderCard(norm(orderNo ?? product), row);
     if (!el) return toast(`ไม่พบการ์ด ${orderNo ?? product}`);
   }
+  flashCard(el);
+}
+function flashCard(el) { // เด้งไปการ์ดในแผงขวา + ไฮไลต์
   if (!el?.isConnected) return toast('ไม่พบการ์ดในห้องนี้');
   if (el.matches('details')) el.open = true; // การ์ดในแผงขวา: กางให้เห็นเต็ม
   $('ordPanel').classList.add('show'); // จอแคบ: เปิดแผงขวาให้เห็นการ์ด
@@ -2842,9 +2871,26 @@ async function findOrderCard(key, row) {
   return slots[hit.order_id]?.[0];
 }
 
-// แบบ 3 ช่อง: ห้องแชท = บทสนทนา · การ์ดออเดอร์อยู่แผงขวา · แจ้งสถานะอัตโนมัติไม่ขึ้นในแชท (ดูสถานะที่แผงขวา)
-// ("ส่งมอบสินค้าแล้ว: …" ของระบบเก่ายังแสดง เพราะอาจมีข้อมูลบัญชีที่ไม่ได้อยู่ในการ์ด)
-const isOrderNotice = (m) => !m.claim_id && ((m.direction === 'out' && /^(⏳ ได้รับออเดอร์|✅ ส่งมอบออเดอร์|❌ ยกเลิกออเดอร์) /.test(m.text ?? '')) || m.text === '🆕 เบิกสต็อคสินค้าใหม่');
+// แบบ 3 ช่อง: ห้องแชท = บทสนทนา · การ์ดออเดอร์อยู่แผงขวา · แจ้งสถานะอัตโนมัติ = แถบกลางแชท กดแล้วเด้งไปการ์ดนั้น
+// ("ส่งมอบสินค้าแล้ว: …" ของระบบเก่ายังเป็นข้อความปกติ เพราะอาจมีข้อมูลบัญชีที่ไม่ได้อยู่ในการ์ด)
+const NOTICE = /^(?:⏳ ได้รับออเดอร์|✅ ส่งมอบออเดอร์|❌ ยกเลิกออเดอร์) (\S+)|^(?:✅ เคลมสำเร็จ|❌ ไม่อนุมัติเคลม) #(\d+)/;
+function addNotice(m, d, [, orderNo, claimId]) {
+  const b = h('button', 'notice ' + ({ '⏳': 'wait', '✅': 'ok', '❌': 'bad' }[m.text[0]] ?? ''), m.text.split('\n')[0]); // ผลเคลมบรรทัดถัดไป (ข้อมูลที่ส่งให้) อยู่ในการ์ดแล้ว
+  b.type = 'button';
+  b.title = 'กดเพื่อดูการ์ดทางขวา';
+  b.dataset.at = m.created_at;
+  b.append(h('time', '', d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })), h('em', '', 'ดูการ์ด ›'));
+  b.onclick = async () => {
+    if (orderNo) return flashCard(await findOrderCard(norm(orderNo), b));
+    const c = claimThreads.find((x) => x.id === Number(claimId)); // เคลม: การ์ดออเดอร์ของเคลมนั้น → แถวเคลม → ไม่อยู่ในแผงขวา (เคลมเก่า) = เปิดห้องเคลม
+    const el = slots[c?.order_id]?.[0] ?? $('opClaims').querySelector(`[data-claim="${claimId}"]`);
+    if (el) flashCard(el);
+    else openClaimById(Number(claimId));
+  };
+  lastWho = '';
+  $('msgs').append(b);
+  $('msgs').scrollTop = $('msgs').scrollHeight;
+}
 function addOrderSlot(m) { // 1 ออเดอร์ = 1 แถว · ใหม่สุดอยู่บน
   if (slots[m.order_id]) return;
   const slot = h('details', 'slot');
@@ -2861,13 +2907,15 @@ function addMsg(m) {
   if (shownIds.has(m.id)) return;
   shownIds.add(m.id);
   if (m.order_id) return addOrderSlot(m);
-  if (isOrderNotice(m)) return;
+  if (!m.claim_id && m.text === '🆕 เบิกสต็อคสินค้าใหม่') return; // ต่อท้ายการ์ดเก่าจาก bearplus ไม่มีข้อมูลเพิ่ม
   const d = new Date(m.created_at);
   if (d.toDateString() !== lastDay) {
     lastDay = d.toDateString();
     lastWho = '';
     $('msgs').append(h('div', 'day', dayLabel(d)));
   }
+  const notice = m.direction === 'out' && !m.claim_id && m.text?.match(NOTICE);
+  if (notice) return addNotice(m, d, notice);
   // แอดมินแต่ละคน = ชื่อ + รูปของคนนั้น (ข้อความเก่าที่ไม่รู้ว่าใครตอบ = "แอดมิน" + ตัวอักษรร้าน)
   const out = m.direction === 'out';
   const who = m.auto ? 'auto' : (out ? m.sender : m.sender ?? m.contact_id) ?? 'admin'; // auto = 🤖 ข้อความตอบกลับอัตโนมัติ (update-57)
