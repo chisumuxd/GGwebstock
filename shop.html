@@ -158,6 +158,12 @@
   section { display: flex; flex-direction: column; gap: 14px; }
   .filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .filters .field { width: auto; flex: 1; min-width: 160px; }
+  /* 📜 ประวัติ: สลับ ซื้อ / เคลม · ทั้งหมด / รายวัน / รายเดือน */
+  .hist-seg { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+  .hist-seg button { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 7px 15px; font-size: 14px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .hist-seg button:hover { color: var(--txt); }
+  .hist-seg button[aria-pressed="true"] { background: rgba(var(--ac-rgb), .14); border-color: var(--ac); color: #4ade80; }
+  .filters #histDay, .filters #histMonth { flex: none; min-width: 0; }
   #stockFilter { flex: none; }
   #search { flex: 0 1 280px; margin-left: auto; } /* สถานะซ้าย · ค้นหาขวา */
   /* ✋ จัดลำดับ (Superadmin เท่านั้น): ลากการ์ดสินค้า / ปุ่มหมวด */
@@ -782,6 +788,12 @@
 
     <section id="tab-orders" hidden>
       <div class="filters">
+        <span class="hist-seg" id="histView" role="group" aria-label="เลือกประวัติ"><button type="button" data-v="orders" aria-pressed="true">🛒 ประวัติการซื้อ</button><button type="button" data-v="claims" aria-pressed="false">🛠 ประวัติการเคลม</button></span>
+        <span class="hist-seg" id="histMode" role="group" aria-label="เลือกช่วงเวลา"><button type="button" data-m="all" aria-pressed="true">ทั้งหมด</button><button type="button" data-m="day" aria-pressed="false">รายวัน</button><button type="button" data-m="month" aria-pressed="false">รายเดือน</button></span>
+        <input id="histDay" class="field" type="date" aria-label="เลือกวัน" hidden>
+        <input id="histMonth" class="field" type="month" aria-label="เลือกเดือน" hidden>
+      </div>
+      <div class="filters">
         <input id="orderSearch" class="field" type="search" placeholder="ค้นหา เลขออเดอร์ / สินค้า / ลูกค้า">
         <select id="orderFilter" class="field" aria-label="กรองสถานะออเดอร์">
           <option value="">ทุกสถานะ</option>
@@ -790,7 +802,15 @@
           <option value="done">ส่งมอบแล้ว</option>
           <option value="cancelled">ยกเลิก</option>
         </select>
+        <select id="claimFilter" class="field" aria-label="กรองสถานะเคลม" hidden>
+          <option value="">ทุกสถานะ</option>
+          <option value="pending">รอตรวจสอบ</option>
+          <option value="refunded">คืนเครดิตแล้ว</option>
+          <option value="replaced">เคลมสำเร็จ</option>
+          <option value="rejected">ไม่อนุมัติ</option>
+        </select>
       </div>
+      <p id="histCount" class="muted" hidden></p>
       <div id="orders" class="list"></div>
     </section>
 
@@ -1394,7 +1414,7 @@ async function refresh() {
   $('nTopups').textContent = data.topups.filter((t) => t.status === 'pending').length || ''; // แจ้งเติมที่รอตรวจ
   $('bal').textContent = num(shop.credit);
   $('nOrders').textContent = data.orders.filter((o) => o.status === 'pending' || o.status === 'waiting').length || '';
-  renderOrders();
+  loadHist();
   renderCredit();
   if ($('buyDlg').open) renderBuy();
 }
@@ -1653,16 +1673,110 @@ $('buyForm').onsubmit = async (e) => {
 };
 
 // ---------- ประวัติการซื้อ ----------
-const openOrders = new Set(); // ออเดอร์ที่กางรายละเอียดไว้ (รีเฟรชแล้วยังกางอยู่)
+const openOrders = new Set(); // ออเดอร์ / เคลม ('c' + id) ที่กางรายละเอียดไว้ (รีเฟรชแล้วยังกางอยู่)
+let histView = 'orders';      // orders = ประวัติการซื้อ · claims = ประวัติการเคลม
+let histMode = 'all';         // all = ทั้งหมด · day = รายวัน · month = รายเดือน
+let histRows = null;          // แถวที่โหลดตามช่วงเวลา / เคลม (null = ออเดอร์ 200 ล่าสุดใน data.orders)
+let histTicket = 0;           // กันผลเก่ามาทับ เวลาเปลี่ยนตัวเลือกเร็ว ๆ
+const HIST_LIMIT = 1000;      // API ส่งได้ครั้งละไม่เกิน 1000 แถว
+
+// ช่วงเวลาที่เลือก [เริ่ม, ก่อนวันถัดไป] · ทั้งหมด / ล้างช่องวันที่ = null
+function histRange() {
+  const [y, m, d] = (histMode === 'day' ? $('histDay').value : histMode === 'month' ? $('histMonth').value : '').split('-').map(Number);
+  if (!y) return null;
+  return histMode === 'day' ? [new Date(y, m - 1, d), new Date(y, m - 1, d + 1)] : [new Date(y, m - 1, 1), new Date(y, m, 1)];
+}
+// เลือกช่วงเวลา / ดูเคลม = ดึงจากฐานข้อมูลตรง ๆ (ดูย้อนหลังเกิน 200 รายการได้) · พิมพ์ค้นหา / กรองสถานะ = กรองจากที่โหลดแล้ว
+async function loadHist() {
+  const ticket = ++histTicket;
+  const range = histRange();
+  if (histView === 'orders' && !range) {
+    histRows = null;
+    return renderOrders();
+  }
+  const claims = histView === 'claims';
+  let qb = claims ? db.from('claims').select('*, orders(order_no, product_name, option_name, products(image_url))').neq('status', 'chat') // chat = ห้องแชทเคลมเก่า
+    : db.from('orders').select('*, products(image_url), claims(*)');
+  if (range) qb = qb.gte('created_at', range[0].toISOString()).lt('created_at', range[1].toISOString());
+  const rows = await q(qb.eq('shop_id', shop.id).order('created_at', { ascending: false }).limit(range ? HIST_LIMIT : 200));
+  if (ticket !== histTicket) return;
+  histRows = rows ?? [];
+  renderOrders();
+}
+function showHistCount(n) {
+  const cap = histRange() ? HIST_LIMIT : 200;
+  $('histCount').hidden = !histRows;
+  $('histCount').textContent = `พบ ${n.toLocaleString('th-TH')} รายการ`
+    + ((histRows?.length ?? 0) >= cap ? ` · แสดง ${cap.toLocaleString('th-TH')} รายการล่าสุด (เลือกช่วงให้แคบลงเพื่อดูครบ)` : '');
+}
+function syncHistControls() {
+  const today = new Date();
+  const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  $('histDay').max = `${ymd}-${String(today.getDate()).padStart(2, '0')}`;
+  $('histMonth').max = ymd;
+  $('histDay').value ||= $('histDay').max; // เปิดครั้งแรก = วันนี้ / เดือนนี้
+  $('histMonth').value ||= ymd;
+  for (const b of $('histView').children) b.setAttribute('aria-pressed', b.dataset.v === histView);
+  for (const b of $('histMode').children) b.setAttribute('aria-pressed', b.dataset.m === histMode);
+  $('histDay').hidden = histMode !== 'day';
+  $('histMonth').hidden = histMode !== 'month';
+  $('orderFilter').hidden = histView !== 'orders';
+  $('claimFilter').hidden = histView !== 'claims';
+  $('orderSearch').placeholder = histView === 'claims' ? 'ค้นหา เลขเคลม / เลขออเดอร์ / แอป / อีเมล' : 'ค้นหา เลขออเดอร์ / สินค้า / ลูกค้า';
+}
+for (const b of $('histView').children) b.onclick = () => { histView = b.dataset.v; syncHistControls(); loadHist(); };
+for (const b of $('histMode').children) b.onclick = () => { histMode = b.dataset.m; syncHistControls(); loadHist(); };
+$('histDay').onchange = $('histMonth').onchange = () => loadHist();
+$('claimFilter').onchange = () => renderOrders();
+
+// 🛠 ประวัติการเคลม: แถวย่อ (รูปแอป · ชื่อ · เลขเคลม/ออเดอร์ · เวลา | สถานะ) กางแล้วเห็นผลเคลมเต็ม
+function claimHistRow(c) {
+  const key = 'c' + c.id;
+  const o = c.orders ?? {};
+  const card = h('details', 'item order');
+  card.open = openOrders.has(key);
+  card.ontoggle = () => (card.open ? openOrders.add(key) : openOrders.delete(key));
+  const top = h('div', 'o-main');
+  top.append(h('b', '', o.product_name ? o.product_name + (o.option_name ? ` (${o.option_name})` : '') : c.app_type || 'เคลมสินค้า'),
+    h('span', 'muted', `เคลม #${c.id}${o.order_no ? ' · ' + o.order_no : ''} · ${when(c.created_at)}`));
+  const src = appPic({ products: o.products, product_name: o.product_name || c.app_type });
+  let pic = h('span', 'o-pic', '🛍️');
+  if (src) Object.assign(pic = h('img', 'o-pic'), { src, alt: '', loading: 'lazy' });
+  const head = h('summary');
+  head.append(pic, top, pill(CLAIM[c.status] ?? ['', '']));
+  const el = h('div', 'o-body');
+  if (c.email) el.append(h('div', 'muted', 'อีเมลที่แจ้ง: ' + c.email));
+  el.append(claimBox(c));
+  if (c.image_path) {
+    const acts = h('div', 'acts');
+    acts.append(fileButton(c.image_path, '🖼 ดูรูปที่แนบ'));
+    el.append(acts);
+  }
+  card.append(head, el);
+  return card;
+}
+function renderClaimHist() {
+  const st = $('claimFilter').value;
+  const s = $('orderSearch').value.trim().toLowerCase();
+  const shown = (histRows ?? []).filter((c) => (!st || c.status === st)
+    && (!s || `${c.id} ${c.app_type} ${c.email} ${c.reason} ${c.reply} ${c.orders?.order_no ?? ''} ${c.orders?.product_name ?? ''}`.toLowerCase().includes(s)));
+  $('orders').replaceChildren(...shown.map(claimHistRow));
+  if (!shown.length) $('orders').append(h('p', 'empty', histRange() ? 'ไม่มีการเคลมในช่วงนี้' : 'ยังไม่มีการเคลม'));
+  showHistCount(shown.length);
+}
+
 async function renderOrders() {
+  if (histView === 'claims') return renderClaimHist();
   const st = $('orderFilter').value;
   const s = $('orderSearch').value.trim().toLowerCase();
   const claimsOf = {}; // order_id → เคลมของออเดอร์นั้น (ใหม่สุดก่อน) — ประวัติเคลมทั้งหมดอยู่ฝั่งแอดมิน
   for (const c of data.claims) (claimsOf[c.order_id] ??= []).push(c);
-  let shown = data.orders.filter((o) => (!st || o.status === st)
+  for (const o of histRows ?? []) claimsOf[o.id] = (o.claims ?? []).filter((c) => c.status !== 'chat').sort((a, b) => b.id - a.id); // เลือกช่วงเวลา = ออเดอร์เก่าก็เห็นผลเคลม
+  let shown = (histRows ?? data.orders).filter((o) => (!st || o.status === st)
     && (!s || `${ono(o)} ${o.product_name} ${o.option_name} ${o.customer} ${o.email} ${o.note}`.toLowerCase().includes(s)));
+  showHistCount(shown.length);
   // เลขออเดอร์เก่าที่ไม่ได้โหลดมา (เกิน 200 รายการ) → ค้นจากฐานข้อมูลตรง ๆ
-  if (!shown.length && /^od\d{10,}$/.test(s)) {
+  if (!histRows && !shown.length && /^od\d{10,}$/.test(s)) {
     shown = (await q(db.from('orders').select('*, products(image_url), claims(*)')
       .eq('shop_id', shop.id).eq('order_no', s.toUpperCase()))) ?? [];
     if (s !== $('orderSearch').value.trim().toLowerCase()) return; // พิมพ์ต่อระหว่างรอ
@@ -1713,10 +1827,11 @@ async function renderOrders() {
     if (!el.children.length) el.append(h('div', 'muted', 'รอแอดมินดำเนินการ'));
     return card;
   }));
-  if (!shown.length) $('orders').append(h('p', 'empty', 'ยังไม่มีออเดอร์'));
+  if (!shown.length) $('orders').append(h('p', 'empty', histRange() ? 'ไม่มีออเดอร์ในช่วงนี้' : 'ยังไม่มีออเดอร์'));
 }
-$('orderFilter').onchange = renderOrders;
-$('orderSearch').oninput = renderOrders;
+$('orderFilter').onchange = () => renderOrders();
+$('orderSearch').oninput = () => renderOrders();
+syncHistControls();
 
 // ---------- 🛠 เคลมสินค้า (ป๊อปอัป): 🔁 เปลี่ยนห้อง-เปลี่ยนเมล (ไม่ผูกออเดอร์) / ↩ คืนเครดิต (เลือกออเดอร์) · บังคับแนบรูป (update-59) ----------
 const clType = () => document.querySelector('[name="clType"]:checked').value;
@@ -3008,6 +3123,7 @@ async function upload(file) {
 function fileButton(path, label) {
   const b = h('button', 'ghost', label);
   b.onclick = async () => {
+    if (/^https?:\/\//.test(path)) return viewImg(path); // รูปเก่าจากระบบเดิม = ลิงก์ตรง
     const { data: res, error } = await db.storage.from('shop-files').createSignedUrl(path, 300);
     if (error) return alert(error.message);
     viewImg(res.signedUrl); // สลิป / รูปเคลม = ป๊อปอัปดูรูป
