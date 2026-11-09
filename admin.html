@@ -874,7 +874,7 @@
 <script>
 
 // ล็อกอินหลังร้านเก็บแยกจาก shop.html → เปิดคนละบัญชีพร้อมกันได้ (stock.html ใช้ชุดเดียวกัน)
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: 'oa-admin' } });
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: 'oa-admin' }, realtime: { worker: true } }); // worker = แท็บที่ซ่อนอยู่นาน ๆ ไม่หลุด (ข้อความยังเข้า เสียงยังดัง)
 const $ = (id) => document.getElementById(id);
 let contacts = [];
 let current = null;
@@ -976,6 +976,7 @@ async function start() {
   }
   $('login').hidden = true;
   $('app').hidden = false;
+  soundTip();
   myId = session.user.id;
   myEmail = session.user.email ?? '';
   // ช่องสดแบบ private ("กำลังพิมพ์…") ต้องเข้าด้วย token ผู้ใช้ — supabase-js ใส่ให้ช้า (หลังช่องแรกเชื่อมต่อแล้ว)
@@ -1007,7 +1008,7 @@ async function start() {
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: m }) => {
       dropTyper(roomKey(m.contact_id, m.shop_id), m.sender ?? m.contact_id); // ส่งข้อความแล้ว = เลิกพิมพ์
-      if (m.direction === 'in' && !(inRoom(m) && document.visibilityState === 'visible')) playDing(); // 🔔 ร้านทักมา (ห้องที่ดูอยู่ = ไม่ดัง)
+      if (m.direction === 'in' && !(inRoom(m) && view === 'chat' && document.hasFocus())) playDing(); // 🔔 ร้านทักมา (ไม่ดังเฉพาะห้องที่กำลังดูจริง ๆ: อยู่หน้าแชท + หน้าต่างนี้ถูกใช้งานอยู่)
       if (!inRoom(m)) return;
       addMsg(m);
       renderSeen();
@@ -1610,13 +1611,7 @@ $('ctxDelete').onclick = async () => {
   const qb = db.from('threads').update({ cleared_at: c.last_at ?? new Date().toISOString(), unread: 0 }).eq('contact_id', c.id);
   const { error } = await (c.shop_id ? qb.eq('shop_id', c.shop_id) : qb.is('shop_id', null));
   if (error) return alert('ลบแชทไม่สำเร็จ: ' + error.message);
-  if (current?.key === c.key) { // ห้องที่เปิดอยู่ → ปิด
-    current = null;
-    $('room').hidden = $('profile').hidden = true;
-    $('empty').hidden = false;
-    $('app').classList.remove('open', 'show-profile');
-    trackRoom();
-  }
+  if (current?.key === c.key) closeRoom(); // ห้องที่เปิดอยู่ → ปิด
   toast('ลบแชทแล้ว');
   loadContacts();
 };
@@ -2372,7 +2367,11 @@ function setView(v) {
   $('oList').className = { shops: 'grid' }[v] ?? ''; // ผู้ใช้ = แถวย่อเรียงลงมา (แบบออเดอร์) กางแล้วไม่ดันการ์ดข้าง ๆ
   if (v !== 'chat') reloadOffice();
 }
-for (const b of document.querySelectorAll('#rail [data-view]')) b.onclick = () => { $('rail').classList.remove('more'); setView(b.dataset.view); };
+for (const b of document.querySelectorAll('#rail [data-view]')) b.onclick = () => {
+  $('rail').classList.remove('more');
+  if (b.dataset.view === 'chat' && current) closeRoom(); // แบบ LINE OA: กด "แชท" = ออกจากห้องกลับไปรายการ
+  setView(b.dataset.view);
+};
 // มือถือ: ☰ เปิด/ปิดเมนูที่เหลือ · กดที่อื่นแล้วปิด
 $('moreBtn').onclick = () => $('rail').classList.toggle('more');
 document.addEventListener('click', (e) => { if (!e.target.closest('#rail')) $('rail').classList.remove('more'); });
@@ -3667,7 +3666,15 @@ for (const b of document.querySelectorAll('.tabs [data-f]')) {
 }
 $('infoBtn').onclick = () => $('app').classList.toggle('show-profile');
 $('pClose').onclick = () => $('app').classList.remove('show-profile');
-$('back').onclick = () => { current = null; $('app').classList.remove('open', 'show-profile'); renderList(); trackRoom(); };
+function closeRoom() {
+  current = null;
+  $('room').hidden = $('profile').hidden = true;
+  $('empty').hidden = false;
+  $('app').classList.remove('open', 'show-profile');
+  renderList();
+  trackRoom();
+}
+$('back').onclick = closeRoom;
 // ✏️ แชทใหม่: เลือกร้าน + ผู้ใช้ แล้วเปิดห้องคุยได้เลย (ไม่ต้องรอให้ร้านทักหรือกดเบิกก่อน)
 $('newChat').onclick = () => {
   $('ncPick').replaceChildren(...shops.filter((s) => s.shop_members.length).map((s) => {
@@ -3723,6 +3730,12 @@ function playDing(force = false) {
   ding.volume = v / 100;
   ding.currentTime = 0;
   ding.play().catch(() => {}); // ยังไม่เคยคลิกอะไรในหน้า = เบราว์เซอร์ไม่ให้เล่นเสียง
+}
+function soundTip() { // เปิดหน้าใหม่ / F5 แล้วยังไม่ได้คลิก = เปิดทิ้งไว้เสียงก็ไม่ดัง → บอกให้คลิกสักครั้ง
+  if (!soundVol() || navigator.userActivation?.hasBeenActive !== false) return;
+  const tip = h('div', 'toast', '🔔 คลิกที่ใดก็ได้ 1 ครั้ง เพื่อเปิดเสียงแจ้งเตือน');
+  document.body.append(tip);
+  for (const e of ['pointerdown', 'keydown']) addEventListener(e, () => tip.remove(), { once: true });
 }
 const showVol = () => { $('volVal').textContent = Number($('vol').value) ? $('vol').value + '%' : 'ปิด'; };
 $('soundBtn').onclick = () => { $('vol').value = soundVol(); showVol(); renderRailOrder(); $('soundDlg').showModal(); }; // ⚙️ ตั้งค่า (เสียง + ฟอนต์แชท + จัดเมนู)

@@ -1016,7 +1016,7 @@
 </dialog>
 
 <script>
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { realtime: { worker: true } }); // worker = แท็บที่ซ่อนอยู่นาน ๆ ไม่หลุด (ข้อความยังเข้า เสียงยังดัง)
 const $ = (id) => document.getElementById(id);
 const byName = (a, b) => a.localeCompare(b, 'th', { numeric: true });
 const num = (n) => Number(n).toLocaleString('th-TH', { maximumFractionDigits: 2 });
@@ -1101,6 +1101,7 @@ async function start() {
   $('shopSel').disabled = shops.length < 2;
   showShopPic();
   show('app');
+  soundTip();
   loadProducts();
   db.rpc('is_super').then(({ data }) => { $('arrangeBtn').hidden = !data; }); // ปุ่มจัดลำดับ = Superadmin เท่านั้น (ฐานข้อมูลเช็คซ้ำตอนบันทึก)
   db.rpc('is_admin').then(({ data }) => {
@@ -2373,6 +2374,12 @@ function playDing(force = false) {
   ding.currentTime = 0;
   ding.play().catch(() => {}); // ยังไม่เคยคลิกอะไรในหน้า = เบราว์เซอร์ไม่ให้เล่นเสียง
 }
+function soundTip() { // เปิดหน้าใหม่ / F5 / เว็บอัปเดตตัวเอง แล้วยังไม่ได้คลิก = เปิดทิ้งไว้เสียงก็ไม่ดัง → บอกให้คลิกสักครั้ง
+  if (!soundVol() || navigator.userActivation?.hasBeenActive !== false) return;
+  const tip = h('div', 'toast', '🔔 คลิกที่ใดก็ได้ 1 ครั้ง เพื่อเปิดเสียงแจ้งเตือน');
+  document.body.append(tip);
+  for (const e of ['pointerdown', 'keydown']) addEventListener(e, () => tip.remove(), { once: true });
+}
 const showVol = () => { $('volVal').textContent = Number($('vol').value) ? $('vol').value + '%' : 'ปิด'; };
 // 📲 ติดตั้งแอป (PWA): Chrome = ป๊อปอัปติดตั้งของเครื่อง · iPhone / อื่น ๆ = บอกวิธี · เปิดจากแอปอยู่แล้ว = ซ่อนปุ่ม
 let installEvt = null;
@@ -2759,8 +2766,8 @@ $('chatSearch').onsubmit = (e) => { e.preventDefault(); $('hitUp').click(); }; /
 function onMessage(m) {
   if (!chatReady) return;
   const fromOther = m.direction === 'out' || (m.sender && m.sender !== me);
-  const viewing = chatOpen() && m.shop_id === shop.id && (m.claim_id ? claimOpen?.id === m.claim_id : !claimOpen && m.contact_id === thread);
-  if (fromOther && !viewing) playDing(); // 🔔 มีข้อความใหม่ (ห้องที่ดูอยู่ = ไม่ดัง)
+  const viewing = document.hasFocus() && chatOpen() && m.shop_id === shop.id && (m.claim_id ? claimOpen?.id === m.claim_id : !claimOpen && m.contact_id === thread);
+  if (fromOther && !viewing) playDing(); // 🔔 มีข้อความใหม่ (ไม่ดังเฉพาะห้องที่กำลังดูจริง ๆ: แชทเปิดอยู่ + หน้าต่างนี้ถูกใช้งานอยู่)
   if (m.shop_id !== shop.id) { // ห้องของอีกร้าน → แค่เตือน
     if (fromOther) $('nChat').textContent = ++unseen;
     return;
