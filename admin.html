@@ -988,10 +988,23 @@ async function start() {
   loadClaimRooms();
   loadWaiting(); // แท็บ 📦 รอดำเนินการ
   joinPresence();
+  const later = (fn) => { let t; return () => { clearTimeout(t); t = setTimeout(fn, 400); }; }; // หลายรายการติดกัน = โหลดครั้งเดียว
+  const reloadContacts = later(() => loadContacts(true));
+  const reloadClaimRooms = later(loadClaimRooms);
+  const onRejoin = (fn) => { let n = 0; return (s) => { if (s === 'SUBSCRIBED' && n++) fn(); }; }; // เน็ตหลุดแล้วต่อใหม่ = ดึงสิ่งที่พลาดไป (ครั้งแรกโหลดอยู่แล้ว)
   db.channel('oa')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tags' }, loadTags)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, loadContacts)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'threads' }, loadContacts)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'contacts' }, ({ new: n }) => { // ชื่อ/แท็กเท่านั้น — last_at/unread ใน contacts เป็นยอดรวมทุกร้าน ห้ามทับของห้อง
+      const rooms = contacts.filter((c) => c.id === n.id && (c.name !== n.name || String(c.tags) !== String(n.tags)));
+      rooms.forEach((c) => Object.assign(c, { name: n.name, tags: n.tags }));
+      if (rooms.length) settleContacts();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'threads' }, ({ new: t }) => { // ข้อความใหม่ = แก้เฉพาะห้องนั้น ไม่โหลดทั้งรายการ · ห้องใหม่/ถูกลบ/ถูกเคลียร์ = โหลดใหม่
+      const c = t.id && contacts.find((x) => x.tid === t.id);
+      if (!c || cleared(t)) return reloadContacts();
+      Object.assign(c, t, { id: t.contact_id, tid: t.id });
+      settleContacts();
+    })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: m }) => {
       dropTyper(roomKey(m.contact_id, m.shop_id), m.sender ?? m.contact_id); // ส่งข้อความแล้ว = เลิกพิมพ์
       if (m.direction === 'in' && !(inRoom(m) && document.visibilityState === 'visible')) playDing(); // 🔔 ร้านทักมา (ห้องที่ดูอยู่ = ไม่ดัง)
@@ -1001,7 +1014,7 @@ async function start() {
       if (m.order_id) fillChatCards([m.order_id]);
       if (m.direction === 'in') markRead();
     })
-    .subscribe();
+    .subscribe(onRejoin(reloadContacts));
   // หลังร้านแยก channel — ถ้ายังไม่ได้รัน update-04 แชทก็ยังทำงานปกติ
   counts();
   const onChange = (v, load) => () => { counts(); if (view === v) load(); };
@@ -1017,26 +1030,34 @@ async function start() {
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, ({ new: c, eventType }) => {
       if (eventType === 'INSERT') playDing(); // 🔔 เคลมใหม่
+      const room = eventType === 'UPDATE' && claimRooms.find((x) => x.id === c.id);
+      if (room?.status === c.status) { // สถานะเดิม = แค่มีข้อความในห้องเคลม → แก้เฉพาะห้องนั้น (เปลี่ยนสถานะมีทางเดียวคือตัดสินเคลม)
+        Object.assign(room, c);
+        const open = (x) => x.status === 'pending' || x.status === 'chat';
+        claimRooms.sort((a, b) => open(b) - open(a) || (b.last_at ?? '').localeCompare(a.last_at ?? ''));
+        return settleClaimRooms();
+      }
       onChange('claims', loadClaims)();
-      loadClaimRooms(); // ห้องเคลม: ข้อความล่าสุด / ยังไม่อ่าน / ผลเคลม
+      reloadClaimRooms(); // ห้องเคลม: ข้อความล่าสุด / ยังไม่อ่าน / ผลเคลม
       if (view === 'orders') loadOrders();
       if (chatSlots[c?.order_id]) fillChatCards([c.order_id]); // สถานะเคลมขึ้นที่การ์ดในแชท
     })
-    .subscribe();
-  // เปลี่ยนชื่อ / รูปโปรไฟล์ → แชทเปลี่ยนทันที (update-62) · แยกช่อง: ยังไม่รัน SQL ช่องนี้ใช้ไม่ได้ แต่แชทไม่กระทบ (ยังอัปเดตทุก 1 นาที)
+    .subscribe(onRejoin(reloadClaimRooms));
+  // เปลี่ยนชื่อ / รูปโปรไฟล์ → แชทเปลี่ยนทันที (update-62) · แยกช่อง: ยังไม่รัน SQL ช่องนี้ใช้ไม่ได้ แต่แชทไม่กระทบ (ยังอัปเดตทุก 10 นาที)
   const profileCh = db.channel('admin-profiles').on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, ({ new: p }) => p?.user_id && setProfile(p));
   profileCh.subscribe((status, err) => { if (status === 'CHANNEL_ERROR' && /unable to subscribe/i.test(err?.message ?? '')) db.removeChannel(profileCh); });
-  setInterval(() => { if (!document.hidden) syncProfiles(); }, 60000);
+  setInterval(() => { if (!document.hidden) { syncProfiles(); loadContacts(true); loadClaimRooms(); } }, 600000); // กันพลาดเท่านั้น — ปกติข้อมูลมาจาก Realtime
 }
 
 // ---------- รายการแชท ----------
 // ห้องแชท = คน × ร้าน (ตาราง threads) · key ไว้แยกห้องของคนเดียวกันคนละร้าน · id = คน (ใช้กับแท็ก/โน้ต/รูป)
-async function loadContacts() {
+async function loadContacts(background) {
   const [cs, ts, ps] = await Promise.all([
     db.from('contacts').select(),
     db.from('threads').select('*'), // * = มี cleared_at (update-29) / status (update-52) ก็ได้ ไม่มีก็ได้
     db.from('chat_pins').select('thread_id'), // หมุดของบัญชีนี้ (ยังไม่ได้รัน update-52 = ไม่มีหมุด)
   ]);
+  if (background && (cs.error || ts.error)) return; // เน็ตสะดุดตอนโหลดเบื้องหลัง = คงรายการเดิม ไม่เด้งเตือน
   if (cs.error) return alert(cs.error.message);
   pins = new Set((ps.data ?? []).map((p) => p.thread_id));
   const byId = Object.fromEntries(cs.data.map((c) => [c.id, c]));
@@ -1044,6 +1065,10 @@ async function loadContacts() {
     ? cs.data.map((c) => ({ ...c, key: c.id, shop_id: null }))
     : ts.data.filter((t) => byId[t.contact_id] && !cleared(t))
       .map((t) => ({ ...byId[t.contact_id], ...t, id: t.contact_id, tid: t.id, key: `${t.contact_id}:${t.shop_id ?? 0}` }));
+  settleContacts();
+}
+
+function settleContacts() { // เรียงใหม่ + นับยังไม่อ่าน + วาดรายการ
   contacts.sort((a, b) => (b.last_at ?? '').localeCompare(a.last_at ?? ''));
   const fresh = current && !current.claim && contacts.find((c) => c.key === current.key);
   if (fresh) { current.seen_at = fresh.seen_at; current.status = fresh.status; renderSeen(); renderHeadStatus(); }
@@ -1185,6 +1210,10 @@ async function loadClaimRooms() {
   hasClaimRooms = true;
   claimRooms = [...open.data, ...done.data];
   claimDoneTotal = done.count ?? done.data.length;
+  settleClaimRooms();
+}
+
+function settleClaimRooms() { // นับ / อัปเดตห้องที่เปิดอยู่ / วาดรายการ
   claimUnread = claimRooms.filter((c) => c.admin_unread > 0).length;
   $('pendRoomCount').textContent = $('n-claims').textContent = // ⏳ รอเคลม + 🛠 เมนูซ้าย = จำนวนแชท (คน) แบบ bearplus · ค้างกี่ใบดูในแต่ละแถว
     new Set(claimRooms.filter((c) => c.status === 'pending').map((c) => c.created_by)).size || '';

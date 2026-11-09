@@ -1111,33 +1111,35 @@ async function start() {
   refresh();
   startChat(session);
   // ออเดอร์/เคลม/เติมเครดิต/แชท เปลี่ยน → อัปเดตเอง (RLS ส่งเฉพาะของเรา)
+  const later = (fn) => { let t; return () => { clearTimeout(t); t = setTimeout(fn, 400); }; }; // หลายรายการติดกัน = โหลดครั้งเดียว
+  const refreshSoon = later(refresh);
+  let joins = 0;
   channel ??= db.channel('shop')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, ({ new: o }) => {
-      refresh();
+      refreshSoon();
       if (slots[o?.id]) fillCards([o.id]);
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, ({ new: c }) => {
-      refresh();
+      if (!c?.id || data.claims.find((x) => x.id === c.id)?.status !== c.status) refreshSoon(); // สถานะเดิม = แค่มีข้อความในห้องเคลม → ไม่ต้องโหลดประวัติ/เครดิตใหม่
       loadClaimThreads(); // ห้องเคลม: ข้อความล่าสุด / ยังไม่อ่าน / ผลเคลม
       if (slots[c?.order_id]) fillCards([c.order_id]); // สถานะเคลมขึ้นที่การ์ดในแชท
     })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'topups' }, refresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'topups' }, refreshSoon)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shops' }, ({ new: n }) => {
       const s = shops.find((x) => x.id === n?.id); // แอดมินเปลี่ยนชื่อ / โลโก้ร้าน → หัวเว็บเปลี่ยนตาม
       if (s && (s.name !== n.name || s.avatar_url !== n.avatar_url)) {
         Object.assign(s, { name: n.name, avatar_url: n.avatar_url });
         if (s === shop) showShopPic();
       }
-      refresh();
+      refreshSoon();
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: m }) => onMessage(m))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'threads' }, ({ new: t }) => { // แอดมินเปิดอ่าน → "อ่านแล้ว"
       if (t?.contact_id === thread && t.shop_id === shop.id) { adminUnread = t.unread; renderRead(); }
     })
-    .subscribe();
-  // สินค้า / รูปหมวด / โปร / บริการ เปลี่ยน → อัปเดตทันที (update-61) · แยกช่อง: ยังไม่รัน SQL ช่องนี้ใช้ไม่ได้ แต่ออเดอร์/แชทไม่กระทบ (ยังอัปเดตทุก 1 นาที)
+    .subscribe((s) => { if (s === 'SUBSCRIBED' && joins++) resync(); }); // เน็ตหลุดแล้วต่อใหม่ = ดึงสิ่งที่พลาดไป (ครั้งแรกโหลดอยู่แล้ว)
+  // สินค้า / รูปหมวด / โปร / บริการ เปลี่ยน → อัปเดตทันที (update-61) · แยกช่อง: ยังไม่รัน SQL ช่องนี้ใช้ไม่ได้ แต่ออเดอร์/แชทไม่กระทบ (ยังอัปเดตทุก 10 นาที)
   if (!catalogCh) {
-    const later = (fn) => { let t; return () => { clearTimeout(t); t = setTimeout(fn, 400); }; }; // แก้หลายรายการติดกัน = โหลดครั้งเดียว
     const onProducts = later(loadProducts);
     const onPromos = later(() => curTab === 'promos' && loadPromos());
     const onServices = later(() => curTab === 'services' && loadServices());
@@ -3222,7 +3224,7 @@ function fileButton(path, label) {
 }
 
 // ---------- อัปเดตเอง ไม่ต้องกด F5 ----------
-// Realtime = ทันที · กันตกหล่น (จอดับ / เน็ตสะดุด / แอดมินซ่อนสินค้า): โหลดใหม่ทุก 1 นาที และตอนกลับมาที่แท็บ
+// Realtime = ทันที · กันตกหล่น (จอดับ / เน็ตสะดุด / แอดมินซ่อนสินค้า): โหลดใหม่ทุก 10 นาที · ตอนกลับมาที่แท็บ · ตอนเน็ตหลุดแล้วต่อใหม่
 async function resync() {
   if (!shop || document.hidden || $('app').hidden) return;
   quiet = true;
@@ -3272,7 +3274,8 @@ document.addEventListener('visibilitychange', () => {
   if (claimOpen) openClaimThread(claimOpen);
   else openThread(thread);
 });
-setInterval(() => { resync(); checkSite(); }, 60000);
+setInterval(checkSite, 60000); // เช็คเวอร์ชันเว็บ (เล็กมาก + อยู่ที่ GitHub ไม่กินโควตา Supabase)
+setInterval(resync, 600000); // กันพลาดเท่านั้น — ปกติข้อมูลมาจาก Realtime อยู่แล้ว
 checkSite();
 
 start();
