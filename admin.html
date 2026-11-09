@@ -878,6 +878,7 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKe
 const $ = (id) => document.getElementById(id);
 let contacts = [];
 let current = null;
+let readLater = false;   // มีข้อความเข้าห้องที่เปิดค้างตอนไม่ได้ดู → นับว่าอ่านตอนกลับมา
 let filter = 'all';
 let allTags = [];        // รายการแท็กกลาง ใช้ได้ทุกแชท
 let editingTags = false;
@@ -1008,12 +1009,13 @@ async function start() {
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: m }) => {
       dropTyper(roomKey(m.contact_id, m.shop_id), m.sender ?? m.contact_id); // ส่งข้อความแล้ว = เลิกพิมพ์
-      if (m.direction === 'in' && !(inRoom(m) && view === 'chat' && document.hasFocus())) playDing(); // 🔔 ร้านทักมา (ไม่ดังเฉพาะห้องที่กำลังดูจริง ๆ: อยู่หน้าแชท + หน้าต่างนี้ถูกใช้งานอยู่)
+      const watching = view === 'chat' && document.hasFocus(); // กำลังดูจริง ๆ: อยู่หน้าแชท + หน้าต่างนี้ถูกใช้งานอยู่
+      if (m.direction === 'in' && !(inRoom(m) && watching)) playDing(); // 🔔 ร้านทักมา (ห้องที่กำลังดูอยู่ = ไม่ดัง)
       if (!inRoom(m)) return;
       addMsg(m);
       renderSeen();
       if (m.order_id) fillChatCards([m.order_id]);
-      if (m.direction === 'in') markRead();
+      if (m.direction === 'in') { if (watching) markRead(); else readLater = true; } // เปิดห้องค้างแต่ไม่ได้ดู = ยังไม่นับว่าอ่าน
     })
     .subscribe(onRejoin(reloadContacts));
   // หลังร้านแยก channel — ถ้ายังไม่ได้รัน update-04 แชทก็ยังทำงานปกติ
@@ -1951,6 +1953,11 @@ function renderSeen() {
   for (const r of $('msgs').querySelectorAll('.row.out')) r.classList.toggle('seen', !!seen && new Date(r.dataset.at) <= seen);
 }
 
+addEventListener('focus', () => { // กลับมาที่หน้าต่างนี้ = เห็นข้อความในห้องที่เปิดอยู่แล้ว
+  const due = readLater;
+  readLater = false;
+  if (due && current && view === 'chat') markRead();
+});
 async function markRead() {
   current.unread = 0;
   if (current.claim) { // ห้องเคลม → ล้างยังไม่อ่านฝั่งแอดมิน (รายการอัปเดตเองผ่าน realtime)
