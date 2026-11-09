@@ -457,7 +457,9 @@
   .thread .t-body { flex: 1; min-width: 0; }
   .thread b, .thread small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .thread small { color: var(--muted); font-size: 12px; }
-  .thread .new { width: 9px; height: 9px; border-radius: 50%; background: var(--warn); flex: none; }
+  .thread .new { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; flex: none; }
+  .t-end { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+  .t-end time { color: var(--muted); font-size: 11px; white-space: nowrap; }
   /* รายการในแชท: 💬 แชท / 🛠 ห้องเคลม (1 เคลม = 1 ห้อง) */
   .t-tabs { display: flex; position: sticky; top: 0; z-index: 1; background: var(--card); border-bottom: 1px solid var(--line); }
   .t-tabs button { flex: 1; background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 6px; color: var(--muted); font-weight: 600; white-space: nowrap; }
@@ -545,7 +547,7 @@
   .quote { max-width: 100%; background: var(--card2); border-left: 3px solid var(--ac); border-radius: 8px; padding: 4px 10px; font-size: 12px; color: var(--muted); cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .quote b { color: var(--txt); }
   .msg.flash .bubble, .msg.flash .chat-img { outline: 2px solid var(--warn); outline-offset: 2px; }
-  .slot.flash .ocard, .cl-card.flash { outline: 3px solid var(--warn); outline-offset: 3px; } /* กดข้อความแล้วเด้งมาการ์ดนี้ */
+  .slot.flash, .cl-card.flash { outline: 3px solid var(--warn); outline-offset: 1px; } /* กดข้อความแล้วเด้งมาการ์ดนี้ */
   .bubble.jump { cursor: pointer; }
   .bubble.jump:hover { text-decoration: underline; }
   .msg time { flex: none; font-size: 10px; color: var(--muted); }
@@ -557,7 +559,38 @@
   .msg .body small { color: var(--muted); font-size: 11px; }
 
   /* การ์ดออเดอร์ในแชท */
-  .slot { align-self: flex-end; width: min(480px, 100%); margin: 6px 0; }
+  /* แผงขวา: ออเดอร์ของห้องนี้เป็นแถวย่อ กดแล้วกางการ์ดเต็ม (ปุ่มคัดลอก / ผลเคลม ครบเหมือนเดิม) */
+  #ordPanel { width: 340px; flex: none; display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--line); background: var(--card); }
+  .op-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  #opClose, #opToggle { display: none; background: none; border: 0; color: var(--muted); }
+  #opBody { flex: 1; min-height: 0; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+  #opOrders, #opClaims { display: flex; flex-direction: column; gap: 8px; }
+  #opEmpty { text-align: center; padding: 24px 0; }
+  #opClaimsWrap h4 { font-size: 13px; color: var(--muted); margin: 4px 2px 8px; }
+  #opPin .cl-card { max-width: none; }
+  .slot { border: 1px solid var(--line); border-radius: 12px; background: var(--card2); }
+  .slot[open] { border-color: var(--edge); }
+  .slot > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; }
+  .slot > summary::-webkit-details-marker { display: none; }
+  .op-pic { width: 36px; height: 36px; border-radius: 9px; object-fit: cover; background: #fff; display: grid; place-items: center; font-size: 18px; }
+  .op-info { min-width: 0; }
+  .op-info b { display: block; font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .op-info small { display: block; color: var(--muted); font-size: 11px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .slot > summary .pill { font-size: 11px; padding: 1px 8px; }
+  .slot-body { padding: 0 8px 8px; }
+  .slot-body .ocard { font-size: 13px; padding: 10px; }
+  .op-claim { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; text-align: left; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card2); font-size: 13px; }
+  .op-claim:hover { border-color: var(--ac); }
+  .op-claim span:first-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #msgs:empty::before { content: 'ยังไม่มีข้อความ — พิมพ์ทักแอดมินได้เลย'; margin: auto; color: var(--muted); font-size: 13px; }
+  @media (max-width: 1100px) { /* จอแคบ: แผงเลื่อนออกมาจากปุ่ม 📦 ที่หัวห้อง */
+    #chatBox { position: relative; }
+    #ordPanel { display: none; position: absolute; top: 0; right: 0; bottom: 0; z-index: 6; width: min(360px, 100%); box-shadow: -12px 0 30px rgba(0, 0, 0, .45); } /* ซ่อนด้วย display: ไม่ล้นจอ · เด้งไปการ์ดแล้วหน้าไม่เลื่อนเพี้ยน */
+    #ordPanel.show { display: flex; }
+    #opClose { display: block; font-size: 16px; padding: 2px 6px; }
+    #opToggle { display: inline-flex; flex: none; margin-left: auto; font-size: 13px; font-weight: 600; color: var(--txt); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+    #convSearchBtn { margin-left: 0; }
+  }
   .ocard { background: #0b140f; border: 1px solid var(--edge); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
   .oc-head { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; }
   .oc-head b { color: var(--txt); }
@@ -814,6 +847,7 @@
         <aside id="threads"><div id="tTabs" class="t-tabs"><button type="button" data-t="chat" aria-pressed="true">📦 เบิกสินค้า</button><button type="button" data-t="claims" aria-pressed="false">🛠 ห้องเคลม<i id="nClaimRooms"></i></button></div><div id="tList"></div></aside>
         <div id="conv">
           <div id="convHead"><button id="convBack" type="button" aria-label="กลับไปรายการแชท">‹</button><span id="convName"></span>
+            <button id="opToggle" type="button" aria-label="ดูออเดอร์และเคลมในห้องนี้"></button>
             <button id="convSearchBtn" type="button" aria-label="ค้นหาในแชท" title="ค้นหาข้อความ / เลขออเดอร์"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button></div>
           <form id="chatSearch" hidden>
             <input id="chatQ" class="field" type="search" placeholder="ค้นหาข้อความ / เลขออเดอร์ เช่น OD2611020008" autocomplete="off">
@@ -832,6 +866,16 @@
             <button class="btn">ส่ง</button>
           </form>
         </div>
+        <!-- แบบ 3 ช่อง: แผงขวา = ออเดอร์ / เคลมของห้องนี้ (กดแถวเพื่อกางการ์ดเต็ม) · จอแคบ = เลื่อนออกมาจากปุ่ม 📦 -->
+        <aside id="ordPanel" aria-label="ออเดอร์และเคลมในห้องนี้">
+          <div class="op-head"><b id="opTitle"></b><button id="opClose" type="button" aria-label="ปิดแผงออเดอร์">✕</button></div>
+          <div id="opBody">
+            <div id="opPin"></div>
+            <div id="opOrders"></div>
+            <p id="opEmpty" class="muted" hidden>ยังไม่มีออเดอร์ในห้องนี้</p>
+            <div id="opClaimsWrap" hidden><h4>🛠 เคลม</h4><div id="opClaims"></div></div>
+          </div>
+        </aside>
       </div>
   </section>
 </div>
@@ -2037,7 +2081,7 @@ let pendingImg = null;      // รูปที่แนบ/วางไว้ �
 const names = {};         // user id → อีเมล (คนในร้านเดียวกัน) ใช้สำรองเมื่อยังไม่ตั้งชื่อ
 const dnames = {};        // user id → ชื่อผู้ใช้ (แชทแสดงชื่อ ไม่แสดงอีเมล)
 const pics = {};          // user id → รูปโปรไฟล์
-const unread = new Set(); // ห้องที่มีข้อความใหม่
+const unread = new Map(); // ห้อง → จำนวนข้อความใหม่ (นับตั้งแต่เปิดหน้านี้)
 
 const chatOpen = () => !$('chatPop').hidden && document.visibilityState === 'visible';
 async function markSeen() {
@@ -2193,6 +2237,50 @@ async function loadClaimThreads() {
     if (changed) renderClaimPin();
   }
   if (threadTab === 'claims') renderThreads();
+  renderOpClaims();
+}
+
+// ---------- แผงขวา (ออเดอร์ / เคลมของห้องที่เปิดอยู่) ----------
+function clearRoom() { // เปลี่ยนห้อง: ล้างข้อความ + แผงขวา
+  lastDay = lastWho = '';
+  slots = {};
+  shownIds.clear();
+  msgById.clear();
+  claimPinEl = null;
+  $('msgs').replaceChildren();
+  $('opOrders').replaceChildren();
+  $('opPin').replaceChildren();
+  $('ordPanel').classList.remove('show');
+  renderOpHead();
+  renderOpClaims();
+}
+function renderOpHead() {
+  const n = Object.keys(slots).length;
+  $('opTitle').textContent = claimOpen ? '🛠 ข้อมูลเคลม' : `📦 ออเดอร์ในห้องนี้ (${n})`;
+  $('opToggle').textContent = claimOpen ? '🛠 เคลม' : `📦 ${n}`;
+  $('opEmpty').hidden = !!claimOpen || n > 0;
+}
+function renderOpClaims() { // เคลมของคนในห้องนี้ · กดแล้วเปิดห้องเคลมนั้น
+  const list = claimOpen ? [] : claimThreads.filter((c) => c.status !== 'chat' && c.created_by === thread).slice(0, 30);
+  $('opClaimsWrap').hidden = !list.length;
+  $('opClaims').replaceChildren(...list.map((c) => {
+    const b = h('button', 'op-claim');
+    b.type = 'button';
+    b.append(h('span', '', `#${c.id} · ${c.orders?.product_name || c.app_type || 'เคลม'}`), pill(CLAIM[c.status] ?? ['', '']));
+    b.onclick = () => openClaimById(c.id);
+    return b;
+  }));
+}
+$('opToggle').onclick = () => $('ordPanel').classList.toggle('show');
+$('opClose').onclick = () => $('ordPanel').classList.remove('show');
+
+// เวลาในรายการแชท: วันนี้ = เวลา · เมื่อวาน · เก่ากว่า = วันที่
+function listTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const label = dayLabel(d);
+  if (label === 'วันนี้') return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  return label === 'เมื่อวาน' ? label : d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
 }
 
 // แถวห้องเคลม / ห้องคุย (ใช้ทั้งรายการปกติ และผลค้นหา)
@@ -2202,7 +2290,7 @@ function claimRow(c, open = () => openClaimThread(c)) {
   body.append(h('b', '', c.status === 'chat' ? `🗂 เคลมเก่า · ${c.created_by === me ? 'ของฉัน' : shortName(c.created_by)}`
     : `🛠 เคลม #${c.id}${c.orders?.product_name ? ' · ' + c.orders.product_name : ''}`), h('small', '', c.last_message || c.reason));
   el.append(body, pill(CLAIM[c.status] ?? ['', '']));
-  if (c.shop_unread > 0) el.append(h('span', 'new'));
+  if (c.shop_unread > 0) el.append(h('span', 'new', c.shop_unread));
   el.onclick = open;
   return el;
 }
@@ -2211,8 +2299,10 @@ function chatRow(t, open = () => openThread(t.id)) {
   const body = h('div', 't-body');
   const typing = typingText(t.id);
   body.append(h('b', '', t.id === me ? 'แชทของฉันกับแอดมิน' : t.name), h('small', typing ? 'typing-now' : '', typing || t.last_message || ''));
-  el.append(av(t.id, t.name), body);
-  if (unread.has(t.id)) el.append(h('span', 'new'));
+  const end = h('div', 't-end');
+  end.append(h('time', '', listTime(t.last_at)));
+  if (unread.has(t.id)) end.append(h('span', 'new', unread.get(t.id)));
+  el.append(av(t.id, t.name), body, end);
   el.onclick = open;
   return el;
 }
@@ -2251,12 +2341,7 @@ async function openClaimThread(c) {
   const urls = await signedUrls([...(rows ?? []).map((m) => m.image_path), c.image_path]);
   if (claimOpen !== c) return; // กดเปลี่ยนห้องระหว่างโหลด
   imgUrls = urls;
-  lastDay = lastWho = '';
-  slots = {};
-  shownIds.clear();
-  msgById.clear();
-  $('msgs').replaceChildren();
-  claimPinEl = null;
+  clearRoom();
   renderClaimPin();
   (rows ?? []).reverse().forEach(addMsg);
   adminUnread = c.admin_unread;
@@ -2281,10 +2366,8 @@ async function openClaimById(id) {
 
 function renderClaimPin() {
   if (!claimOpen) return;
-  const el = claimCardEl(claimOpen);
-  if (claimPinEl?.isConnected) claimPinEl.replaceWith(el);
-  else $('msgs').prepend(el);
-  claimPinEl = el;
+  claimPinEl = claimCardEl(claimOpen);
+  $('opPin').replaceChildren(claimPinEl); // การ์ดเคลมอยู่แผงขวา
 }
 
 // การ์ดเคลม: สิ่งที่ขอ · สถานะ · คนเคลม+แอป+ออเดอร์ · ปัญหา (คัดลอกได้) · รูป · ผลเคลม
@@ -2349,7 +2432,7 @@ async function openThread(id, since = null) { // since = โหลดย้อ�
   renderTyping();
   // ponytail: 200 ข้อความล่าสุด
   const forShop = shop.id;
-  const roomQ = () => (hasClaimRooms ? db.from('messages').select().is('claim_id', null) : db.from('messages').select()) // ข้อความห้องเคลมไม่ปนห้องคุยปกติ
+  const roomQ = () => db.from('messages').select().is('claim_id', null) // ข้อความห้องเคลมไม่ปนห้องคุยปกติ (กรองเสมอ: เดิมเช็ก hasClaimRooms แต่ตอนเปิดห้องแรกยังโหลดไม่เสร็จ → ผลเคลมขึ้นซ้ำ)
     .eq('contact_id', id).eq('shop_id', forShop);
   const [{ data: latest }, { data: room }] = await Promise.all([
     roomQ().order('created_at', { ascending: false }).limit(200),
@@ -2363,11 +2446,7 @@ async function openThread(id, since = null) { // since = โหลดย้อ�
   const urls = await signedUrls(rows.map((m) => m.image_path)); // ขอลิงก์รูปทั้งห้องทีเดียว
   if (thread !== id || claimOpen || shop.id !== forShop) return; // กดเปลี่ยนห้อง/ร้านระหว่างโหลด
   imgUrls = urls;
-  lastDay = lastWho = '';
-  slots = {};
-  shownIds.clear();
-  msgById.clear();
-  $('msgs').replaceChildren();
+  clearRoom();
   rows.forEach(addMsg);
   adminUnread = room?.unread ?? null;
   renderRead();
@@ -2386,16 +2465,18 @@ function searchChat() {
   const q = $('chatQ').value.trim().toLowerCase();
   hits = [];
   if (q) {
-    const walker = document.createTreeWalker($('msgs'), NodeFilter.SHOW_TEXT, {
-      acceptNode: (n) => (n.parentElement.closest('button, time, .stamp, .day, .quote') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
-    });
-    for (let node; (node = walker.nextNode());) {
-      const t = node.textContent.toLowerCase();
-      for (let i = t.indexOf(q); i !== -1; i = t.indexOf(q, i + q.length)) {
-        const r = new Range();
-        r.setStart(node, i);
-        r.setEnd(node, i + q.length);
-        hits.push(r);
+    for (const root of [$('opPin'), $('opOrders'), $('msgs')]) { // แผงขวาก่อน → ผลล่าสุด (เริ่มดูก่อน) = ข้อความในแชท
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode: (n) => (n.parentElement.closest('button, time, .stamp, .day, .quote, summary') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT), // summary ซ้ำกับในการ์ด
+      });
+      for (let node; (node = walker.nextNode());) {
+        const t = node.textContent.toLowerCase();
+        for (let i = t.indexOf(q); i !== -1; i = t.indexOf(q, i + q.length)) {
+          const r = new Range();
+          r.setStart(node, i);
+          r.setEnd(node, i + q.length);
+          hits.push(r);
+        }
       }
     }
   }
@@ -2406,7 +2487,13 @@ function showHit() {
   CSS.highlights?.set('hit', new Highlight(...hits));
   CSS.highlights?.set('hit-now', new Highlight(...hits.slice(hitIdx, hitIdx + 1)));
   $('chatCount').textContent = $('chatQ').value.trim() ? `${hits.length ? hitIdx + 1 : 0}/${hits.length}` : '';
-  hits[hitIdx]?.startContainer.parentElement.scrollIntoView({ block: 'center' });
+  const el = hits[hitIdx]?.startContainer.parentElement;
+  if (el?.closest('#ordPanel')) { // เจอในการ์ดแผงขวา → กางการ์ดนั้น · จอแคบเปิดแผงให้เห็น
+    const card = el.closest('details.slot');
+    if (card) card.open = true;
+    $('ordPanel').classList.add('show');
+  }
+  el?.scrollIntoView({ block: 'center' });
 }
 function closeChatSearch() {
   $('chatSearch').hidden = true;
@@ -2491,7 +2578,7 @@ function onMessage(m) {
     renderRead();
     if (m.order_id) fillCards([m.order_id]);
     if (fromOther && chatOpen()) markSeen();
-  } else if (fromOther) unread.add(m.contact_id);
+  } else if (fromOther) unread.set(m.contact_id, (unread.get(m.contact_id) ?? 0) + 1);
   if (fromOther && !chatOpen()) $('nChat').textContent = ++unseen;
   renderThreads();
 }
@@ -2516,6 +2603,8 @@ async function jumpTo(text, row) {
     if (!el) return toast(`ไม่พบการ์ด ${orderNo ?? product}`);
   }
   if (!el?.isConnected) return toast('ไม่พบการ์ดในห้องนี้');
+  if (el.matches('details')) el.open = true; // การ์ดในแผงขวา: กางให้เห็นเต็ม
+  $('ordPanel').classList.add('show'); // จอแคบ: เปิดแผงขวาให้เห็นการ์ด
   el.scrollIntoView({ block: 'center', behavior: 'smooth' });
   el.classList.add('flash');
   setTimeout(() => el.classList.remove('flash'), 1600);
@@ -2527,7 +2616,8 @@ const cardName = (o) => norm(`${o.product_name}${o.option_name ? ` (${o.option_n
 // การ์ดของข้อความ "ส่งมอบ…": ใบล่าสุดก่อนข้อความนี้ในห้องนี้ ชื่อสินค้า/เลขออเดอร์ตรง (ไม่ตรง = ไม่เด้ง ดีกว่าเด้งผิดใบ)
 async function findOrderCard(key, row) {
   const match = (o) => o && (norm(o.order_no) === key || key === '#' + o.id || cardName(o) === key || cardName(o).startsWith(key) || key.startsWith(cardName(o)));
-  const above = [...$('msgs').querySelectorAll('.slot')].filter((s) => s.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).reverse();
+  const before = new Date(row.dataset.at);
+  const above = Object.values(slots).flat().filter((s) => new Date(s.dataset.at) <= before).sort((a, b) => new Date(b.dataset.at) - new Date(a.dataset.at)); // ใบล่าสุดก่อนข้อความนี้
   const onScreen = above.find((s) => s.order && match(s.order));
   if (onScreen || claimOpen || !thread) return onScreen;
   // ไม่อยู่ในจอ → หาในฐานข้อมูล (ห้องนี้) แล้วโหลดย้อนถึงการ์ด
@@ -2540,61 +2630,68 @@ async function findOrderCard(key, row) {
   return slots[hit.order_id]?.[0];
 }
 
-// ของฉัน = ขวา · แอดมิน / เพื่อนร่วมร้าน = ซ้าย มีรูป+ชื่อ · มี order_id = การ์ดออเดอร์
+// แบบ 3 ช่อง: ห้องแชท = บทสนทนา · การ์ดออเดอร์อยู่แผงขวา · แจ้งสถานะอัตโนมัติไม่ขึ้นในแชท (ดูสถานะที่แผงขวา)
+// ("ส่งมอบสินค้าแล้ว: …" ของระบบเก่ายังแสดง เพราะอาจมีข้อมูลบัญชีที่ไม่ได้อยู่ในการ์ด)
+const isOrderNotice = (m) => !m.claim_id && ((m.direction === 'out' && /^(⏳ ได้รับออเดอร์|✅ ส่งมอบออเดอร์|❌ ยกเลิกออเดอร์) /.test(m.text ?? '')) || m.text === '🆕 เบิกสต็อคสินค้าใหม่');
+function addOrderSlot(m) { // 1 ออเดอร์ = 1 แถว · ใหม่สุดอยู่บน
+  if (slots[m.order_id]) return;
+  const slot = h('details', 'slot');
+  slot.append(h('summary', 'muted', `📦 ออเดอร์ #${m.order_id} …`), h('div', 'slot-body'));
+  slot.dataset.at = m.created_at;
+  if (m.direction === 'in') slot.dataset.shop = ''; // นับรวมตอนเช็กว่าแอดมินอ่านถึงไหน
+  slots[m.order_id] = [slot];
+  $('opOrders').prepend(slot);
+  renderOpHead();
+}
+
+// ของฉัน = ขวา · แอดมิน / เพื่อนร่วมร้าน = ซ้าย มีรูป+ชื่อ
 function addMsg(m) {
   if (shownIds.has(m.id)) return;
   shownIds.add(m.id);
+  if (m.order_id) return addOrderSlot(m);
+  if (isOrderNotice(m)) return;
   const d = new Date(m.created_at);
   if (d.toDateString() !== lastDay) {
     lastDay = d.toDateString();
     lastWho = '';
     $('msgs').append(h('div', 'day', dayLabel(d)));
   }
-  if (m.order_id) {
-    const slot = h('div', 'slot');
-    slot.append(h('div', 'ocard muted', `📦 ออเดอร์ #${m.order_id} …`));
-    if (m.direction === 'in') slot.dataset.shop = ''; // นับรวมตอนเช็กว่าแอดมินอ่านถึงไหน
-    (slots[m.order_id] ??= []).push(slot);
-    $('msgs').append(slot);
-    lastWho = '';
-  } else {
-    // แอดมินแต่ละคน = ชื่อ + รูปของคนนั้น (ข้อความเก่าที่ไม่รู้ว่าใครตอบ = "แอดมิน" + ตัวอักษรร้าน)
-    const out = m.direction === 'out';
-    const who = m.auto ? 'auto' : (out ? m.sender : m.sender ?? m.contact_id) ?? 'admin'; // auto = 🤖 ข้อความตอบกลับอัตโนมัติ (update-57)
-    const mine = !out && who === me;
-    const label = m.auto ? '🤖 ระบบ' : out ? dnames[who] || 'แอดมิน' : shortName(who);
-    const r = h('div', 'msg ' + (mine ? 'in' : 'out') + (m.auto ? ' auto' : ''));
-    const body = h('div', 'body');
-    if (!mine) {
-      const first = lastWho !== m.direction + who;
-      r.append(!first ? h('div', 'spacer') : m.auto ? h('div', 'av', '🤖') : out && !pics[who] && !dnames[who] ? h('div', 'av', [...SHOP_NAME][0]) : av(who, label));
-      if (first) body.append(h('small', '', label));
-    }
-    const text = m.image_path && m.text === IMG_TEXT ? '' : m.text; // รูปอย่างเดียว = ไม่มีกรอบข้อความ
-    msgById.set(m.id, { name: label, text: text || IMG_TEXT });
-    if (m.reply_to) body.append(quoteEl(m.reply_to));
-    if (m.image_path) body.append(chatImg(m.image_path));
-    if (text) {
-      const b = h('div', 'bubble', text);
-      if (JUMP.test(text)) { // ข้อความที่พูดถึงการ์ด → กดแล้วเด้งไปการ์ดนั้น
-        b.classList.add('jump');
-        b.title = 'กดเพื่อไปที่การ์ด';
-        b.onclick = () => { if (!getSelection().toString()) jumpTo(text, r); }; // ลากคลุมคัดลอก = ไม่เด้ง
-      }
-      body.append(b);
-    }
-    r.dataset.id = m.id;
-    r.dataset.at = m.created_at; // เวลา → หาการ์ดที่อยู่ก่อนข้อความนี้
-    const time = h('time', '', d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }));
-    if (m.direction === 'in') r.dataset.shop = '';
-    if (mine) {
-      const stamp = h('div', 'stamp');
-      stamp.append(h('span', 'read', 'อ่านแล้ว'), time);
-      r.append(body, stamp);
-    } else r.append(body, time);
-    lastWho = m.direction + who;
-    $('msgs').append(r);
+  // แอดมินแต่ละคน = ชื่อ + รูปของคนนั้น (ข้อความเก่าที่ไม่รู้ว่าใครตอบ = "แอดมิน" + ตัวอักษรร้าน)
+  const out = m.direction === 'out';
+  const who = m.auto ? 'auto' : (out ? m.sender : m.sender ?? m.contact_id) ?? 'admin'; // auto = 🤖 ข้อความตอบกลับอัตโนมัติ (update-57)
+  const mine = !out && who === me;
+  const label = m.auto ? '🤖 ระบบ' : out ? dnames[who] || 'แอดมิน' : shortName(who);
+  const r = h('div', 'msg ' + (mine ? 'in' : 'out') + (m.auto ? ' auto' : ''));
+  const body = h('div', 'body');
+  if (!mine) {
+    const first = lastWho !== m.direction + who;
+    r.append(!first ? h('div', 'spacer') : m.auto ? h('div', 'av', '🤖') : out && !pics[who] && !dnames[who] ? h('div', 'av', [...SHOP_NAME][0]) : av(who, label));
+    if (first) body.append(h('small', '', label));
   }
+  const text = m.image_path && m.text === IMG_TEXT ? '' : m.text; // รูปอย่างเดียว = ไม่มีกรอบข้อความ
+  msgById.set(m.id, { name: label, text: text || IMG_TEXT });
+  if (m.reply_to) body.append(quoteEl(m.reply_to));
+  if (m.image_path) body.append(chatImg(m.image_path));
+  if (text) {
+    const b = h('div', 'bubble', text);
+    if (JUMP.test(text)) { // ข้อความที่พูดถึงการ์ด → กดแล้วเด้งไปการ์ดนั้น
+      b.classList.add('jump');
+      b.title = 'กดเพื่อไปที่การ์ด';
+      b.onclick = () => { if (!getSelection().toString()) jumpTo(text, r); }; // ลากคลุมคัดลอก = ไม่เด้ง
+    }
+    body.append(b);
+  }
+  r.dataset.id = m.id;
+  r.dataset.at = m.created_at; // เวลา → หาการ์ดที่อยู่ก่อนข้อความนี้
+  const time = h('time', '', d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }));
+  if (m.direction === 'in') r.dataset.shop = '';
+  if (mine) {
+    const stamp = h('div', 'stamp');
+    stamp.append(h('span', 'read', 'อ่านแล้ว'), time);
+    r.append(body, stamp);
+  } else r.append(body, time);
+  lastWho = m.direction + who;
+  $('msgs').append(r);
   $('msgs').scrollTop = $('msgs').scrollHeight;
 }
 
@@ -2639,19 +2736,29 @@ function chatImg(path) {
 
 // แอดมินอ่านถึงไหน: ข้อความฝั่งร้าน N อันล่าสุด (N = ที่แอดมินยังไม่อ่าน) ยังไม่อ่าน ที่เหลืออ่านแล้ว
 function renderRead() {
-  const sent = [...$('msgs').querySelectorAll('[data-shop]')];
+  const sent = [...$('chatBox').querySelectorAll('[data-shop]')].sort((a, b) => new Date(a.dataset.at) - new Date(b.dataset.at)); // ข้อความ + การ์ดในแผงขวา เรียงตามเวลา
   sent.forEach((r, i) => r.classList.toggle('seen', adminUnread !== null && i < sent.length - adminUnread));
 }
 
+// แถวย่อในแผงขวา: รูปแอป · ชื่อ · เลขออเดอร์ | สถานะ (มีเคลม = สถานะเคลมล่าสุด) · กางแล้วเป็นการ์ดเต็ม
+function fillSlot(slot, o) {
+  let pic = h('span', 'op-pic', '🛍️');
+  if (appPic(o)) Object.assign(pic = h('img', 'op-pic'), { src: appPic(o), alt: '', loading: 'lazy' });
+  const info = h('div', 'op-info');
+  info.append(h('b', '', o.product_name + (o.option_name ? ` (${o.option_name})` : '')), h('small', '', `${ono(o)} · ${dateTH(o.created_at)}`));
+  const last = [...(o.claims ?? [])].sort((a, b) => b.id - a.id)[0];
+  slot.firstChild.className = '';
+  slot.firstChild.replaceChildren(pic, info, pill(last && CLAIM[last.status] ? ['🛠 ' + CLAIM[last.status][0], CLAIM[last.status][1]] : ORDER[o.status]));
+  slot.lastChild.replaceChildren(chatCard(o));
+}
 async function fillCards(ids = Object.keys(slots)) {
   if (!ids.length) return;
   const { data: rows } = await db.from('orders').select('*, products(image_url), shops(name), claims(*)').in('id', ids);
   const got = new Set((rows ?? []).map((o) => String(o.id)));
-  for (const o of rows ?? []) for (const slot of slots[o.id] ?? []) { slot.order = o; slot.replaceChildren(chatCard(o)); } // slot.order = จับคู่ข้อความ "ส่งมอบ…" กับการ์ด
+  for (const o of rows ?? []) for (const slot of slots[o.id] ?? []) { slot.order = o; fillSlot(slot, o); } // slot.order = จับคู่ข้อความ "ส่งมอบ…" กับการ์ด
   for (const id of ids) {
     if (!got.has(String(id))) for (const slot of slots[id] ?? []) slot.firstChild.textContent = `📦 ออเดอร์ #${id} · ร้านที่คุณไม่ได้ดูแล`;
   }
-  $('msgs').scrollTop = $('msgs').scrollHeight;
   if (searching()) searchChat(); // การ์ดโหลดเสร็จ → เลขออเดอร์ในการ์ดค้นเจอ
 }
 
