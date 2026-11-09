@@ -172,7 +172,7 @@
   .item .preview { color: var(--muted); font-size: 13px; }
   .item.unread .preview { color: var(--txt); font-weight: 600; }
   .item time { color: var(--muted); font-size: 11px; flex: none; }
-  .badge { background: var(--green); color: #fff; border-radius: 10px; min-width: 20px; padding: 1px 6px; font-size: 11px; text-align: center; }
+  .badge { background: #ef4444; color: #fff; border-radius: 10px; min-width: 20px; padding: 1px 6px; font-size: 11px; text-align: center; }
 
   .avatar { width: 44px; height: 44px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 700; flex: none; }
   .avatar.sm { width: 32px; height: 32px; font-size: 13px; }
@@ -459,7 +459,8 @@
   /* 🛠 ห้องเคลม (1 เคลม = 1 ห้อง): แท็บในรายการแชท + การ์ดเคลมหัวห้อง */
   .tabs .cnt { background: var(--orange); color: #fff; border-radius: 999px; padding: 0 6px; font-size: 11px; margin-left: 3px; }
   .tabs .cnt:empty { display: none; }
-  .tabs .cnt.green { background: var(--green); }
+  .tabs .cnt.red { background: #ef4444; } /* จำนวนยังไม่อ่าน */
+  .tabs button.has-new::after { content: ''; display: inline-block; width: 8px; height: 8px; margin-left: 4px; border-radius: 50%; background: #ef4444; vertical-align: 1px; } /* ในแท็บนี้มีห้องที่ยังไม่อ่าน */
   /* ≡ ทั้งหมด ▾ (แบบ LINE OA): ทั้งหมด / ยังไม่อ่าน */
   .f-menu { position: fixed; z-index: 40; min-width: 230px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: 0 12px 32px rgba(0, 0, 0, .22); display: flex; flex-direction: column; gap: 2px; }
   .f-menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; border-radius: 8px; text-align: left; font-size: 14px; color: var(--txt); }
@@ -655,13 +656,13 @@
       <button id="searchGo" class="search-go" type="button" hidden>🔍 ค้นหาข้อความ</button>
       <div class="filters">
         <div class="tabs">
-          <button id="fBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-pressed="true">≡ <span id="fLabel">💬 ทั้งหมด</span> ▾<span class="cnt green" id="fCount"></span></button>
+          <button id="fBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-pressed="true">≡ <span id="fLabel">💬 ทั้งหมด</span> ▾<span class="cnt red" id="fCount"></span></button>
           <button data-f="waiting" aria-pressed="false">📦 รอดำเนินการ<span class="cnt" id="waitCount"></span></button>
         </div>
         <div id="fMenu" class="f-menu" role="menu" hidden></div>
         <div class="tabs tabs2"><!-- แถวล่าง: แท็บเคลม ซ้าย · ตัวกรองร้าน/แท็ก ขวา -->
           <button data-f="pending" aria-pressed="false">⏳ รอเคลม<span class="cnt" id="pendRoomCount"></span></button>
-          <button data-f="claims" aria-pressed="false">🛠 เคลมแล้ว<span class="cnt" id="claimRoomCount"></span></button>
+          <button data-f="claims" aria-pressed="false">🛠 เคลมแล้ว<span class="cnt red" id="claimRoomCount"></span></button>
         </div>
         <span class="f-right"><span class="shop-pick"><button id="shopBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="กรองตามร้าน"></button><div id="shopList" class="shop-list" role="listbox" hidden></div></span><select id="shopFilter" aria-label="กรองตามร้าน" hidden><option value="">ทุกร้าน</option></select><select id="tagFilter" aria-label="กรองตามแท็ก"></select></span>
       </div>
@@ -1222,6 +1223,7 @@ function settleClaimRooms() { // นับ / อัปเดตห้องท�
     new Set(claimRooms.filter((c) => c.status === 'pending').map((c) => c.created_by)).size || '';
   updateTitle();
   $('claimRoomCount').textContent = claimRooms.filter((c) => c.status !== 'pending' && c.admin_unread > 0).length || '';
+  document.querySelector('[data-f="pending"]').classList.toggle('has-new', claimRooms.some((c) => c.status === 'pending' && c.admin_unread > 0));
   $('n-chat').textContent = unreadChats + claimUnread || '';
   const fresh = current?.claim && claimRooms.find((c) => c.id === current.claim.id);
   if (fresh) { // ห้องที่เปิดอยู่: ผลเคลมเปลี่ยน → วาดการ์ดใหม่ (ข้อความใหม่เฉยๆ ไม่วาด — กันช่องที่แอดมินกำลังพิมพ์หาย)
@@ -1254,7 +1256,11 @@ function waitRooms() {
   for (const c of contacts) if (c.status === 'doing' && !groups.has(c.key)) groups.set(c.key, []);
   return groups;
 }
-const updateWaitCount = () => { $('waitCount').textContent = waitRooms().size || ''; };
+const updateWaitCount = () => {
+  const rooms = waitRooms();
+  $('waitCount').textContent = rooms.size || '';
+  document.querySelector('[data-f="waiting"]').classList.toggle('has-new', contacts.some((c) => c.unread && rooms.has(c.key)));
+};
 function renderWaitList(q, shopF) {
   const rows = [...waitRooms()].map(([key, list]) => {
     const o = list[0];
@@ -1326,6 +1332,8 @@ function renderClaimList(q, shopF) {
       top.append(h('span', 'name', nameOf(uid)), h('time', '', listTime(list[0].last_at ?? list[0].created_at)));
       bottom.append(pill([`🧾 เคลม ${list.length} ห้อง`, 'pending']), pill([`ค้าง ${list.length}`, 'bad']),
         h('span', 'preview', [...new Set(list.map((c) => shopName[c.shop_id] ?? '#' + c.shop_id))].join(', ')));
+      const unread = list.reduce((s, c) => s + (c.admin_unread ?? 0), 0);
+      if (unread) bottom.append(h('span', 'badge', unread));
       body.append(top, bottom);
       el.append(avatar({ id: uid ?? '?', name: nameOf(uid), shop_id: list[0].shop_id }), body);
       el.onclick = () => { if (list.length === 1) return openClaimRoom(list[0]); claimPerson = uid; renderList(); };
