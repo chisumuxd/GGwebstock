@@ -1023,6 +1023,10 @@ async function start() {
       if (chatSlots[c?.order_id]) fillChatCards([c.order_id]); // สถานะเคลมขึ้นที่การ์ดในแชท
     })
     .subscribe();
+  // เปลี่ยนชื่อ / รูปโปรไฟล์ → แชทเปลี่ยนทันที (update-62) · แยกช่อง: ยังไม่รัน SQL ช่องนี้ใช้ไม่ได้ แต่แชทไม่กระทบ (ยังอัปเดตทุก 1 นาที)
+  const profileCh = db.channel('admin-profiles').on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, ({ new: p }) => p?.user_id && setProfile(p));
+  profileCh.subscribe((status, err) => { if (status === 'CHANNEL_ERROR' && /unable to subscribe/i.test(err?.message ?? '')) db.removeChannel(profileCh); });
+  setInterval(() => { if (!document.hidden) syncProfiles(); }, 60000);
 }
 
 // ---------- รายการแชท ----------
@@ -1840,10 +1844,10 @@ function addMsg(m) {
   const name = m.auto ? '🤖 ระบบ' : m.direction === 'out' ? names[who] || 'แอดมิน' : who === m.contact_id && !current.claim ? current.name : nameOf(who); // ห้องเคลม = ชื่อคนพิมพ์ ไม่ใช่ชื่อห้อง
   const key = m.direction + who;
   const first = lastDir !== key;
-  if (m.direction === 'in') row.append(first ? avatar({ id: who, name, shop_id: current.shop_id }, 'sm') : h('div', 'spacer'));
+  if (m.direction === 'in') row.append(first ? msgAvatar(who, name, current.shop_id) : h('div', 'spacer'));
   const stamp = h('div', 'stamp');
   const text = m.image_path && m.text === IMG_TEXT ? '' : m.text; // รูปอย่างเดียว = ไม่มีกรอบข้อความ
-  msgById.set(m.id, { id: m.id, name, text: text || IMG_TEXT });
+  msgById.set(m.id, { id: m.id, name, text: text || IMG_TEXT, who: m.auto ? '' : who, out: m.direction === 'out' });
   const more = h('button', 'msg-more', '⋯'); // แบบ LINE OA: ⋯ → ↩ ตอบกลับ / 📋 คัดลอก
   more.type = 'button';
   more.title = 'ตอบกลับ / คัดลอก';
@@ -1852,7 +1856,7 @@ function addMsg(m) {
   if (m.direction === 'out') stamp.append(h('span', 'read', 'อ่านแล้ว'));
   stamp.append(h('time', '', clock(d)));
   const body = h('div', 'body');
-  if (first) body.append(h('span', 'sender', name));
+  if (first) body.append(m.auto || !who ? h('span', 'sender', name) : tagName(h('span', 'sender', name), who, m.direction === 'out'));
   if (m.reply_to) body.append(quoteEl(m.reply_to));
   if (m.image_path) body.append(chatImg(m.image_path));
   if (text) {
@@ -1938,7 +1942,9 @@ async function markRead() {
 function quoteEl(id) {
   const q = msgById.get(id);
   const el = h('div', 'quote');
-  el.append('↩ ', h('b', '', q ? q.name : 'ข้อความก่อนหน้า'), q ? ': ' + q.text : '');
+  const who = h('b', '', q ? q.name : 'ข้อความก่อนหน้า');
+  if (q?.who) tagName(who, q.who, q.out);
+  el.append('↩ ', who, q ? ': ' + q.text : '');
   el.onclick = () => {
     const r = $('msgs').querySelector(`.row[data-id="${id}"]`);
     if (!r) return;
@@ -2384,6 +2390,52 @@ function roomChip(c) {
   } else if (c.shop_id) chip.prepend('🏪 ');
   box.append(chip);
   return box;
+}
+
+// ---------- ชื่อ / รูปในแชทเปลี่ยนสด: ติดป้าย user id ไว้ที่ชื่อและรูปของแต่ละข้อความ → อัปเดตตรงจุด ไม่ต้องโหลดห้องใหม่ ----------
+function tagName(el, uid, out) {
+  el.dataset.nameOf = uid;
+  if (out) el.dataset.admin = '';
+  return el;
+}
+function msgAvatar(uid, name, shopId) {
+  const el = avatar({ id: uid, name, shop_id: shopId }, 'sm');
+  el.dataset.uid = uid;
+  el.dataset.shop = shopId ?? '';
+  return el;
+}
+function applyProfile(uid) {
+  const id = CSS.escape(uid);
+  for (const el of $('msgs').querySelectorAll(`[data-name-of="${id}"]`)) el.textContent = names[uid] || ('admin' in el.dataset ? 'แอดมิน' : nameOf(uid));
+  for (const el of $('msgs').querySelectorAll(`[data-uid="${id}"]`)) el.replaceWith(msgAvatar(uid, nameOf(uid), Number(el.dataset.shop) || null));
+  if (current?.id === uid) { // หัวห้อง + แผงข้อมูลขวา
+    const n = nameOf(uid);
+    if (current.claim) current.person = n;
+    else $('name').textContent = current.name = n;
+    $('pName').textContent = current.person ?? current.name;
+    $('headAvatar').replaceChildren(avatar(current, 'sm'));
+    $('pAvatar').replaceChildren(avatar({ ...current, name: current.person ?? current.name }, 'lg'));
+  }
+  renderAcct();
+  renderList();
+  if (current) {
+    fillChatCards(); // ชื่อ/รูปในการ์ดออเดอร์และผลเคลม
+    renderClaimPin();
+  }
+  if (view === 'users') renderUsers();
+}
+function setProfile(p) { // เปลี่ยนจริงเท่านั้นถึงอัปเดตหน้าจอ
+  const uid = p.user_id;
+  if ((names[uid] ?? '') === (p.display_name ?? '') && (avatars[uid] ?? '') === (p.avatar_url ?? '')) return;
+  if (p.display_name) names[uid] = p.display_name;
+  else delete names[uid];
+  if (p.avatar_url) avatars[uid] = p.avatar_url;
+  else delete avatars[uid];
+  applyProfile(uid);
+}
+async function syncProfiles() {
+  const { data } = await db.from('profiles').select('user_id, avatar_url, display_name');
+  (data ?? []).forEach(setProfile);
 }
 
 async function loadAvatars() {
