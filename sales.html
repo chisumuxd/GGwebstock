@@ -152,6 +152,61 @@
   td input:hover { border-color: var(--line); }
   td input:focus { border-color: var(--ac); outline: none; }
 
+  /* ---------- กราฟวิเคราะห์ ---------- */
+  #gLabel { font-size: 14px; white-space: nowrap; }
+  .g-pick { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 4px 10px; font-size: 13px; color: var(--muted); }
+  .g-pick .field { padding: 5px 8px; font-size: 13px; color-scheme: dark; }
+  .kpi.with-ic { position: relative; }
+  .kpi .ic { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-size: 17px; background: var(--card2); border: 1px solid var(--line); }
+  .g-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .g-head h2 { font-size: 16px; margin-bottom: 2px; }
+  .g-toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+  .g-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 5px 9px; border-radius: 9px; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); cursor: pointer; }
+  .g-chip input { accent-color: var(--c); margin: 0; }
+  .g-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
+  .g-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .g-scroll { overflow-x: auto; }
+  #gChart svg { display: block; }
+  #gChart text { fill: var(--muted); font-size: 11px; font-family: inherit; }
+  #gChart text.val { fill: var(--txt); font-size: 10px; font-weight: 700; }
+  .g-grid { stroke: rgba(140, 165, 150, .14); stroke-dasharray: 3 4; }
+  .g-zero { stroke: rgba(140, 165, 150, .45); }
+  .g-hit { fill: transparent; }
+  .g-hit:hover { fill: rgba(140, 165, 150, .08); }
+  .g-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+  .g-two h3 { font-size: 14px; margin-bottom: 6px; }
+  .g-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 2px; border-bottom: 1px solid var(--line); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .g-row.total { font-weight: 700; }
+  .g-row.t5 { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto minmax(96px, auto); gap: 12px; }
+  .g-row.t5 span:nth-child(n+3) { text-align: right; }
+  /* สินค้าขายดี: แนวตั้ง = แท่ง + ไอคอน · แนวนอน = แถบยาว */
+  .ac-v { margin-left: 52px; min-width: max-content; }
+  .ac-plot { position: relative; display: flex; align-items: flex-end; gap: 16px; padding: 0 10px; border-bottom: 1px solid var(--line); }
+  .ac-line { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(140, 165, 150, .14); pointer-events: none; }
+  .ac-line span { position: absolute; right: calc(100% + 8px); top: -8px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .ac-col { position: relative; flex: 1 0 74px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+  .ac-col i { display: block; width: min(100%, 130px); border-radius: 5px 5px 0 0; }
+  .ac-val { text-align: center; line-height: 1.2; margin-bottom: 4px; white-space: nowrap; }
+  .ac-val b { display: block; font-size: 12px; }
+  .ac-val small { color: var(--muted); font-size: 10px; }
+  .ac-names { display: flex; gap: 16px; padding: 6px 10px 0; }
+  .ac-name { flex: 1 0 74px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; text-align: center; min-width: 0; }
+  .app-pic { width: 24px; height: 24px; border-radius: 6px; object-fit: cover; background: #fff; display: grid; place-items: center; font-size: 14px; flex: none; }
+  .ac-h { display: grid; grid-template-columns: 24px minmax(90px, 170px) minmax(120px, 1fr) auto; gap: 10px 12px; align-items: center; font-size: 13px; min-width: 460px; }
+  .ac-h .name { font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .ac-h .bar { height: 16px; background: var(--card2); border-radius: 4px; overflow: hidden; }
+  .ac-h .bar i { display: block; height: 100%; border-radius: 4px; }
+  .ac-h .amt { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ac-h .amt small { color: var(--muted); margin-left: 6px; }
+  .ar-row { display: grid; grid-template-columns: 28px 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 9px 4px; border-bottom: 1px solid var(--line); }
+  .ar-no { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--card2); color: var(--muted); }
+  .ar-row:nth-child(-n+3) .ar-no { background: #a3e635; color: #1a2e05; }
+  .ar-row .app-pic { width: 32px; height: 32px; border-radius: 9px; }
+  .ar-row .name { font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .ar-row .amt { text-align: right; color: #4ade80; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ar-row .amt small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
+  @media (max-width: 760px) { .g-two { grid-template-columns: minmax(0, 1fr); } }
+
   .gate { min-height: 70dvh; display: grid; place-content: center; gap: 10px; text-align: center; }
 </style>
 </head>
@@ -199,24 +254,33 @@
       <button type="button" data-mode="month" aria-pressed="true">เดือน</button>
       <button type="button" data-mode="year" aria-pressed="false">ปี</button>
     </div>
+    <div class="seg" id="gGrain" role="group" aria-label="มุมมองกราฟ" data-in="top daily monthly yearly">
+      <button type="button" data-g="day" aria-pressed="false">วัน</button>
+      <button type="button" data-g="month" aria-pressed="false">เดือน</button>
+      <button type="button" data-g="year" aria-pressed="false">ปี</button>
+    </div>
     <button id="prev" class="field" type="button" aria-label="ก่อนหน้า">◀</button>
+    <b id="gLabel" data-in="top daily monthly yearly"></b>
     <input id="monthSel" class="field" type="month" aria-label="เลือกเดือน">
     <select id="yearSel" class="field" aria-label="เลือกปี" hidden></select>
     <button id="next" class="field" type="button" aria-label="ถัดไป">▶</button>
+    <button id="gToday" class="field" type="button" data-in="top daily monthly yearly">วันนี้</button>
     <span class="spacer"></span>
-    <button id="csv" class="btn" type="button" data-in="sheet expenses">⬇ โหลด Excel (CSV)</button>
+    <span class="g-pick" data-in="top daily monthly yearly">📅 เลือกวันที่
+      <input id="gPickFrom" class="field" type="date" aria-label="ตั้งแต่วันที่"> – <input id="gPickTo" class="field" type="date" aria-label="ถึงวันที่"></span>
+    <button id="csv" class="btn" type="button" data-in="sheet expenses top daily monthly yearly">⬇ โหลด Excel (CSV)</button>
   </div>
-  <div><h2 id="viewTitle"></h2><div id="period"></div></div>
+  <div data-in="overview sheet expenses topups buys renews claims"><h2 id="viewTitle"></h2><div id="period"></div></div>
 
   <div class="kpis" id="kpis" data-in="overview"></div>
 
   <div class="two">
-    <section class="card" data-in="overview daily monthly yearly">
+    <section class="card" data-in="overview">
       <h2>📈 ยอดขาย<span class="muted">ชี้ที่แท่งเพื่อดูทุน · กำไร · ออเดอร์</span></h2>
       <div><div class="chart" id="chart"></div><div class="xlabels" id="xlabels"></div></div>
       <div class="stats" id="stats"></div>
     </section>
-    <section class="card" data-in="overview top">
+    <section class="card" data-in="overview">
       <h2>🔥 สินค้าขายดี
         <span class="seg" id="groupBy" role="group" aria-label="จัดกลุ่ม">
           <button type="button" data-g="app" aria-pressed="true">รวมแอป</button>
@@ -226,6 +290,29 @@
       <div class="top" id="top"></div>
     </section>
   </div>
+
+  <!-- กราฟวิเคราะห์: รายวัน / รายเดือน / รายปี -->
+  <div class="kpis" id="gKpis" data-in="daily monthly yearly"></div>
+  <section class="card" data-in="daily monthly yearly">
+    <div class="g-head"><div><h2 id="gTitle"></h2><span class="muted" id="gSub"></span></div><div class="g-toggles" id="gToggles" role="group" aria-label="เลือกข้อมูลที่แสดงในกราฟ"></div></div>
+    <div class="g-legend" id="gLegend"></div>
+    <div class="g-scroll"><div id="gChart"></div></div>
+    <div class="g-two">
+      <div><h3>📊 สรุปยอดรวม</h3><div id="gSum"></div></div>
+      <div><h3 id="gTopTitle"></h3><div id="gTop5"></div></div>
+    </div>
+  </section>
+
+  <!-- กราฟวิเคราะห์: สินค้าขายดี -->
+  <section class="card" data-in="top">
+    <div class="g-head"><div><h2>🔥 กราฟสินค้าขายดี</h2><span class="muted" id="appSub"></span></div>
+      <span class="seg" id="gDir" role="group" aria-label="รูปแบบกราฟ"><button type="button" data-d="v" aria-pressed="true">📊 แนวตั้ง</button><button type="button" data-d="h" aria-pressed="false">📈 แนวนอน</button></span></div>
+    <div class="g-scroll"><div id="appChart"></div></div>
+  </section>
+  <section class="card" data-in="top">
+    <h2>🏆 อันดับสินค้าขายดี (ทุกอันดับ)</h2>
+    <div id="appRank"></div>
+  </section>
  </div>
 
   <section class="card" id="sheetCard" data-in="sheet expenses">
@@ -286,13 +373,13 @@ let catalog = [];     // สินค้าในร้าน (ชื่อ + �
 let group = 'app';
 let view = 'overview'; // เมนูซ้ายที่เปิดอยู่ (data-view)
 let freeMode = 'month'; // ช่วงเวลาที่ผู้ใช้เลือกเอง (เมนูที่ไม่บังคับช่วง)
-// เมนูที่บังคับช่วงเวลา: กราฟรายวัน = ทั้งเดือน · รายเดือน = ทั้งปี · รายปี = ย้อนหลัง 5 ปี · บันทึกรายจ่าย = รายวันทั้งเดือน
-const FORCE = { expenses: 'month', daily: 'month', monthly: 'year', yearly: 'years' };
-const YEARS = 5;
+// เมนูที่บังคับช่วงเวลา: กราฟวิเคราะห์ = ช่วงของตัวเอง (ดู gDefault) · บันทึกรายจ่าย = รายวันทั้งเดือน
+const FORCE = { expenses: 'month', daily: 'graph', monthly: 'graph', yearly: 'graph', top: 'graph' };
 
 function setView(v) {
   view = v;
   mode = FORCE[v] ?? freeMode;
+  if (v in GRAPH) { gGrain = GRAPH[v]; gDefault(gGrain); }
   const btn = $('side').querySelector(`[data-view="${v}"]`);
   for (const b of $('side').querySelectorAll('button')) b.toggleAttribute('aria-current', b === btn);
   btn.setAttribute('aria-current', 'page');
@@ -343,7 +430,7 @@ function gate(msg) {
 function range() {
   if (mode === 'today') return [today, today];
   if (mode === '7d') return [new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6), today];
-  if (mode === 'years') return [new Date(today.getFullYear() - YEARS + 1, 0, 1), today];
+  if (mode === 'graph') return [gFrom, gTo];
   const end = mode === 'month' ? new Date(month.getFullYear(), month.getMonth() + 1, 0) : new Date(year, 11, 31);
   return [mode === 'month' ? month : new Date(year, 0, 1), end < today ? end : today]; // ไม่เกินวันนี้
 }
@@ -353,7 +440,7 @@ function periodText() {
   if (mode === 'today') return 'วันนี้ ' + dayLabel(iso(today));
   if (mode === '7d') return `7 วันล่าสุด · ${dayLabel(iso(from))} – ${dayLabel(iso(to))}`;
   if (mode === 'month') return 'เดือน' + month.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
-  if (mode === 'years') return `รายปี · ย้อนหลังสูงสุด ${YEARS} ปี`;
+  if (mode === 'graph') return `${gDate(gFrom)} – ${gDate(gTo)}`;
   return `ปี ${year + 543}`;
 }
 
@@ -362,10 +449,14 @@ function syncControls() {
   $('modes').hidden = !!FORCE[view];
   $('monthSel').hidden = mode !== 'month';
   $('yearSel').hidden = mode !== 'year';
-  $('prev').hidden = $('next').hidden = mode !== 'month' && mode !== 'year';
+  $('prev').hidden = $('next').hidden = mode !== 'month' && mode !== 'year' && mode !== 'graph';
   $('monthSel').value = iso(month).slice(0, 7);
   $('yearSel').value = year;
-  $('next').disabled = mode === 'month' ? +month >= +new Date(today.getFullYear(), today.getMonth(), 1) : year >= today.getFullYear();
+  $('next').disabled = mode === 'graph' ? +gTo >= +today : mode === 'month' ? +month >= +new Date(today.getFullYear(), today.getMonth(), 1) : year >= today.getFullYear();
+  if (mode !== 'graph') return;
+  $('gLabel').textContent = periodText();
+  for (const b of $('gGrain').children) b.setAttribute('aria-pressed', b.dataset.g === gGrain);
+  $('gPickFrom').max = $('gPickTo').max = iso(today);
 }
 
 // ---------- โหลด + คำนวณ ----------
@@ -409,22 +500,27 @@ async function load() {
       ads_fb: +r.ads_fb || 0, ads_other: +r.ads_other || 0, staff: +r.staff || 0, other: +r.other || 0,
       fb_sales: +r.fb_sales || 0, extra: +r.extra || 0, topup: +r.topup || 0 })); // 3 ช่องหลัง = update-32
   }
-  if (mode === 'years') { // ปีก่อนเริ่มมีข้อมูล ไม่ต้องแสดง
-    const first = days.find((r) => r.sales || r.orders)?.day.slice(0, 4) ?? String(today.getFullYear());
-    days = days.filter((r) => r.day >= first);
+  if (view === 'yearly' && !gCustom) { // ปีก่อนเริ่มมีข้อมูล ไม่ต้องแสดง
+    const first = days.find((r) => r.sales || r.orders)?.day.slice(0, 4);
+    if (first) {
+      days = days.filter((r) => r.day >= first);
+      gFrom = new Date(+first, 0, 1); // ป้ายช่วงเริ่มจากปีแรกที่มีข้อมูลจริง
+      $('gLabel').textContent = periodText();
+    }
   }
   dayCount = days.length;
-  const cut = { year: 7, years: 4 }[mode]; // มุมมองปี = รวมรายเดือน · รายปี = รวมรายปี
+  const cut = mode === 'year' || view === 'monthly' ? 7 : view === 'yearly' ? 4 : 0; // มุมมองปี / กราฟรายเดือน = รวมรายเดือน · กราฟรายปี = รวมรายปี
   if (cut) {
     const by = {};
     for (const r of days) (by[r.day.slice(0, cut)] ??= []).push(r);
-    rows = Object.entries(by).map(([k, list]) => total(list, { day: k, month: mode === 'year', year: mode === 'years' }));
+    rows = Object.entries(by).map(([k, list]) => total(list, { day: k, month: cut === 7, year: cut === 4 }));
   } else rows = days;
   products = p.data;
   renderKpis();
   renderChart();
   renderTop();
   renderSheet();
+  renderGraph();
 }
 
 // ---------- ตัวเลขหลัก ----------
@@ -481,7 +577,7 @@ function renderChart() {
     el.append(h('small', '', label), h('b', '', value), h('small', '', sub));
     return el;
   };
-  const unit = mode === 'years' ? 'ปี' : mode === 'year' ? 'เดือน' : 'วัน';
+  const unit = mode === 'year' ? 'เดือน' : 'วัน';
   $('stats').replaceChildren(
     stat(`${unit}ที่ขายได้มากสุด`, baht(best.sales), rowLabel(best)),
     stat(`${unit}ที่ขายได้น้อยสุด`, baht(worst.sales), rowLabel(worst)),
@@ -494,9 +590,293 @@ function showTip(e, r) {
   const net = h('div', r.net < 0 ? 'minus' : 'plus', `กำไรสุทธิ ${baht(r.net)}`);
   tip.replaceChildren(h('b', '', rowLabel(r)), h('div', '', `ยอดขาย ${baht(r.sales)}`),
     h('div', 'muted', `ทุน ${baht(r.cost)} · ${r.orders} ออเดอร์`), net);
+  placeTip(e);
+}
+function placeTip(e) {
+  const tip = $('tip');
   tip.hidden = false;
   tip.style.left = Math.max(8, Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8)) + 'px';
   tip.style.top = Math.max(8, e.clientY - tip.offsetHeight - 14) + 'px';
+}
+
+// ---------- กราฟวิเคราะห์: กราฟแท่งรายวัน / เดือน / ปี + สินค้าขายดี ----------
+const GRAPH = { daily: 'day', monthly: 'month', yearly: 'year', top: null }; // เมนู → มุมมอง (กราฟสินค้าขายดี = ไม่ล็อกมุมมอง)
+const GRAPH_VIEW = { day: 'daily', month: 'monthly', year: 'yearly' };
+let gGrain = null;
+let gFrom = today;
+let gTo = today;
+let gCustom = false; // เลือกวันที่เอง
+let gDir = 'v';      // สินค้าขายดี: v = แนวตั้ง · h = แนวนอน
+// ชุดข้อมูลในกราฟแท่ง (เปิด/ปิดได้)
+const SERIES = [
+  { k: 'sales', label: 'ยอดขาย', icon: '💰', color: '#22c55e', on: true },
+  { k: 'cost', label: 'ต้นทุน', icon: '🏭', color: '#e0975a', on: true },
+  { k: 'gross', label: 'กำไรก่อน GG', icon: '📈', color: '#8b7cf6', on: true },
+  { k: 'exp', label: 'ค่าใช้จ่าย', icon: '💸', color: '#f43f5e', on: false },
+  { k: 'net', label: 'กำไรสุทธิ', icon: '✅', color: '#15803d', on: true },
+];
+const APP_COLORS = ['#22c55e', '#4ade80', '#16a34a', '#86efac', '#14b8a6', '#2dd4bf', '#a3e635', '#5eead4', '#bef264', '#34d399'];
+
+const gDate = (d) => `${d.getDate()}/${d.getMonth() + 1}/${String(d.getFullYear() + 543).slice(2)}`;
+const gFull = (d) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543}`;
+function gLab(r) { // ป้ายแกน: รายวัน 11/10/69 · รายเดือน ต.ค. 69 · รายปี 2569
+  if (r.year) return String(+r.day + 543);
+  if (r.month) return new Date(r.day + '-01T00:00').toLocaleDateString('th-TH', { month: 'short', year: '2-digit' });
+  return gDate(new Date(r.day + 'T00:00'));
+}
+// ช่วงตั้งต้น: วัน = 30 วันล่าสุด · เดือน = 12 เดือนล่าสุด · ปี = 5 ปีล่าสุด
+function gDefault(g) {
+  gCustom = false;
+  $('gPickFrom').value = $('gPickTo').value = '';
+  gTo = today;
+  const [y, m, d] = [today.getFullYear(), today.getMonth(), today.getDate()];
+  gFrom = g === 'month' ? new Date(y, m - 11, 1) : g === 'year' ? new Date(y - 4, 0, 1) : new Date(y, m, d - 29);
+}
+function gShift(dir) { // ◀ ▶ เลื่อนทีละช่วง
+  if (gCustom || !gGrain || gGrain === 'day') {
+    const span = Math.round((gTo - gFrom) / 864e5) + 1;
+    gFrom = new Date(gFrom.getFullYear(), gFrom.getMonth(), gFrom.getDate() + span * dir);
+    gTo = new Date(gTo.getFullYear(), gTo.getMonth(), gTo.getDate() + span * dir);
+  } else {
+    const months = gGrain === 'month' ? 12 : 60;
+    gFrom = new Date(gFrom.getFullYear(), gFrom.getMonth() + months * dir, 1);
+    gTo = new Date(gFrom.getFullYear(), gFrom.getMonth() + months, 0);
+  }
+  if (gTo > today) gTo = today;
+}
+for (const b of $('gGrain').children) b.onclick = () => {
+  if (view !== 'top') return setView(GRAPH_VIEW[b.dataset.g]); // กราฟแท่ง: สลับเมนู รายวัน / เดือน / ปี
+  gGrain = b.dataset.g;
+  gDefault(gGrain);
+  load();
+};
+$('gToday').onclick = () => { gDefault(gGrain ?? 'day'); load(); };
+$('gPickFrom').onchange = $('gPickTo').onchange = () => {
+  let [a, b] = [$('gPickFrom').value, $('gPickTo').value];
+  if (!a || !b) return;
+  if (a > b) [a, b] = [b, a];
+  $('gPickFrom').value = a;
+  $('gPickTo').value = b;
+  gFrom = new Date(a + 'T00:00');
+  gTo = new Date(b + 'T00:00');
+  if (gTo > today) gTo = today;
+  gCustom = true;
+  load();
+};
+for (const b of $('gDir').children) b.onclick = () => {
+  gDir = b.dataset.d;
+  for (const x of $('gDir').children) x.setAttribute('aria-pressed', x === b);
+  renderApps();
+};
+// ปุ่มเปิด/ปิดชุดข้อมูล
+$('gToggles').replaceChildren(...SERIES.map((s) => {
+  const chip = h('label', 'g-chip');
+  chip.style.setProperty('--c', s.color);
+  const box = h('input');
+  box.type = 'checkbox';
+  box.checked = s.on;
+  box.onchange = () => { s.on = box.checked; drawBars(); };
+  chip.append(box, `${s.icon} ${s.label}`);
+  return chip;
+}));
+
+function renderGraph() {
+  if (!(view in GRAPH)) return;
+  if (view === 'top') return renderApps();
+  const t = total(rows);
+  const card = (label, icon, value, vcls, sub) => {
+    const el = h('div', 'kpi with-ic');
+    el.append(h('small', '', label), h('span', 'ic', icon), h('b', vcls, value), h('span', 'muted', sub));
+    return el;
+  };
+  $('gKpis').replaceChildren(
+    card('ยอดขายรวม', '💰', baht(t.sales), '', `${t.orders.toLocaleString('th-TH')} ออเดอร์`),
+    card('ต้นทุนสินค้า', '🏭', baht(t.cost), 'v-cost', 'หักที่ได้คืนจากเคลมแล้ว'),
+    card('ค่าใช้จ่ายอื่นๆ', '💸', baht(t.exp), 'v-exp', 'พนักงาน + ค่าแอด + อื่นๆ'),
+    card('กำไรสุทธิ', '📈', baht(t.net), t.net < 0 ? 'minus' : 'plus', `หลังหัก GG-PLUS ${GG_SHARE * 100}% (${baht(t.share)})`));
+  $('gTitle').textContent = `📊 กราฟแท่ง ราย${{ daily: 'วัน', monthly: 'เดือน', yearly: 'ปี' }[view]}`;
+  $('gSub').textContent = `ช่วง: ${gFull(gFrom)} → ${gFull(gTo)} · ร้าน: ${shopName()} · ${rows.length} จุดข้อมูล`;
+  drawBars();
+  const line = (label, value, cls = '', extra = '') => {
+    const r = h('div', 'g-row ' + extra);
+    r.append(h('span', '', label), h('span', cls, value));
+    return r;
+  };
+  const margin = t.sales ? (t.net / t.sales) * 100 : 0;
+  $('gSum').replaceChildren(
+    line('💰 ยอดขายรวม', baht(t.sales), 'plus'),
+    line('🏭 ต้นทุนสต็อก', baht(t.cost), 'v-cost'),
+    line('📈 กำไรก่อน GG', baht(t.gross)),
+    line(`🤝 จ่าย GG-PLUS ${GG_SHARE * 100}%`, baht(t.share), 'v-share'),
+    line('💸 ค่าใช้จ่าย (4 ช่อง)', baht(t.exp), 'v-exp'),
+    line('✅ กำไรสุทธิ', baht(t.net), t.net < 0 ? 'minus' : 'plus', 'total'),
+    line('🧾 จำนวนบิล / Margin', `${t.orders.toLocaleString('th-TH')} บิล · ${margin.toFixed(1)}%`));
+  const unit = { daily: 'วัน', monthly: 'เดือน', yearly: 'ปี' }[view];
+  $('gTopTitle').textContent = `🏆 5 ${unit}ยอดสูงสุด`;
+  const best = rows.filter((r) => r.sales > 0).sort((a, b) => b.sales - a.sales).slice(0, 5);
+  $('gTop5').replaceChildren(...best.map((r, i) => {
+    const el = h('div', 'g-row t5');
+    el.append(h('span', '', ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'][i]), h('span', '', gLab(r)), h('span', 'plus', baht(r.sales)), h('span', r.net < 0 ? 'minus' : 'plus', baht(r.net)));
+    return el;
+  }));
+  if (!best.length) $('gTop5').append(h('p', 'muted', 'ยังไม่มีการขายในช่วงนี้'));
+}
+
+const svgEl = (tag, attrs, text) => {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  if (text != null) el.textContent = text;
+  return el;
+};
+const axisText = (v) => `${v < 0 ? '-' : ''}฿${short(Math.abs(v))}`;
+function graphTip(e, r) {
+  $('tip').replaceChildren(h('b', '', gLab(r)), ...SERIES.map((s) => h('div', r[s.k] < 0 ? 'minus' : '', `${s.icon} ${s.label} ${baht(r[s.k])}`)), h('div', 'muted', `${r.orders.toLocaleString('th-TH')} ออเดอร์`));
+  placeTip(e);
+}
+// กราฟแท่งหลายชุดต่อ 1 จุด (SVG) · ค่าติดลบลงใต้เส้น 0 · จุดเยอะ / จอแคบ = เลื่อนซ้าย-ขวาได้
+function drawBars() {
+  const box = $('gChart');
+  const on = SERIES.filter((s) => s.on);
+  $('gLegend').replaceChildren(...on.map((s) => {
+    const el = h('span', '', `${s.icon} ${s.label}`);
+    const dot = h('i');
+    dot.style.background = s.color;
+    el.prepend(dot);
+    return el;
+  }));
+  if (!rows.length || !on.length) return box.replaceChildren(h('p', 'muted', on.length ? 'ยังไม่มีข้อมูลในช่วงนี้' : 'เลือกข้อมูลที่ต้องการแสดงด้านบน'));
+  const vals = rows.flatMap((r) => on.map((s) => r[s.k]));
+  const hi = Math.max(0, ...vals);
+  const lo = Math.min(0, ...vals);
+  const step = niceMax((hi - lo) / 6) || 1;
+  const yTop = Math.ceil(hi / step) * step || step;
+  const yBot = Math.floor(lo / step) * step;
+  const m = { l: 58, r: 10, t: 24, b: 66 };
+  const W = Math.max(box.parentElement.clientWidth, m.l + m.r + rows.length * (on.length * 7 + 10));
+  const H = 400;
+  const plotW = W - m.l - m.r;
+  const plotH = H - m.t - m.b;
+  const y = (v) => m.t + ((yTop - v) / (yTop - yBot)) * plotH;
+  const svg = svgEl('svg', { width: W, height: H, role: 'img', 'aria-label': 'กราฟแท่งยอดขาย' });
+  for (let v = yBot; v <= yTop + step / 2; v += step) {
+    svg.append(svgEl('line', { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), class: v === 0 ? 'g-zero' : 'g-grid' }),
+      svgEl('text', { x: m.l - 8, y: y(v) + 4, 'text-anchor': 'end' }, axisText(v)));
+  }
+  const g = plotW / rows.length;
+  const bw = Math.min((g * 0.8) / on.length, 30);
+  const every = Math.max(1, Math.ceil(rows.length / (plotW / 34)));
+  rows.forEach((r, i) => {
+    const x0 = m.l + i * g + (g - bw * on.length) / 2;
+    const hit = svgEl('rect', { x: m.l + i * g, y: m.t, width: g, height: plotH, class: 'g-hit' });
+    hit.addEventListener('pointerenter', (e) => graphTip(e, r));
+    hit.addEventListener('pointermove', (e) => graphTip(e, r));
+    hit.addEventListener('pointerleave', () => { $('tip').hidden = true; });
+    svg.append(hit);
+    on.forEach((s, j) => {
+      const v = r[s.k];
+      if (!v) return;
+      const a = y(Math.max(v, 0));
+      svg.append(svgEl('rect', { x: x0 + j * bw, y: a, width: Math.max(bw - 1, 1), height: Math.max(Math.abs(y(v) - y(0)), 1), rx: 2, fill: s.color, 'pointer-events': 'none' }));
+    });
+    const lead = on[0]; // ป้ายตัวเลขเหนือแท่งแรก (เว้นเมื่อจุดแน่นเกิน)
+    if (g >= 30 && r[lead.k] > 0) svg.append(svgEl('text', { x: x0 + bw / 2, y: y(r[lead.k]) - 4, 'text-anchor': 'middle', class: 'val', 'pointer-events': 'none' }, axisText(r[lead.k])));
+    if (i % every === 0) {
+      const lx = m.l + i * g + g / 2 + 4;
+      const ly = H - m.b + 16;
+      svg.append(svgEl('text', { x: lx, y: ly, 'text-anchor': 'end', transform: `rotate(-45 ${lx} ${ly})` }, gLab(r)));
+    }
+  });
+  box.replaceChildren(svg);
+}
+let gW = 0; // กว้างเปลี่ยน (หมุนจอ / ย่อหน้าต่าง) → วาดกราฟใหม่
+new ResizeObserver(([e]) => {
+  const w = Math.round(e.contentRect.width);
+  if (!w || w === gW) return;
+  gW = w;
+  if (view in GRAPH && view !== 'top') drawBars();
+}).observe($('gChart').parentElement);
+
+// สินค้าขายดีรวมตามแอป: "Netflix ( TV )" + "Netflix ( มือถือ )" = Netflix
+function appGroups() {
+  const pool = picPool();
+  const map = new Map();
+  for (const p of products) {
+    const key = appKey(p.product_name);
+    const g = map.get(key) ?? { name: String(p.product_name).split('(')[0].trim() || p.product_name, img: null, orders: 0, sales: 0 };
+    g.img ??= p.image_url ?? picFor(p.product_name, pool) ?? null;
+    g.orders += p.orders;
+    g.sales += +p.sales;
+    map.set(key, g);
+  }
+  return [...map.values()].sort((a, b) => b.sales - a.sales || b.orders - a.orders);
+}
+function appPicEl(g) {
+  if (!g.img) return h('div', 'app-pic', '📦');
+  const img = h('img', 'app-pic');
+  Object.assign(img, { src: g.img, alt: '', loading: 'lazy' });
+  return img;
+}
+function renderApps() {
+  const list = appGroups();
+  const shown = list.slice(0, 10);
+  $('appSub').textContent = `ช่วง: ${periodText()} · ร้าน: ${shopName()} · ${list.length} แอป`;
+  const box = $('appChart');
+  if (!shown.length) box.replaceChildren(h('p', 'muted', 'ยังไม่มีการขายในช่วงนี้'));
+  else if (gDir === 'h') {
+    const wrap = h('div', 'ac-h');
+    const max = shown[0].sales || 1;
+    shown.forEach((g, i) => {
+      const bar = h('div', 'bar');
+      const fill = h('i');
+      Object.assign(fill.style, { width: Math.max(1, (g.sales / max) * 100) + '%', background: APP_COLORS[i % APP_COLORS.length] });
+      bar.append(fill);
+      const amt = h('div', 'amt', baht(g.sales));
+      amt.append(h('small', '', `${g.orders} ออเดอร์`));
+      wrap.append(appPicEl(g), h('div', 'name', g.name), bar, amt);
+    });
+    box.replaceChildren(wrap);
+  } else {
+    const PLOT = 260;
+    const step = niceMax((shown[0].sales || 1) / 6);
+    const yTop = Math.ceil(shown[0].sales / step) * step || step;
+    const wrap = h('div', 'ac-v');
+    const plot = h('div', 'ac-plot');
+    plot.style.height = PLOT + 44 + 'px';
+    for (let v = 0; v <= yTop + step / 2; v += step) {
+      const l = h('div', 'ac-line');
+      l.style.bottom = (v / yTop) * PLOT + 'px';
+      l.append(h('span', '', '฿' + short(v)));
+      plot.append(l);
+    }
+    const names = h('div', 'ac-names');
+    shown.forEach((g, i) => {
+      const col = h('div', 'ac-col');
+      const val = h('div', 'ac-val');
+      val.append(h('b', '', '฿' + short(g.sales)), h('small', '', `${g.orders} ออเดอร์`));
+      const bar = h('i');
+      Object.assign(bar.style, { height: Math.max(2, (g.sales / yTop) * PLOT) + 'px', background: APP_COLORS[i % APP_COLORS.length] });
+      col.append(val, bar);
+      col.onpointerenter = col.onpointermove = (e) => {
+        $('tip').replaceChildren(h('b', '', g.name), h('div', '', `ยอดขาย ${baht(g.sales)}`), h('div', 'muted', `${g.orders.toLocaleString('th-TH')} ออเดอร์`));
+        placeTip(e);
+      };
+      col.onpointerleave = () => { $('tip').hidden = true; };
+      plot.append(col);
+      const name = h('div', 'ac-name');
+      name.append(appPicEl(g), h('span', '', g.name));
+      names.append(name);
+    });
+    wrap.append(plot, names);
+    box.replaceChildren(wrap);
+  }
+  $('appRank').replaceChildren(...list.map((g, i) => {
+    const row = h('div', 'ar-row');
+    const amt = h('div', 'amt', baht(g.sales));
+    amt.append(h('small', '', `${g.orders.toLocaleString('th-TH')} ออเดอร์`));
+    row.append(h('span', 'ar-no', i + 1), appPicEl(g), h('div', 'name', g.name), amt);
+    return row;
+  }));
+  if (!list.length) $('appRank').append(h('p', 'muted', 'ยังไม่มีการขายในช่วงนี้'));
 }
 
 // ---------- สินค้าขายดี ----------
@@ -512,12 +892,13 @@ function picFor(name, pool) {
     ?? (k.length >= 3 ? pool.find((p) => p.key.length >= 3 && (k.includes(p.key) || p.key.includes(k)))?.img : null)
     ?? pool.find((p) => p.words.some((w) => ws.includes(w)))?.img;
 }
+// ไม่มีรูป (ออเดอร์เก่าที่ไม่ได้ผูกสินค้า) → ยืมรูปจากสินค้า/ออเดอร์ที่ชื่อใกล้กัน (ดู picFor)
+const picPool = () => [...products.map((p) => [p.product_name, p.image_url]), ...catalog.map((p) => [p.name, p.image_url])]
+  .filter(([, img]) => img).map(([n, img]) => ({ key: appKey(n), words: appWords(n), img }))
+  .sort((a, b) => b.key.length - a.key.length); // ชื่อซ้อนกัน = เอาอันที่ยาวสุด (ใกล้สุด)
 function renderTop() {
   const map = new Map();
-  // ไม่มีรูป (ออเดอร์เก่าที่ไม่ได้ผูกสินค้า) → ยืมรูปจากสินค้า/ออเดอร์ที่ชื่อใกล้กัน (ดู picFor)
-  const pool = [...products.map((p) => [p.product_name, p.image_url]), ...catalog.map((p) => [p.name, p.image_url])]
-    .filter(([, img]) => img).map(([n, img]) => ({ key: appKey(n), words: appWords(n), img }))
-    .sort((a, b) => b.key.length - a.key.length); // ชื่อซ้อนกัน = เอาอันที่ยาวสุด (ใกล้สุด)
+  const pool = picPool();
   for (const p of products) {
     const key = group === 'app' ? p.product_name : `${p.product_name}${p.option_name ? ' · ' + p.option_name : ''}`;
     const g = map.get(key) ?? { name: key, img: p.image_url ?? picFor(p.product_name, pool), orders: 0, sales: 0 };
@@ -528,7 +909,7 @@ function renderTop() {
   }
   const list = [...map.values()].sort((a, b) => b.sales - a.sales || b.orders - a.orders);
   const sum = list.reduce((a, g) => a + g.sales, 0);
-  const max = view === 'top' ? list.length : 10; // เมนูกราฟสินค้าขายดี = แสดงครบทุกรายการ
+  const max = 10;
   $('top').replaceChildren(...list.slice(0, max).map((g, i) => {
     const pct = sum ? (g.sales / sum) * 100 : 0;
     const row = h('div', 'top-row');
@@ -567,7 +948,7 @@ const EXP_COLS = COLS.filter(([k]) => [...EXP.map((e) => e[0]), 'exp', 'extra'].
 const sheetCols = () => (view === 'expenses' ? EXP_COLS : COLS);
 function renderSheet() {
   const COLS = sheetCols();
-  const editable = mode !== 'year' && mode !== 'years' && shopId !== null; // กรอกได้เฉพาะแถวรายวันของร้านเดียว
+  const editable = mode !== 'year' && mode !== 'graph' && shopId !== null; // กรอกได้เฉพาะแถวรายวันของร้านเดียว
   $('sheetTitle').textContent = view === 'expenses' ? '💸 บันทึกรายจ่าย (รายวัน)' : '🧾 ชีตรวมยอดขาย';
   const head = h('tr');
   head.append(h('th', '', mode === 'year' ? 'เดือน' : 'วันที่'), ...COLS.map(([, label, note, cls = '']) => {
@@ -710,15 +1091,23 @@ function filterHist() {
 $('histQ').oninput = filterHist;
 
 // ---------- โหลดเป็นไฟล์ (เปิดใน Excel ได้ ภาษาไทยไม่เพี้ยน) ----------
-$('csv').onclick = () => {
-  const COLS = sheetCols();
-  const lines = [[mode === 'year' ? 'เดือน' : 'วันที่', ...COLS.map((c) => c[1])],
-    ...rows.map((r) => [rowLabel(r), ...COLS.map(([k]) => r[k])]),
+const GRAPH_CSV = [['sales', 'ยอดขาย'], ['cost', 'ต้นทุน'], ['gross', 'กำไรก่อน GG'], ['share', 'หัก GG-PLUS'], ['exp', 'ค่าใช้จ่าย'], ['net', 'กำไรสุทธิ'], ['orders', 'ออเดอร์']];
+function csvLines() {
+  if (view === 'top') return [['อันดับ', 'แอป', 'ยอดขาย', 'ออเดอร์'], ...appGroups().map((g, i) => [i + 1, g.name, g.sales, g.orders])];
+  const COLS = view in GRAPH ? GRAPH_CSV : sheetCols();
+  const label = view in GRAPH ? gLab : rowLabel;
+  const first = view === 'yearly' ? 'ปี' : mode === 'year' || view === 'monthly' ? 'เดือน' : 'วันที่';
+  return [[first, ...COLS.map((c) => c[1])],
+    ...rows.map((r) => [label(r), ...COLS.map(([k]) => r[k])]),
     ['รวม', ...COLS.map(([k]) => total(rows)[k])]];
-  const csv = '﻿' + lines.map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+}
+$('csv').onclick = () => {
+  const lines = csvLines();
+  const csv ='﻿' + lines.map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
   const a = h('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = `${view === 'expenses' ? 'รายจ่าย' : 'ยอดขาย'}-${shopName()}-${periodText()}.csv`;
+  const kind = view === 'expenses' ? 'รายจ่าย' : view === 'top' ? 'สินค้าขายดี' : 'ยอดขาย';
+  a.download = `${kind}-${shopName()}-${periodText()}.csv`.replace(/[\\/:*?"<>|]/g, '-');
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
@@ -774,7 +1163,8 @@ $('monthSel').onchange = () => {
 };
 $('yearSel').onchange = () => { year = Number($('yearSel').value); load(); };
 const shift = (n) => {
-  if (mode === 'month') month = new Date(month.getFullYear(), month.getMonth() + n, 1);
+  if (mode === 'graph') gShift(n);
+  else if (mode === 'month') month = new Date(month.getFullYear(), month.getMonth() + n, 1);
   else year += n;
   load();
 };
