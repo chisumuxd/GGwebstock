@@ -1042,6 +1042,7 @@ const rank = (n) => n ?? Infinity; // ยังไม่จัดลำดับ
 let buying = null;         // { p, i } ในหน้าต่างซื้อ
 let claimOrder = null;
 let channel = null;
+let catalogCh = null;
 
 $('logo').textContent = $('heroName').textContent = document.title = SHOP_NAME;
 $('heroPromo').onclick = () => setTab('promos');
@@ -1067,9 +1068,10 @@ function toast(msg) {
   document.body.append(t);
   setTimeout(() => t.remove(), 2500);
 }
+let quiet = false; // กำลังอัปเดตเบื้องหลัง: เน็ตสะดุดไม่ต้องเด้งแจ้งเตือน
 async function q(builder) {
   const { data: rows, error } = await builder;
-  if (error) { alert(error.message); return null; }
+  if (error) { if (!quiet) alert(error.message); return null; }
   return rows;
 }
 function show(view) {
@@ -1118,12 +1120,32 @@ async function start() {
       if (slots[c?.order_id]) fillCards([c.order_id]); // สถานะเคลมขึ้นที่การ์ดในแชท
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'topups' }, refresh)
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shops' }, refresh)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shops' }, ({ new: n }) => {
+      const s = shops.find((x) => x.id === n?.id); // แอดมินเปลี่ยนชื่อ / โลโก้ร้าน → หัวเว็บเปลี่ยนตาม
+      if (s && (s.name !== n.name || s.avatar_url !== n.avatar_url)) {
+        Object.assign(s, { name: n.name, avatar_url: n.avatar_url });
+        if (s === shop) showShopPic();
+      }
+      refresh();
+    })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: m }) => onMessage(m))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'threads' }, ({ new: t }) => { // แอดมินเปิดอ่าน → "อ่านแล้ว"
       if (t?.contact_id === thread && t.shop_id === shop.id) { adminUnread = t.unread; renderRead(); }
     })
     .subscribe();
+  // สินค้า / รูปหมวด / โปร / บริการ เปลี่ยน → อัปเดตทันที (update-61) · แยกช่อง: ยังไม่รัน SQL ช่องนี้ใช้ไม่ได้ แต่ออเดอร์/แชทไม่กระทบ (ยังอัปเดตทุก 1 นาที)
+  if (!catalogCh) {
+    const later = (fn) => { let t; return () => { clearTimeout(t); t = setTimeout(fn, 400); }; }; // แก้หลายรายการติดกัน = โหลดครั้งเดียว
+    const onProducts = later(loadProducts);
+    const onPromos = later(() => curTab === 'promos' && loadPromos());
+    const onServices = later(() => curTab === 'services' && loadServices());
+    catalogCh = db.channel('shop-catalog');
+    for (const [table, fn] of [['products', onProducts], ['category_images', onProducts], ['promos', onPromos], ['admin_services', onServices], ['service_subs', onServices]]) {
+      catalogCh.on('postgres_changes', { event: '*', schema: 'public', table }, fn);
+    }
+    catalogCh.subscribe((status, err) => { if (status === 'CHANNEL_ERROR' && /unable to subscribe/i.test(err?.message ?? '')) db.removeChannel(catalogCh); });
+  }
+  resumeAfterUpdate();
 }
 
 // เข้าสู่ระบบอย่างเดียว (ไม่มีสมัครสมาชิก — แอดมินสร้างบัญชีให้ในหน้าแอดมิน → 👤 ผู้ใช้)
@@ -1223,7 +1245,9 @@ $('shopSel').onchange = () => {
 };
 
 for (const b of document.querySelectorAll('.tabs button[data-tab]')) b.onclick = () => setTab(b.dataset.tab);
+let curTab = 'products';
 function setTab(t) {
+  curTab = t;
   for (const b of document.querySelectorAll('.tabs button[data-tab]')) b.setAttribute('aria-pressed', b.dataset.tab === t);
   for (const s of document.querySelectorAll('main > section')) s.hidden = s.id !== 'tab-' + t;
   if (t === 'promos') loadPromos(); // โหลดใหม่ทุกครั้งที่เปิด (แอดมินอาจเพิ่งเพิ่มรูป)
@@ -1240,8 +1264,13 @@ const promoUrl = (path, download) => db.storage.from('promos').getPublicUrl(path
 // ตัดอักษรที่ใช้ในชื่อไฟล์ไม่ได้ + ที่ทำลิงก์พัง (& # + = % — supabase-js ใส่ลงลิงก์โดยไม่ escape)
 const promoFile = (p, path, i) => `${p.title.replace(/[\\/:*?"<>|#&+=%]+/g, '').trim() || 'promo'}-${i + 1}.${path.split('.').pop()}`;
 
+let promoSig = '';
 async function loadPromos() {
   const { data, error } = await db.from('promos').select().order('created_at', { ascending: false });
+  if (error && quiet) return;
+  const sig = JSON.stringify(data);
+  if (!error && sig === promoSig) return; // ไม่มีอะไรเปลี่ยน = ไม่วาดใหม่
+  promoSig = sig;
   promoRows = data ?? [];
   renderPromos(error);
 }
@@ -1307,9 +1336,13 @@ const tickCountdowns = () => { for (const el of document.querySelectorAll('.cd[d
 setInterval(tickCountdowns, 1000);
 const dateTH = (iso) => new Date(iso).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
 
+let svcSig = '';
 async function loadServices() {
   const [s, u] = await Promise.all([db.from('admin_services').select().order('sort'), db.rpc('service_users')]);
-  if (s.error) return $('svcList').replaceChildren(h('p', 'muted', 'โหลดบริการไม่สำเร็จ: ' + s.error.message));
+  if (s.error) return quiet ? undefined : $('svcList').replaceChildren(h('p', 'muted', 'โหลดบริการไม่สำเร็จ: ' + s.error.message));
+  const sig = JSON.stringify([s.data, u.data]);
+  if (sig === svcSig) return; // ไม่มีอะไรเปลี่ยน = ไม่วาดใหม่
+  svcSig = sig;
   svcRows = s.data;
   svcUsers = u.data ?? [];
   $('svcList').replaceChildren(...svcRows.map((v) => {
@@ -1402,7 +1435,7 @@ async function refresh() {
     q(db.from('credit_logs').select('amount, kind').eq('shop_id', id).gte('created_at', monthStart.toISOString()).limit(5000)),
     db.from('pay_account').select().maybeSingle().then(({ data }) => data), // 🏦 บัญชีรับโอน (update-60) · ยังไม่รัน = ไม่แสดง
   ]);
-  if (shop.id !== id) return; // เปลี่ยนร้านระหว่างโหลด
+  if (shop.id !== id || !orders || !claims || !topups || !logs) return; // เปลี่ยนร้านระหว่างโหลด · โหลดไม่สำเร็จ = คงข้อมูลเดิม ไม่ล้างหน้า
   payAcc = pay;
   monthLogs = month ?? [];
   for (const x of s ?? []) {
@@ -1414,9 +1447,10 @@ async function refresh() {
   $('nTopups').textContent = data.topups.filter((t) => t.status === 'pending').length || ''; // แจ้งเติมที่รอตรวจ
   $('bal').textContent = num(shop.credit);
   $('nOrders').textContent = data.orders.filter((o) => o.status === 'pending' || o.status === 'waiting').length || '';
-  loadHist();
+  const hist = loadHist();
   renderCredit();
   if ($('buyDlg').open) renderBuy();
+  await hist;
 }
 
 // ---------- สินค้า ----------
@@ -1426,9 +1460,13 @@ function stockStatus(p) {
   return { key: 'ok', label: 'พร้อมจำหน่าย' };
 }
 
+let productSig = ''; // ข้อมูลสินค้าที่วาดอยู่ (เทียบว่ามีอะไรเปลี่ยนไหม)
 async function loadProducts() {
   const [list, imgs] = await Promise.all([q(db.from('products').select()),
     db.from('category_images').select('*').then(({ data }) => data ?? [])]); // รูป + ลำดับปุ่มหมวด: ไม่มี = ปุ่มพื้นเรียบ เรียงตามชื่อ (ไม่แจ้งเตือน)
+  const sig = JSON.stringify([list, imgs]);
+  if (!list || sig === productSig || arranging) return; // โหลดไม่สำเร็จ / ไม่มีอะไรเปลี่ยน = ไม่วาดใหม่ (ไม่กระพริบ) · กำลังจัดลำดับ = ไม่แทรก
+  productSig = sig;
   // ลำดับที่ Superadmin จัด ขึ้นก่อน · ที่ยังไม่จัด: ป้าย "ขายดี" (ตั้งในหน้า stock) ก่อน → หมวด → ชื่อ
   const hot = (p) => (/ขายดี/.test(p.badge ?? '') ? 0 : 1);
   products = (list ?? []).sort((a, b) => rank(a.sort_order) - rank(b.sort_order) || hot(a) - hot(b)
@@ -1699,8 +1737,8 @@ async function loadHist() {
     : db.from('orders').select('*, products(image_url), claims(*)');
   if (range) qb = qb.gte('created_at', range[0].toISOString()).lt('created_at', range[1].toISOString());
   const rows = await q(qb.eq('shop_id', shop.id).order('created_at', { ascending: false }).limit(range ? HIST_LIMIT : 200));
-  if (ticket !== histTicket) return;
-  histRows = rows ?? [];
+  if (ticket !== histTicket || !rows) return; // โหลดไม่สำเร็จ = คงรายการเดิม
+  histRows = rows;
   renderOrders();
 }
 function showHistCount(n) {
@@ -2096,12 +2134,13 @@ async function loadCrSum() {
   const [y, m] = $('crMonth').value.split('-').map(Number);
   const [from, to] = view === 'day' ? [new Date(y, m - 1, 1), new Date(y, m, 1)]
     : [new Date(now.getFullYear(), now.getMonth() - 11, 1), new Date(now.getFullYear(), now.getMonth() + 1, 1)];
-  $('crSum').replaceChildren(h('p', 'empty', 'กำลังโหลด…'));
+  const background = quiet; // อัปเดตเบื้องหลัง = คงตารางเดิมไว้จนกว่าจะได้ข้อมูลใหม่ (ไม่กระพริบ)
+  if (!background) $('crSum').replaceChildren(h('p', 'empty', 'กำลังโหลด…'));
   const rows = [];
   for (let i = 0; ; i += 1000) {
-    const page = await q(db.from('credit_logs').select('amount, kind, balance, created_at').eq('shop_id', id)
-      .gte('created_at', from.toISOString()).lt('created_at', to.toISOString()).order('created_at').order('id').range(i, i + 999));
-    if (!page) return;
+    const { data: page, error } = await db.from('credit_logs').select('amount, kind, balance, created_at').eq('shop_id', id)
+      .gte('created_at', from.toISOString()).lt('created_at', to.toISOString()).order('created_at').order('id').range(i, i + 999);
+    if (error) { if (!background) $('crSum').replaceChildren(h('p', 'empty', 'โหลดไม่สำเร็จ ลองใหม่อีกครั้ง')); return; }
     rows.push(...page);
     if (page.length < 1000) break;
   }
@@ -3130,6 +3169,60 @@ function fileButton(path, label) {
   };
   return b;
 }
+
+// ---------- อัปเดตเอง ไม่ต้องกด F5 ----------
+// Realtime = ทันที · กันตกหล่น (จอดับ / เน็ตสะดุด / แอดมินซ่อนสินค้า): โหลดใหม่ทุก 1 นาที และตอนกลับมาที่แท็บ
+async function resync() {
+  if (!shop || document.hidden || $('app').hidden) return;
+  quiet = true;
+  try { await Promise.all([refresh(), loadProducts(), curTab === 'promos' && loadPromos(), curTab === 'services' && loadServices()]); }
+  finally { quiet = false; }
+}
+// เว็บมีเวอร์ชันใหม่ → รีโหลดเองแล้วกลับมาที่เดิม · รอจังหวะที่ไม่ได้กรอกอะไรค้าง / ไม่มีหน้าต่างเปิดอยู่
+const pageUrl = location.href.split('#')[0];
+const pageTag = (r) => (r.ok ? r.headers.get('etag') || r.headers.get('last-modified') : null);
+let siteTag = null; // เวอร์ชันของหน้าที่เปิดอยู่
+function busy() {
+  const a = document.activeElement;
+  return !!(document.querySelector('dialog[open]') || arranging || pendingImg || $('chatText').value || $('tAmount').value || $('tSlip').files.length
+    || $('email').value || $('password').value || (a?.matches('input, textarea') && a.value));
+}
+async function checkSite() {
+  try {
+    siteTag ??= pageTag(await fetch(pageUrl, { cache: 'force-cache' }));
+    const now = pageTag(await fetch(pageUrl, { method: 'HEAD', cache: 'no-store' }));
+    if (!siteTag || !now || now === siteTag || busy()) return;
+    if (Date.now() - Number(sessionStorage.getItem('gg-reload') ?? 0) < 300000) return; // กันรีโหลดวนซ้ำ (อย่างมากครั้งละ 5 นาที)
+    sessionStorage.setItem('gg-reload', Date.now());
+    sessionStorage.setItem('gg-resume', JSON.stringify({ at: Date.now(), tab: curTab, chat: !$('chatPop').hidden, y: scrollY }));
+    location.reload();
+  } catch {} // เน็ตสะดุด = ไว้รอบหน้า
+}
+function resumeAfterUpdate() {
+  let r = null;
+  try {
+    r = JSON.parse(sessionStorage.getItem('gg-resume'));
+    sessionStorage.removeItem('gg-resume');
+  } catch {}
+  if (!r || Date.now() - r.at > 60000) return;
+  setTab(r.tab);
+  if (r.chat) setChat(true);
+  setTimeout(() => scrollTo(0, r.y), 800);
+}
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  checkSite();
+  if (Date.now() - hiddenAt < 30000) return;
+  resync(); // หายไปนาน (จอดับ / สลับแอป) → โหลดข้อมูลใหม่ + ข้อความที่พลาดไป
+  if (!chatReady) return;
+  loadThreads();
+  if ($('chatPop').hidden || !thread) return;
+  if (claimOpen) openClaimThread(claimOpen);
+  else openThread(thread);
+});
+setInterval(() => { resync(); checkSite(); }, 60000);
+checkSite();
 
 start();
 </script>
